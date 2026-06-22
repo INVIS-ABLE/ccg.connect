@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { createAuth } from './auth';
-import type { AppEnv, Bindings } from './env';
+import type { AppEnv } from './env';
 import meRoutes from './routes/me';
 import jobRoutes from './routes/jobs';
 import profileRoutes from './routes/profiles';
@@ -9,14 +9,14 @@ import assignmentRoutes from './routes/assignments';
 /**
  * CCG Connect Worker (Hono) — Cloudflare-native backend.
  *
- * As the app is rebuilt off Base44, native routes are served here and enforce
- * authorization server-side (src/domain/permissions). The Base44 proxy fallback
- * remains only until the front-end is fully rebuilt, then it is removed.
+ * Base44 has been fully removed: there is no proxy and no external backend. All
+ * data, auth and logic live here (D1 + Better Auth + these routes), with
+ * authorization enforced server-side (src/domain/permissions).
  *
  *   /api/auth/*   → Better Auth (sign-in/up, OTP, OAuth, session)
  *   /api/me, /api/jobs, /api/profiles, /api/assignments → native, authorized
  *   /api/health   → liveness
- *   /api/*        → (temporary) proxied to Base44 for anything not yet migrated
+ *   /api/*        → 404 (routes are built out slice by slice)
  *   everything else → static assets + SPA fallback
  */
 const app = new Hono<AppEnv>();
@@ -32,36 +32,10 @@ app.route('/api/jobs', jobRoutes);
 app.route('/api/profiles', profileRoutes);
 app.route('/api/assignments', assignmentRoutes);
 
-// Temporary strangler fallback: anything under /api not handled above → Base44.
-app.all('/api/*', (c) => proxyToBase44(c.req.raw, c.env));
+// Unknown API routes are genuine 404s — no Base44 fallback any more.
+app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 
 // Static assets + SPA fallback (handled by the assets binding's not_found_handling).
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
-
-async function proxyToBase44(request: Request, env: Bindings): Promise<Response> {
-  const base = env.BASE44_APP_BASE_URL;
-  if (!base) {
-    return new Response(
-      JSON.stringify({ error: 'BASE44_APP_BASE_URL is not configured for this Worker.' }),
-      { status: 500, headers: { 'content-type': 'application/json' } },
-    );
-  }
-
-  const url = new URL(request.url);
-  const target = base.replace(/\/+$/, '') + url.pathname + url.search;
-
-  const headers = new Headers(request.headers);
-  headers.delete('host');
-
-  const init: RequestInit = {
-    method: request.method,
-    headers,
-    body: ['GET', 'HEAD'].includes(request.method) ? undefined : request.body,
-    redirect: 'manual',
-  };
-  (init as RequestInit & { duplex: 'half' }).duplex = 'half';
-
-  return fetch(target, init);
-}
 
 export default app;
