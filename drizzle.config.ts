@@ -4,7 +4,7 @@ import { defineConfig } from 'drizzle-kit';
 // `drizzle-kit generate` produces SQL migrations from api/db/schema.ts; they are
 // applied to D1 with `npx wrangler d1 migrations apply ccg-connect-db`.
 export default defineConfig({
-  schema: './api/db/schema.ts',
+  schema: ['./api/db/schema.ts', './api/db/auth-schema.ts'],
   out: './api/db/migrations',
   dialect: 'sqlite',
 });
