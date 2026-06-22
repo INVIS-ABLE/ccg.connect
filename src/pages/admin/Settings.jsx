@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { Plus, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PageHeader from '@/components/shared/PageHeader';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Settings() {
   const [credentialTypes, setCredentialTypes] = useState([]);
@@ -52,15 +53,16 @@ export default function Settings() {
               onChange={e => setNewTypeName(e.target.value)}
               className="flex-1"
             />
-            <select
-              value={newTypeCategory}
-              onChange={e => setNewTypeCategory(e.target.value)}
-              className="px-3 py-2 border border-input rounded-md text-sm bg-background"
-            >
-              {['safety_card', 'gas_registration', 'trade_qualification', 'working_at_height', 'asbestos', 'first_aid', 'management', 'insurance', 'other'].map(c => (
-                <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
+            <Select value={newTypeCategory} onValueChange={setNewTypeCategory}>
+              <SelectTrigger className="w-44">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {['safety_card', 'gas_registration', 'trade_qualification', 'working_at_height', 'asbestos', 'first_aid', 'management', 'insurance', 'other'].map(c => (
+                  <SelectItem key={c} value={c}>{c.replace(/_/g, ' ')}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button onClick={handleAddType} disabled={saving || !newTypeName} size="sm" className="gap-1">
               <Plus className="w-4 h-4" /> Add
             </Button>

@@ -104,9 +104,51 @@
   }
   body {
     @apply bg-background text-foreground font-body;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+    /* Safe area insets for iOS notch / home indicator */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
+  }
+  /* Prevent text selection on interactive UI elements */
+  button, a, nav, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+/* Auto dark mode via prefers-color-scheme */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --background: 220 18% 9%;
+    --foreground: 220 15% 92%;
+    --card: 220 18% 12%;
+    --card-foreground: 220 15% 92%;
+    --popover: 220 18% 12%;
+    --popover-foreground: 220 15% 92%;
+    --primary: 28 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 42% 22%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 18% 18%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 220 18% 20%;
+    --accent-foreground: 220 15% 92%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 18% 22%;
+    --input: 220 18% 22%;
+    --ring: 28 95% 53%;
+    --sidebar-background: 220 18% 9%;
+    --sidebar-foreground: 220 15% 68%;
+    --sidebar-accent: 220 18% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 18% 15%;
   }
 }
 
