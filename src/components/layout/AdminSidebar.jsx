@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Target, Users, Building2,
   ShieldCheck, MessageSquare, Clock, FileText, BarChart3,
-  Settings, ChevronRight, Bell, LogOut, Menu
+  Settings, ChevronRight, Bell, LogOut, Menu, CalendarDays
 } from 'lucide-react';
 import { HardHat } from 'lucide-react';
 import { useState } from 'react';
@@ -21,6 +21,7 @@ const navItems = [
   { path: '/invoices', icon: FileText, label: 'Invoices' },
   { path: '/reports', icon: BarChart3, label: 'Reports' },
   { path: '/leads', icon: Users, label: 'Leads' },
+  { path: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 

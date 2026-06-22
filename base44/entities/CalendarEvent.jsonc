@@ -1,0 +1,72 @@
+{
+  "name": "CalendarEvent",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "job_start",
+        "job_end",
+        "site_visit",
+        "contractor_unavailable",
+        "client_meeting",
+        "compliance_deadline",
+        "other"
+      ],
+      "default": "other"
+    },
+    "start_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "end_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "all_day": {
+      "type": "boolean",
+      "default": false
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "contractor_id": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "colour": {
+      "type": "string",
+      "default": "orange"
+    },
+    "visible_to_contractor": {
+      "type": "boolean",
+      "default": true
+    },
+    "visible_to_client": {
+      "type": "boolean",
+      "default": false
+    },
+    "created_by": {
+      "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "start_datetime"
+  ]
+}

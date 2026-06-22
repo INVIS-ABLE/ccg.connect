@@ -33,9 +33,11 @@ import Invoices from '@/pages/admin/Invoices';
 import Reports from '@/pages/admin/Reports';
 import Leads from '@/pages/admin/Leads';
 import Settings from '@/pages/admin/Settings';
+import CalendarPage from '@/pages/admin/Calendar';
 
 // Contractor pages
 import ContractorHome from '@/pages/contractor/ContractorHome';
+import ContractorCalendar from '@/pages/contractor/ContractorCalendar';
 import ContractorJobs from '@/pages/contractor/ContractorJobs';
 import ContractorTimesheets from '@/pages/contractor/ContractorTimesheets';
 import ContractorMedia from '@/pages/contractor/ContractorMedia';
@@ -95,12 +97,14 @@ const AuthenticatedApp = () => {
           <Route path="/reports" element={<Reports />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/calendar" element={<CalendarPage />} />
 
           {/* Contractor */}
           <Route path="/contractor" element={<ContractorHome />} />
           <Route path="/contractor/jobs" element={<ContractorJobs />} />
           <Route path="/contractor/timesheets" element={<ContractorTimesheets />} />
           <Route path="/contractor/media" element={<ContractorMedia />} />
+          <Route path="/contractor/calendar" element={<ContractorCalendar />} />
           <Route path="/contractor/profile" element={<ContractorProfile />} />
 
           {/* Client */}

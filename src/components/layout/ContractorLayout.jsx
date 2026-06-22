@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Clock, Camera, User } from 'lucide-react';
+import { LayoutDashboard, Briefcase, Clock, Camera, User, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const tabs = [
   { path: '/contractor', icon: LayoutDashboard, label: 'Home' },
-  { path: '/contractor/jobs', icon: Briefcase, label: 'My Jobs' },
-  { path: '/contractor/timesheets', icon: Clock, label: 'Timesheets' },
+  { path: '/contractor/jobs', icon: Briefcase, label: 'Jobs' },
+  { path: '/contractor/calendar', icon: CalendarDays, label: 'Schedule' },
+  { path: '/contractor/timesheets', icon: Clock, label: 'Time' },
   { path: '/contractor/media', icon: Camera, label: 'Photos' },
   { path: '/contractor/profile', icon: User, label: 'Profile' },
 ];
@@ -15,12 +16,14 @@ export default function ContractorLayout({ children }) {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      <header className="flex items-center px-4 py-3 bg-[hsl(210,22%,14%)] border-b border-white/10 flex-shrink-0">
+      <header className="flex items-center px-4 py-3 bg-[#0e1117] border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-primary rounded flex items-center justify-center">
-            <span className="text-white text-xs font-bold">C</span>
-          </div>
-          <span className="text-white font-bold text-sm">CCG Connect</span>
+          <img
+            src="https://media.base44.com/images/public/6a388c0a71495eb772ec6ebb/fe81b6bc2_cookconstructiongrowthlogo.png"
+            alt="CCG"
+            className="h-7 w-auto object-contain"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
         </div>
       </header>
 
