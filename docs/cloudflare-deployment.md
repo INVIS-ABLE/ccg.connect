@@ -64,6 +64,28 @@ This is the field that takes a **full URL** (with `https://`, dots and all).
 No CORS allow-list is needed because the browser only ever calls its own origin
 (`/api/*`), which the Function proxies server-side.
 
+## Domains — do I need to buy anything?
+
+**No.** Every Pages project gets a free, production-ready subdomain automatically,
+e.g. `ccg-connect.pages.dev`. It has HTTPS, the PWA installs from it, and auth
+works once the URL is registered in Base44 (see below). You can launch on this at
+zero cost.
+
+A custom domain is **optional** and only about branding:
+
+- You don't "buy a subdomain" on its own — you register a **domain** (e.g.
+  `cookconstructiongrowth.co.uk`), and subdomains of it (`app.cookconstructiongrowth.co.uk`)
+  are then free to create.
+- **Already own the domain** → add the `app.` subdomain for free under *Custom
+  domain* below. The only thing that ever costs money is registering a brand-new
+  domain.
+
+Recommended path: go live on the free `*.pages.dev` URL now, attach the custom
+domain when ready — the switch is non-disruptive.
+
+> Whatever URL you use (`*.pages.dev` and/or the custom domain) **must** be added to
+> Base44's allowed login/redirect URLs, or sign-in fails after the redirect.
+
 ## Custom domain — `app.cookconstructiongrowth.co.uk`
 
 CCG Connect is served as the **`app.` subdomain** of the marketing site
