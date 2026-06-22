@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { ShieldCheck, AlertTriangle, Clock, CheckCircle, XCircle, Search } from 'lucide-react';
+import { AlertTriangle, Clock, CheckCircle, XCircle, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';

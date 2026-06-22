@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { ShieldAlert, ArrowRight, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, ArrowRight } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 
 const urgencyStyle = (days) => {

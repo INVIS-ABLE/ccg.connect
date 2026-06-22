@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Printer, Download } from 'lucide-react';
+import { Loader2, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function InvoiceTemplateModal({ invoice, onClose }) {

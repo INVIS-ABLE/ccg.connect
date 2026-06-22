@@ -1,3 +1,13 @@
+// Role logic has a single source of truth in the typed domain module.
+// This file keeps the legacy `@/lib/roles` import surface working and adds the
+// UI-only status/colour maps.
+import {
+  isAdminRole,
+  isOwnerRole,
+  isContractorRole,
+  isClientRole,
+} from '@/domain/auth/roles';
+
 export const ROLES = {
   OWNER: 'owner',
   OPS_ADMIN: 'ops_admin',
@@ -5,10 +15,10 @@ export const ROLES = {
   CLIENT: 'client',
 };
 
-export const isAdmin = (role) => role === ROLES.OWNER || role === ROLES.OPS_ADMIN;
-export const isOwner = (role) => role === ROLES.OWNER;
-export const isContractor = (role) => role === ROLES.CONTRACTOR;
-export const isClient = (role) => role === ROLES.CLIENT;
+export const isAdmin = isAdminRole;
+export const isOwner = isOwnerRole;
+export const isContractor = isContractorRole;
+export const isClient = isClientRole;
 
 export const JOB_STATUSES = {
   new_lead: { label: 'New Lead', color: 'bg-blue-100 text-blue-800' },
