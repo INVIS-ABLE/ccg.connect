@@ -14,7 +14,8 @@ token/redirect flow keeps working. It is also an installable **PWA**.
 | File | Purpose |
 | --- | --- |
 | `vite.config.js` (`VitePWA`) | Generates `manifest.webmanifest` + service worker (`sw.js`). App-shell precache only; **never** caches `/api`. |
-| `public/icon.svg`, `maskable-icon.svg`, `favicon.svg` | App icons (SVG). See *iOS icons* below. |
+| `public/icon.svg`, `maskable-icon.svg`, `favicon.svg` | Scalable app icons (Android/Chrome/desktop). |
+| `public/pwa-192.png`, `pwa-512.png`, `pwa-maskable-{192,512}.png`, `apple-touch-icon.png` | Branded PNG icons (iOS home-screen + broad install compatibility). |
 | `functions/api/[[path]].js` | Pages Function proxying `/api/*` → Base44. |
 | `public/_redirects` | SPA fallback (`/* /index.html 200`). |
 | `public/_headers` | No-cache for `sw.js`/manifest + baseline security headers. |
@@ -54,26 +55,46 @@ redirect URLs** so the auth round-trip can return to the app:
 No CORS allow-list is needed because the browser only ever calls its own origin
 (`/api/*`), which the Function proxies server-side.
 
-## Custom domain
+## Custom domain — `app.cookconstructiongrowth.com`
 
-Pages → your project → **Custom domains** → add the domain and follow the DNS
-steps. Then add the same origin to Base44's allowed redirect URLs.
+CCG Connect is served as the **`app.` subdomain** of the marketing site
+(`cookconstructiongrowth.com`, a separate Cloudflare project). The two stay
+independent — this is just a DNS subdomain pointed at this Pages project.
 
-## iOS icons (optional polish)
+1. Pages → this project → **Custom domains** → **Set up a custom domain**.
+2. Enter `app.cookconstructiongrowth.com`. If the apex `cookconstructiongrowth.com`
+   zone is already on Cloudflare, the required `CNAME` (`app` →
+   `<project>.pages.dev`) is added automatically; otherwise add it at your DNS
+   provider as shown.
+3. Wait for the certificate to be issued (status → **Active**).
+4. In **Base44 app settings**, add `https://app.cookconstructiongrowth.com` to the
+   allowed login / redirect URLs (alongside `https://<project>.pages.dev` and any
+   preview origins) so the auth round-trip returns to the app.
 
-The manifest uses SVG icons, which Android/Chrome/desktop use for install. iOS
-home-screen icons require PNG. To get a crisp iOS icon, generate PNGs from
-`public/icon.svg` and add them, then reference a `180×180` `apple-touch-icon.png`
-in `index.html`:
+The marketing site links here via its `NEXT_PUBLIC_PORTAL_URL` env var (defaults
+to `https://app.cookconstructiongrowth.com`) — see that repo's README.
+
+## App icons
+
+Both scalable SVG icons and branded PNG icons are committed under `public/` and
+wired into `manifest.icons` / `includeAssets` in `vite.config.js`:
+
+- **SVG** (`icon.svg`, `maskable-icon.svg`, `favicon.svg`) — used by
+  Android/Chrome/desktop install.
+- **PNG** (`pwa-192.png`, `pwa-512.png`, `pwa-maskable-{192,512}.png`,
+  `apple-touch-icon.png`) — required for iOS home-screen and broad compatibility.
+  `apple-touch-icon.png` (180×180) is referenced from `index.html`.
+
+To regenerate the PNGs after editing the SVG source, rasterise the brand artwork
+(any of `rsvg-convert`, `sharp`, or Pillow works), keeping the maskable glyph
+inside the ~80% safe zone, e.g.:
 
 ```bash
-# example, requires a rasteriser such as rsvg-convert or sharp
-rsvg-convert -w 180 -h 180 public/icon.svg > public/apple-touch-icon.png
 rsvg-convert -w 192 -h 192 public/icon.svg > public/pwa-192.png
 rsvg-convert -w 512 -h 512 public/icon.svg > public/pwa-512.png
+rsvg-convert -w 180 -h 180 public/icon.svg > public/apple-touch-icon.png
+rsvg-convert -w 512 -h 512 public/maskable-icon.svg > public/pwa-maskable-512.png
 ```
-
-Add the PNGs to the `manifest.icons` array in `vite.config.js` alongside the SVGs.
 
 ## Verifying the PWA
 
