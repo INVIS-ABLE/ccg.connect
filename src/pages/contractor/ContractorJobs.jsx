@@ -52,7 +52,7 @@ export default function ContractorJobs() {
             const job = a.job;
             const s = JOB_STATUSES[job.status];
             return (
-              <Link key={a.id} to={`/contractor/jobs/${job.id}`} className="block bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
+              <Link key={a.id} to={`/contractor/job/${job.id}`} className="block bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors">
                 <div className="flex items-start justify-between mb-2">
                   <h3 className="text-sm font-semibold">{job.title}</h3>
                   {s && <StatusBadge label={s.label} color={s.color} />}

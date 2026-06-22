@@ -8,6 +8,8 @@ import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { JOB_STATUSES } from '@/lib/roles';
 import { toast } from 'sonner';
+import JobNotesSection from '@/components/jobs/JobNotesSection';
+import VoiceToolbar from '@/components/voice/VoiceToolbar';
 
 // Ordered workflow pipeline shown visually
 const PIPELINE = [
@@ -188,6 +190,19 @@ export default function JobDetail() {
           <p className="text-sm text-muted-foreground">{job.short_description}</p>
         </div>
       )}
+
+      {/* Notes section */}
+      <div className="mt-4">
+        <JobNotesSection
+          jobId={job.id}
+          existingNotes={job.internal_notes}
+          userRole="admin"
+          onSaved={(notes) => setJob(j => ({ ...j, internal_notes: notes }))}
+        />
+      </div>
+
+      {/* Voice toolbar */}
+      <VoiceToolbar />
     </div>
   );
 }

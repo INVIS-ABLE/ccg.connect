@@ -43,6 +43,7 @@ import ContractorJobs from '@/pages/contractor/ContractorJobs';
 import ContractorTimesheets from '@/pages/contractor/ContractorTimesheets';
 import ContractorMedia from '@/pages/contractor/ContractorMedia';
 import ContractorProfile from '@/pages/contractor/ContractorProfile';
+import ContractorJobDetail from '@/pages/contractor/ContractorJobDetail';
 
 // Client pages
 import ClientHome from '@/pages/client/ClientHome';
@@ -108,6 +109,7 @@ const AuthenticatedApp = () => {
           <Route path="/contractor/media" element={<ContractorMedia />} />
           <Route path="/contractor/calendar" element={<ContractorCalendar />} />
           <Route path="/contractor/profile" element={<ContractorProfile />} />
+          <Route path="/contractor/job/:id" element={<ContractorJobDetail />} />
 
           {/* Client */}
           <Route path="/client" element={<ClientHome />} />

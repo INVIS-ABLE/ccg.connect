@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Search } from 'lucide-react';
+import { Search, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { TIMESHEET_STATUSES } from '@/lib/roles';
+import TimesheetDetailModal from '@/components/timesheets/TimesheetDetailModal';
 
 const STATUS_FILTERS = ['all', 'submitted', 'needs_correction', 'approved', 'paid', 'disputed'];
 
@@ -14,13 +14,16 @@ export default function Timesheets() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedId, setSelectedId] = useState(null);
 
-  useEffect(() => {
+  const loadTimesheets = () => {
     base44.entities.Timesheet.list('-created_date', 100).then(data => {
       setTimesheets(data);
       setLoading(false);
     });
-  }, []);
+  };
+
+  useEffect(() => { loadTimesheets(); }, []);
 
   const filtered = timesheets.filter(t => {
     const matchSearch = !search || t.week_start?.includes(search) || t.job_id?.includes(search);
@@ -28,21 +31,18 @@ export default function Timesheets() {
     return matchSearch && matchStatus;
   });
 
-  const handleApprove = async (id) => {
-    await base44.entities.Timesheet.update(id, { status: 'approved', reviewed_at: new Date().toISOString() });
-    setTimesheets(prev => prev.map(t => t.id === id ? { ...t, status: 'approved' } : t));
-  };
-
-  const handleReject = async (id) => {
-    const reason = prompt('Reason for correction:');
-    if (!reason) return;
-    await base44.entities.Timesheet.update(id, { status: 'needs_correction', rejection_reason: reason });
-    setTimesheets(prev => prev.map(t => t.id === id ? { ...t, status: 'needs_correction' } : t));
-  };
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       <PageHeader title="Timesheets" subtitle={`${timesheets.length} total timesheets`} />
+
+      {selectedId && (
+        <TimesheetDetailModal
+          timesheetId={selectedId}
+          onClose={() => setSelectedId(null)}
+          onUpdated={loadTimesheets}
+        />
+      )}
 
       <div className="flex gap-2 mb-4">
         <div className="relative flex-1">
@@ -71,7 +71,7 @@ export default function Timesheets() {
               {filtered.map(t => {
                 const s = TIMESHEET_STATUSES[t.status];
                 return (
-                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                  <div key={t.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedId(t.id)}>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">Week of {t.week_start}</p>
                       <p className="text-xs text-muted-foreground">
@@ -80,11 +80,9 @@ export default function Timesheets() {
                     </div>
                     {s && <StatusBadge label={s.label} color={s.color} />}
                     {t.status === 'submitted' && (
-                      <div className="flex gap-1 ml-2">
-                        <button onClick={() => handleApprove(t.id)} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded font-medium hover:bg-green-200">Approve</button>
-                        <button onClick={() => handleReject(t.id)} className="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded font-medium hover:bg-amber-200">Return</button>
-                      </div>
+                      <span className="text-xs text-primary font-medium ml-1">Review →</span>
                     )}
+                    <Eye className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   </div>
                 );
               })}
