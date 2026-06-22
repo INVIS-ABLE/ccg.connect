@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Search, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { TIMESHEET_STATUSES } from '@/lib/roles';
 import TimesheetDetailModal from '@/components/timesheets/TimesheetDetailModal';
+import PullToRefresh from '@/components/shared/PullToRefresh';
 
 const STATUS_FILTERS = ['all', 'submitted', 'needs_correction', 'approved', 'paid', 'disputed'];
 
@@ -16,14 +17,14 @@ export default function Timesheets() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
 
-  const loadTimesheets = () => {
+  const loadTimesheets = useCallback(() => {
     base44.entities.Timesheet.list('-created_date', 100).then(data => {
       setTimesheets(data);
       setLoading(false);
     });
-  };
+  }, []);
 
-  useEffect(() => { loadTimesheets(); }, []);
+  useEffect(() => { loadTimesheets(); }, [loadTimesheets]);
 
   const filtered = timesheets.filter(t => {
     const matchSearch = !search || t.week_start?.includes(search) || t.job_id?.includes(search);
@@ -60,6 +61,7 @@ export default function Timesheets() {
         ))}
       </div>
 
+      <PullToRefresh onRefresh={loadTimesheets}>
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}</div>
       ) : (
@@ -90,6 +92,7 @@ export default function Timesheets() {
           )}
         </div>
       )}
+      </PullToRefresh>
     </div>
   );
 }

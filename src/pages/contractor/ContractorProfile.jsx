@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { LogOut, ShieldCheck } from 'lucide-react';
+import { LogOut, ShieldCheck, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import PageHeader from '@/components/shared/PageHeader';
 import { APPROVAL_STATUSES, CREDENTIAL_STATUSES } from '@/lib/roles';
 import StatusBadge from '@/components/shared/StatusBadge';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function ContractorProfile() {
   const [user, setUser] = useState(null);
@@ -112,9 +116,42 @@ export default function ContractorProfile() {
         </div>
       )}
 
-      <Button variant="outline" className="w-full gap-2" onClick={() => base44.auth.logout()}>
+      <Button variant="outline" className="w-full gap-2 mb-3" onClick={() => base44.auth.logout()}>
         <LogOut className="w-4 h-4" /> Sign Out
       </Button>
+
+      {/* Delete Account */}
+      <div className="bg-card border border-destructive/30 rounded-xl p-4">
+        <h2 className="text-sm font-semibold text-destructive mb-1">Danger Zone</h2>
+        <p className="text-xs text-muted-foreground mb-3">Deleting your account is permanent and cannot be undone. All your data will be removed.</p>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" className="w-full gap-2">
+              <Trash2 className="w-4 h-4" /> Delete Account
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action is permanent. Your contractor profile, credentials, and all associated data will be removed. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={async () => {
+                  if (profile?.id) await base44.entities.ContractorProfile.update(profile.id, { archived: true });
+                  base44.auth.logout();
+                }}
+              >
+                Yes, delete my account
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 }

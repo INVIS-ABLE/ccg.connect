@@ -1,8 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Target, Users, Building2,
   ShieldCheck, MessageSquare, Clock, FileText, BarChart3,
-  Settings, ChevronRight, Bell, LogOut, Menu, CalendarDays
+  Settings, ChevronRight, Bell, LogOut, Menu, CalendarDays, ChevronLeft
 } from 'lucide-react';
 import { HardHat } from 'lucide-react';
 import { useState } from 'react';
@@ -25,9 +25,13 @@ const navItems = [
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
+const NAV_ROOTS = new Set(['/', '/jobs', '/match-centre', '/contractors', '/clients', '/compliance', '/messages', '/timesheets', '/invoices', '/reports', '/leads', '/calendar', '/settings']);
+
 export default function AdminSidebar({ userProfile, children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isChildScreen = !NAV_ROOTS.has(location.pathname);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
@@ -98,10 +102,16 @@ export default function AdminSidebar({ userProfile, children }) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-[#0e1117] border-b border-white/10 flex-shrink-0">
-          <button onClick={() => setMobileOpen(true)} className="text-white">
-            <Menu className="w-5 h-5" />
-          </button>
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-[#0e1117] border-b border-white/10 flex-shrink-0" style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}>
+          {isChildScreen ? (
+            <button onClick={() => navigate(-1)} className="text-white/70 hover:text-white" aria-label="Go back">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          ) : (
+            <button onClick={() => setMobileOpen(true)} className="text-white">
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
           <div className="flex items-center gap-2">
             <img
               src="https://media.base44.com/images/public/6a388c0a71495eb772ec6ebb/fe81b6bc2_cookconstructiongrowthlogo.png"
@@ -110,11 +120,13 @@ export default function AdminSidebar({ userProfile, children }) {
               style={{ filter: 'brightness(0) invert(1)' }}
             />
           </div>
-          <div className="ml-auto">
-            <Link to="/notifications" className="text-white/70 hover:text-white">
-              <Bell className="w-5 h-5" />
-            </Link>
-          </div>
+          {!isChildScreen && (
+            <div className="ml-auto">
+              <Link to="/notifications" className="text-white/70 hover:text-white">
+                <Bell className="w-5 h-5" />
+              </Link>
+            </div>
+          )}
         </header>
         <main className="flex-1 overflow-y-auto">
           {children}
