@@ -6,95 +6,95 @@
 
 @layer base {
   :root {
-    /* CCG Brand Colours */
-    --background: 30 20% 97%;
-    --foreground: 210 20% 12%;
+    /* CCG Brand — matches cookconstructiongrowth.co.uk */
+    --background: 220 15% 97%;
+    --foreground: 220 20% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 20% 12%;
+    --card-foreground: 220 20% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 20% 12%;
+    --popover-foreground: 220 20% 10%;
 
-    /* Safety Orange */
-    --primary: 24 95% 50%;
+    /* CCG Orange — primary CTA */
+    --primary: 28 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    /* Deep Navy */
-    --secondary: 220 40% 18%;
+    /* CCG Deep Navy */
+    --secondary: 214 42% 18%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 15% 93%;
-    --muted-foreground: 210 10% 45%;
+    --muted: 220 12% 93%;
+    --muted-foreground: 220 10% 45%;
 
-    --accent: 210 15% 90%;
-    --accent-foreground: 210 20% 12%;
+    --accent: 28 90% 95%;
+    --accent-foreground: 28 95% 40%;
 
     --destructive: 0 80% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 15% 87%;
-    --input: 210 15% 87%;
-    --ring: 24 95% 50%;
+    --border: 220 15% 87%;
+    --input: 220 15% 87%;
+    --ring: 28 95% 53%;
 
     --radius: 0.5rem;
 
-    /* Status Colours */
+    /* Status */
     --status-green: 142 70% 35%;
     --status-amber: 38 90% 48%;
     --status-red: 0 78% 50%;
 
-    /* Nav */
-    --nav-bg: 210 22% 14%;
-    --nav-fg: 210 20% 75%;
-    --nav-active: 24 95% 50%;
+    /* Sidebar — dark charcoal matching website */
+    --nav-bg: 220 18% 11%;
+    --nav-fg: 220 15% 68%;
+    --nav-active: 28 95% 53%;
+
+    --sidebar-background: 220 18% 11%;
+    --sidebar-foreground: 220 15% 68%;
+    --sidebar-primary: 28 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 18% 17%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 18% 17%;
+    --sidebar-ring: 28 95% 53%;
 
     --font-heading: 'Inter', ui-sans-serif, system-ui, sans-serif;
     --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
     --font-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-    --sidebar-background: 210 22% 14%;
-    --sidebar-foreground: 210 20% 75%;
-    --sidebar-primary: 24 95% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 20% 20%;
-    --sidebar-ring: 24 95% 50%;
-
-    --chart-1: 24 95% 50%;
-    --chart-2: 220 40% 18%;
+    --chart-1: 28 95% 53%;
+    --chart-2: 214 42% 18%;
     --chart-3: 142 70% 35%;
     --chart-4: 38 90% 48%;
     --chart-5: 0 78% 50%;
   }
 
   .dark {
-    --background: 210 22% 10%;
-    --foreground: 210 20% 92%;
-    --card: 210 22% 14%;
-    --card-foreground: 210 20% 92%;
-    --popover: 210 22% 14%;
-    --popover-foreground: 210 20% 92%;
-    --primary: 24 95% 50%;
+    --background: 220 18% 9%;
+    --foreground: 220 15% 92%;
+    --card: 220 18% 12%;
+    --card-foreground: 220 15% 92%;
+    --popover: 220 18% 12%;
+    --popover-foreground: 220 15% 92%;
+    --primary: 28 95% 53%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 40% 22%;
+    --secondary: 214 42% 22%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 210 22% 18%;
-    --muted-foreground: 210 10% 55%;
-    --accent: 210 22% 20%;
-    --accent-foreground: 210 20% 92%;
+    --muted: 220 18% 18%;
+    --muted-foreground: 220 10% 55%;
+    --accent: 220 18% 20%;
+    --accent-foreground: 220 15% 92%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 22%;
-    --input: 210 20% 22%;
-    --ring: 24 95% 50%;
-    --sidebar-background: 210 22% 10%;
-    --sidebar-foreground: 210 20% 75%;
-    --sidebar-accent: 210 22% 16%;
+    --border: 220 18% 22%;
+    --input: 220 18% 22%;
+    --ring: 28 95% 53%;
+    --sidebar-background: 220 18% 9%;
+    --sidebar-foreground: 220 15% 68%;
+    --sidebar-accent: 220 18% 14%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 210 20% 18%;
+    --sidebar-border: 220 18% 15%;
   }
 }
 
@@ -102,11 +102,9 @@
   * {
     @apply border-border outline-ring/50;
   }
-
   body {
     @apply bg-background text-foreground font-body;
   }
-
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
   }

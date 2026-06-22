@@ -2,8 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Briefcase, Target, Users, Building2,
   ShieldCheck, MessageSquare, Clock, FileText, BarChart3,
-  Settings, ChevronRight, HardHat, Bell, LogOut, Menu
+  Settings, ChevronRight, Bell, LogOut, Menu
 } from 'lucide-react';
+import { HardHat } from 'lucide-react';
 import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
@@ -29,14 +30,13 @@ export default function AdminSidebar({ userProfile, children }) {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10">
-        <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-          <HardHat className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <div className="text-white font-bold text-sm leading-tight">CCG Connect</div>
-          <div className="text-white/50 text-xs">Cook Construction Growth</div>
-        </div>
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
+        <img
+          src="https://media.base44.com/images/public/6a388c0a71495eb772ec6ebb/fe81b6bc2_cookconstructiongrowthlogo.png"
+          alt="Cook Construction Growth"
+          className="h-9 w-auto object-contain"
+          style={{ filter: 'brightness(0) invert(1)' }}
+        />
       </div>
 
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
@@ -83,29 +83,31 @@ export default function AdminSidebar({ userProfile, children }) {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      <aside className="hidden lg:flex flex-col w-56 bg-[hsl(210,22%,14%)] flex-shrink-0">
+      <aside className="hidden lg:flex flex-col w-56 bg-[#0e1117] flex-shrink-0">
         <SidebarContent />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setMobileOpen(false)}>
           <div className="absolute inset-0 bg-black/50" />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-[hsl(210,22%,14%)] z-50" onClick={e => e.stopPropagation()}>
+          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-[#0e1117] z-50" onClick={e => e.stopPropagation()}>
             <SidebarContent />
           </aside>
         </div>
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-[hsl(210,22%,14%)] border-b border-white/10 flex-shrink-0">
+        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-[#0e1117] border-b border-white/10 flex-shrink-0">
           <button onClick={() => setMobileOpen(true)} className="text-white">
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-              <HardHat className="w-3.5 h-3.5 text-white" />
-            </div>
-            <span className="text-white font-bold text-sm">CCG Connect</span>
+            <img
+              src="https://media.base44.com/images/public/6a388c0a71495eb772ec6ebb/fe81b6bc2_cookconstructiongrowthlogo.png"
+              alt="CCG"
+              className="h-7 w-auto object-contain"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
           </div>
           <div className="ml-auto">
             <Link to="/notifications" className="text-white/70 hover:text-white">

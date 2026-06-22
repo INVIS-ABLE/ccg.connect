@@ -8,6 +8,9 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
+// Splash
+import SplashScreen from '@/pages/SplashScreen';
+
 // Auth pages
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -67,6 +70,9 @@ const AuthenticatedApp = () => {
 
   return (
     <Routes>
+      {/* Splash */}
+      <Route path="/splash" element={<SplashScreen />} />
+
       {/* Public auth routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
