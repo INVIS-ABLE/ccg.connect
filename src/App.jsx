@@ -23,6 +23,7 @@ import RootLayout from '@/components/RootLayout';
 // Admin pages
 import Dashboard from '@/pages/admin/Dashboard';
 import Jobs from '@/pages/admin/Jobs';
+import JobDetail from '@/pages/admin/JobDetail';
 import MatchCentre from '@/pages/admin/MatchCentre';
 import Contractors from '@/pages/admin/Contractors';
 import Clients from '@/pages/admin/Clients';
@@ -87,6 +88,7 @@ const AuthenticatedApp = () => {
           {/* Admin */}
           <Route path="/" element={<Dashboard />} />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/match-centre" element={<MatchCentre />} />
           <Route path="/contractors" element={<Contractors />} />
           <Route path="/clients" element={<Clients />} />

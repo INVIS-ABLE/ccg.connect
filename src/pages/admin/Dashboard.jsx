@@ -6,6 +6,7 @@ import StatCard from '@/components/shared/StatCard';
 import PageHeader from '@/components/shared/PageHeader';
 import { JOB_STATUSES, TIMESHEET_STATUSES } from '@/lib/roles';
 import StatusBadge from '@/components/shared/StatusBadge';
+import ExpiringCredentialsPanel from '@/components/dashboard/ExpiringCredentialsPanel';
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState([]);
@@ -96,7 +97,7 @@ export default function Dashboard() {
             {jobs.slice(0, 6).map(job => {
               const s = JOB_STATUSES[job.status];
               return (
-                <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors">
+                <Link key={job.id} to={`/jobs/${job.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors" onClick={e => e.stopPropagation()}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{job.title}</p>
                     <p className="text-xs text-muted-foreground truncate">{job.site_postcode || 'No postcode'}</p>
@@ -111,8 +112,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Actions + Pending Items */}
+        {/* Expiring Credentials + Quick Actions + Pending Items */}
         <div className="space-y-6">
+        <ExpiringCredentialsPanel />
           {/* Pending Contractors */}
           {pendingContractors.length > 0 && (
             <div className="bg-card border border-border rounded-xl overflow-hidden">
