@@ -48,3 +48,62 @@ export interface JobAssignment {
   planned_start: string | null;
   planned_finish: string | null;
 }
+
+export interface Contractor {
+  id: string;
+  user_id: string;
+  trading_name: string | null;
+  legal_name: string | null;
+  primary_trade: string | null;
+  base_postcode: string | null;
+  approval_status: 'pending' | 'approved' | 'suspended' | 'rejected' | 'archived';
+  preferred_contractor: boolean;
+  day_rate: number | null;
+  hourly_rate: number | null;
+}
+
+export interface Lead {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string;
+  phone: string | null;
+  site_postcode: string | null;
+  work_type: string | null;
+  description: string | null;
+  status: 'new' | 'contacted' | 'qualified' | 'converted' | 'rejected';
+  created_at: string;
+}
+
+export interface Timesheet {
+  id: string;
+  job_id: string;
+  contractor_id: string;
+  week_start: string;
+  status: string;
+  total_hours: number | null;
+  total_amount: number | null;
+}
+
+export interface Invoice {
+  id: string;
+  job_id: string;
+  contractor_id: string | null;
+  client_id: string | null;
+  invoice_number: string | null;
+  invoice_type: 'contractor_to_ccg' | 'ccg_to_client';
+  net_amount: number | null;
+  vat_amount: number | null;
+  gross_amount: number | null;
+  status: string;
+}
+
+export interface MatchCandidate {
+  contractor_id: string;
+  trading_name: string | null;
+  eligible: boolean;
+  totalScore: number;
+  breakdown: { skill: number; distance: number; availability: number; credential: number; preference: number };
+  distanceMiles: number | null;
+  reasons: string[];
+}
