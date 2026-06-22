@@ -20,9 +20,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      // SVG icons are precached so install/offline works; drop in branded PNGs
-      // (see docs/cloudflare-deployment.md) for the best iOS home-screen result.
-      includeAssets: ['favicon.svg', 'icon.svg', 'maskable-icon.svg'],
+      // Precache both the scalable SVGs (Android/Chrome/desktop) and the branded
+      // PNGs (iOS home-screen + broadest install compatibility) so install and
+      // offline work everywhere. See docs/cloudflare-deployment.md.
+      includeAssets: [
+        'favicon.svg', 'icon.svg', 'maskable-icon.svg',
+        'apple-touch-icon.png', 'pwa-192.png', 'pwa-512.png',
+        'pwa-maskable-192.png', 'pwa-maskable-512.png',
+      ],
       manifest: {
         name: 'CCG Connect',
         short_name: 'CCG Connect',
@@ -34,7 +39,12 @@ export default defineConfig({
         orientation: 'portrait',
         background_color: '#13161B',
         theme_color: '#F98015',
+        // PNGs first for the widest install compatibility; SVGs as scalable fallback.
         icons: [
+          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'pwa-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: 'maskable-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
