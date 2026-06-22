@@ -8,6 +8,8 @@ import assignmentRoutes from './routes/assignments';
 import leadRoutes from './routes/leads';
 import contractorRoutes from './routes/contractors';
 import matchRoutes from './routes/match';
+import timesheetRoutes from './routes/timesheets';
+import invoiceRoutes from './routes/invoices';
 
 /**
  * CCG Connect Worker (Hono) — Cloudflare-native backend.
@@ -37,6 +39,8 @@ app.route('/api/assignments', assignmentRoutes);
 app.route('/api/leads', leadRoutes);
 app.route('/api/contractors', contractorRoutes);
 app.route('/api/match', matchRoutes);
+app.route('/api/timesheets', timesheetRoutes);
+app.route('/api/invoices', invoiceRoutes);
 
 // Unknown API routes are genuine 404s — no Base44 fallback any more.
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));

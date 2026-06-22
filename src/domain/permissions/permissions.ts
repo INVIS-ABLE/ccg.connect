@@ -97,6 +97,44 @@ export function canWriteContractor(p: Principal, profile: OwnedRecord): boolean 
   return isAdmin(p) || profile.user_id === p.userId;
 }
 
+// ── Timesheets ───────────────────────────────────────────────────────────────
+export interface TimesheetScope {
+  contractor_id: string;
+  /** client_id of the timesheet's job, when the caller is a client. */
+  job_client_id?: string | null;
+}
+
+/** Approving/returning timesheets is an admin action. */
+export const canManageTimesheets = (p: Principal): boolean => isAdmin(p);
+
+/** A contractor may submit a timesheet only for themselves; admins for anyone. */
+export function canSubmitTimesheet(p: Principal, contractorId: string): boolean {
+  return isAdmin(p) || (p.role === 'contractor' && p.contractorId != null && p.contractorId === contractorId);
+}
+
+export function canReadTimesheet(p: Principal, ts: TimesheetScope): boolean {
+  if (isAdmin(p)) return true;
+  if (p.role === 'contractor') return p.contractorId != null && ts.contractor_id === p.contractorId;
+  if (p.role === 'client') return p.clientId != null && ts.job_client_id === p.clientId;
+  return false;
+}
+
+// ── Invoices ─────────────────────────────────────────────────────────────────
+export interface InvoiceScope {
+  contractor_id?: string | null;
+  client_id?: string | null;
+}
+
+/** Creating/approving/sending invoices is an admin action. */
+export const canManageInvoices = (p: Principal): boolean => isAdmin(p);
+
+export function canReadInvoice(p: Principal, inv: InvoiceScope): boolean {
+  if (isAdmin(p)) return true;
+  if (p.role === 'contractor') return p.contractorId != null && inv.contractor_id === p.contractorId;
+  if (p.role === 'client') return p.clientId != null && inv.client_id === p.clientId;
+  return false;
+}
+
 // ── Leads (invariant 4) ──────────────────────────────────────────────────────
 /** Anyone may create a Lead (public intake); only admins may ever read them. */
 export const canReadLeads = (p: Principal): boolean => isAdmin(p);
