@@ -7,6 +7,9 @@ import {
   canReadProfile,
   canWriteProfile,
   canSetRole,
+  canManageContractors,
+  canReadContractor,
+  canReadLeads,
   redactForRole,
   INTERNAL_JOB_FIELDS,
 } from './permissions';
@@ -112,6 +115,28 @@ describe('canSetRole (invariant 5: no self-promotion)', () => {
   it('non-admins may never set roles', () => {
     expect(canSetRole(contractor, 'u-con2')).toBe(false);
     expect(canSetRole(client, 'u-cli2')).toBe(false);
+  });
+});
+
+describe('contractor management', () => {
+  it('only admins manage contractors', () => {
+    expect(canManageContractors(owner)).toBe(true);
+    expect(canManageContractors(contractor)).toBe(false);
+    expect(canManageContractors(client)).toBe(false);
+  });
+  it('contractors read only their own profile; admins any', () => {
+    expect(canReadContractor(contractor, { user_id: 'u-con' })).toBe(true);
+    expect(canReadContractor(otherContractor, { user_id: 'u-con' })).toBe(false);
+    expect(canReadContractor(ops, { user_id: 'u-con' })).toBe(true);
+  });
+});
+
+describe('leads (invariant 4)', () => {
+  it('only admins may read leads', () => {
+    expect(canReadLeads(owner)).toBe(true);
+    expect(canReadLeads(ops)).toBe(true);
+    expect(canReadLeads(contractor)).toBe(false);
+    expect(canReadLeads(client)).toBe(false);
   });
 });
 
