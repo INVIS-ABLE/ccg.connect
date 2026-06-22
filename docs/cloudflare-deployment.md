@@ -55,24 +55,24 @@ redirect URLs** so the auth round-trip can return to the app:
 No CORS allow-list is needed because the browser only ever calls its own origin
 (`/api/*`), which the Function proxies server-side.
 
-## Custom domain — `app.cookconstructiongrowth.com`
+## Custom domain — `app.cookconstructiongrowth.co.uk`
 
 CCG Connect is served as the **`app.` subdomain** of the marketing site
-(`cookconstructiongrowth.com`, a separate Cloudflare project). The two stay
+(`cookconstructiongrowth.co.uk`, a separate Cloudflare project). The two stay
 independent — this is just a DNS subdomain pointed at this Pages project.
 
 1. Pages → this project → **Custom domains** → **Set up a custom domain**.
-2. Enter `app.cookconstructiongrowth.com`. If the apex `cookconstructiongrowth.com`
+2. Enter `app.cookconstructiongrowth.co.uk`. If the apex `cookconstructiongrowth.co.uk`
    zone is already on Cloudflare, the required `CNAME` (`app` →
    `<project>.pages.dev`) is added automatically; otherwise add it at your DNS
    provider as shown.
 3. Wait for the certificate to be issued (status → **Active**).
-4. In **Base44 app settings**, add `https://app.cookconstructiongrowth.com` to the
+4. In **Base44 app settings**, add `https://app.cookconstructiongrowth.co.uk` to the
    allowed login / redirect URLs (alongside `https://<project>.pages.dev` and any
    preview origins) so the auth round-trip returns to the app.
 
 The marketing site links here via its `NEXT_PUBLIC_PORTAL_URL` env var (defaults
-to `https://app.cookconstructiongrowth.com`) — see that repo's README.
+to `https://app.cookconstructiongrowth.co.uk`) — see that repo's README.
 
 ## App icons
 
