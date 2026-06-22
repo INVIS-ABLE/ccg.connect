@@ -1,0 +1,12 @@
+{
+  // Type-checks the Cloudflare Worker / API code in api/. Separate from the app's
+  // tsconfig.json because the Worker runtime uses Cloudflare's globals (D1Database,
+  // etc.) rather than the DOM. Run with `npm run typecheck:worker`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["@cloudflare/workers-types"],
+    "lib": ["esnext"],
+    "noEmit": true
+  },
+  "include": ["api/**/*.ts", "drizzle.config.ts"]
+}
