@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Search, FileText, Plus, CheckSquare, Square } from 'lucide-react';
+import { Search, FileText, Plus, FileOutput, CheckSquare } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { INVOICE_STATUSES } from '@/lib/roles';
 import BulkInvoiceModal from '@/components/invoices/BulkInvoiceModal';
+import InvoiceTemplateModal from '@/components/invoices/InvoiceTemplateModal';
 
 const STATUS_FILTERS = ['all', 'draft', 'submitted', 'approved', 'sent', 'paid', 'overdue'];
 
@@ -19,6 +20,7 @@ export default function Invoices() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [selectedJobIds, setSelectedJobIds] = useState(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
 
   const loadData = async () => {
     const [invs, jobs] = await Promise.all([
@@ -161,9 +163,18 @@ export default function Invoices() {
                         {inv.invoice_type === 'ccg_to_client' ? 'CCG → Client' : 'Contractor → CCG'} • {inv.issue_date || 'No date'}
                       </p>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-semibold">£{(inv.gross_amount || 0).toFixed(2)}</p>
-                      {s && <StatusBadge label={s.label} color={s.color} />}
+                    <div className="text-right flex-shrink-0 flex items-center gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">£{(inv.gross_amount || 0).toFixed(2)}</p>
+                        {s && <StatusBadge label={s.label} color={s.color} />}
+                      </div>
+                      <button
+                        onClick={() => setPreviewInvoice(inv)}
+                        className="p-1.5 rounded hover:bg-muted transition-colors"
+                        title="View invoice document"
+                      >
+                        <FileOutput className="w-4 h-4 text-muted-foreground" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -171,6 +182,10 @@ export default function Invoices() {
             </div>
           )}
         </div>
+      )}
+
+      {previewInvoice && (
+        <InvoiceTemplateModal invoice={previewInvoice} onClose={() => setPreviewInvoice(null)} />
       )}
 
       {showBulkModal && (

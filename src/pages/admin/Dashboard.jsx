@@ -7,6 +7,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { JOB_STATUSES, TIMESHEET_STATUSES } from '@/lib/roles';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ExpiringCredentialsPanel from '@/components/dashboard/ExpiringCredentialsPanel';
+import JobScheduleCalendar from '@/components/dashboard/JobScheduleCalendar';
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState([]);
@@ -81,6 +82,11 @@ export default function Dashboard() {
         <StatCard title="Contractors" value={approvedContractors.length} icon={HardHat} subtitle={`${pendingContractors.length} pending approval`} color="text-blue-600" />
         <StatCard title="Pending Timesheets" value={timesheets.length} icon={Clock} subtitle="Awaiting your approval" color="text-amber-600" />
         <StatCard title="Credential Reviews" value={credentials.length} icon={ShieldCheck} subtitle="Awaiting review" color="text-red-600" />
+      </div>
+
+      {/* Job Schedule Calendar */}
+      <div className="mb-6">
+        <JobScheduleCalendar jobs={jobs} />
       </div>
 
       {/* Two-column layout */}
