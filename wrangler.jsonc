@@ -16,5 +16,15 @@
     // Client-side routes resolve to the app shell; the Worker still runs first
     // for /api/* (see worker/index.js).
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Cloudflare-native backend (migration off Base44 — see
+  // docs/migration-to-cloudflare.md). The binding is available to the Worker now;
+  // the Hono API in api/ is wired in during a later phase.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ccg-connect-db",
+      "database_id": "3f02bebb-d008-4d49-ac6f-95a542a5891b"
+    }
+  ]
 }
