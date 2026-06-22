@@ -49,8 +49,17 @@ In the Base44 app settings, add your Cloudflare origin(s) as **allowed login /
 redirect URLs** so the auth round-trip can return to the app:
 
 - `https://<project>.pages.dev`
-- your custom domain (if any)
+- your custom domain (if any) — e.g. `https://app.cookconstructiongrowth.co.uk`
 - preview origins if you use them (`https://<hash>.<project>.pages.dev`)
+
+This is the field that takes a **full URL** (with `https://`, dots and all).
+
+> ⚠️ **Do _not_ use Base44's "Custom domain" setting for this.** That field is for
+> apps served **directly** from Base44 (`*.base44.app`) and only accepts a bare
+> hostname **label** (letters/numbers/hyphens, no dots) — so it will reject
+> `app.cookconstructiongrowth.co.uk`. In this architecture the front-end is served
+> by **Cloudflare Pages**, so the domain is attached there (see below); Base44 only
+> needs the origin added to the **allowed login / redirect URLs** list above.
 
 No CORS allow-list is needed because the browser only ever calls its own origin
 (`/api/*`), which the Function proxies server-side.
@@ -65,7 +74,7 @@ zero cost.
 A custom domain is **optional** and only about branding:
 
 - You don't "buy a subdomain" on its own — you register a **domain** (e.g.
-  `cookconstructiongrowth.com`), and subdomains of it (`app.cookconstructiongrowth.com`)
+  `cookconstructiongrowth.co.uk`), and subdomains of it (`app.cookconstructiongrowth.co.uk`)
   are then free to create.
 - **Already own the domain** → add the `app.` subdomain for free under *Custom
   domain* below. The only thing that ever costs money is registering a brand-new
@@ -77,24 +86,24 @@ domain when ready — the switch is non-disruptive.
 > Whatever URL you use (`*.pages.dev` and/or the custom domain) **must** be added to
 > Base44's allowed login/redirect URLs, or sign-in fails after the redirect.
 
-## Custom domain — `app.cookconstructiongrowth.com`
+## Custom domain — `app.cookconstructiongrowth.co.uk`
 
 CCG Connect is served as the **`app.` subdomain** of the marketing site
-(`cookconstructiongrowth.com`, a separate Cloudflare project). The two stay
+(`cookconstructiongrowth.co.uk`, a separate Cloudflare project). The two stay
 independent — this is just a DNS subdomain pointed at this Pages project.
 
 1. Pages → this project → **Custom domains** → **Set up a custom domain**.
-2. Enter `app.cookconstructiongrowth.com`. If the apex `cookconstructiongrowth.com`
+2. Enter `app.cookconstructiongrowth.co.uk`. If the apex `cookconstructiongrowth.co.uk`
    zone is already on Cloudflare, the required `CNAME` (`app` →
    `<project>.pages.dev`) is added automatically; otherwise add it at your DNS
    provider as shown.
 3. Wait for the certificate to be issued (status → **Active**).
-4. In **Base44 app settings**, add `https://app.cookconstructiongrowth.com` to the
+4. In **Base44 app settings**, add `https://app.cookconstructiongrowth.co.uk` to the
    allowed login / redirect URLs (alongside `https://<project>.pages.dev` and any
    preview origins) so the auth round-trip returns to the app.
 
 The marketing site links here via its `NEXT_PUBLIC_PORTAL_URL` env var (defaults
-to `https://app.cookconstructiongrowth.com`) — see that repo's README.
+to `https://app.cookconstructiongrowth.co.uk`) — see that repo's README.
 
 ## App icons
 
