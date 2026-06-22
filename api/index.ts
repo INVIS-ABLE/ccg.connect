@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from './db/schema';
+import { createAuth, type AuthEnv } from './auth';
 
 /**
  * CCG Connect API (Cloudflare Worker, Hono) — migration off Base44.
@@ -10,14 +11,16 @@ import * as schema from './db/schema';
  * Phase 3 — see docs/migration-to-cloudflare.md. This module is NOT yet wired
  * into the deployed Worker (worker/index.js still proxies /api/* to Base44).
  */
-export type Bindings = {
-  DB: D1Database;
+export type Bindings = AuthEnv & {
   BASE44_APP_BASE_URL?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'ccg-connect-api' }));
+
+// Better Auth handles all of /api/auth/* (sign-in/up, OTP, OAuth, session).
+app.on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw));
 
 // Smoke test for the D1 + Drizzle binding (no auth; removed once real routes land).
 app.get('/api/_db-check', async (c) => {

@@ -8,6 +8,13 @@
       "when": 1782103850986,
       "tag": "0000_blue_guardsmen",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1782104196705,
+      "tag": "0001_mean_rawhide_kid",
+      "breakpoints": true
     }
   ]
 }
