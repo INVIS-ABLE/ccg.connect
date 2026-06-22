@@ -11,6 +11,7 @@ export interface UserProfile {
   id: string;
   user_id: string;
   role: AppRole;
+  client_id: string | null;
   first_name: string | null;
   last_name: string | null;
   display_name: string | null;

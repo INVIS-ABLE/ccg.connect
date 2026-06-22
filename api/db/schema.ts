@@ -33,6 +33,9 @@ export const userProfiles = sqliteTable('user_profiles', {
   role: text('role', { enum: ['owner', 'ops_admin', 'contractor', 'client'] })
     .notNull()
     .default('contractor'),
+  // Links a client user to their Client org (set by an admin). Drives client
+  // data scoping in the API; null for non-client users.
+  client_id: text('client_id'),
   first_name: text('first_name'),
   last_name: text('last_name'),
   display_name: text('display_name'),
