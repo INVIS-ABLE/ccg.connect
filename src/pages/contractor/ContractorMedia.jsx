@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Camera, Upload, Image, Loader2 } from 'lucide-react';
+import { Camera, Image, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PullToRefresh from '@/components/shared/PullToRefresh';
 
 const CATEGORIES = ['before', 'progress', 'completion', 'materials', 'delivery', 'variation', 'defect', 'snagging', 'other'];
 
@@ -18,16 +20,17 @@ export default function ContractorMedia() {
   const [caption, setCaption] = useState('');
   const fileRef = useRef();
 
-  useEffect(() => {
-    Promise.all([
+  const fetchData = useCallback(async () => {
+    const [m, j] = await Promise.all([
       base44.entities.JobMedia.list('-created_date', 50),
       base44.entities.Job.filter({ archived: false }),
-    ]).then(([m, j]) => {
-      setMedia(m);
-      setJobs(j);
-      setLoading(false);
-    });
+    ]);
+    setMedia(m);
+    setJobs(j);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleUpload = async (e) => {
     const file = e.target.files[0];
@@ -61,16 +64,25 @@ export default function ContractorMedia() {
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Job</Label>
-            <select className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm bg-background" value={selectedJob} onChange={e => setSelectedJob(e.target.value)}>
-              <option value="">Select a job...</option>
-              {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
-            </select>
+            <Select value={selectedJob} onValueChange={setSelectedJob}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select a job..." />
+              </SelectTrigger>
+              <SelectContent>
+                {jobs.map(j => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label className="text-xs">Category</Label>
-            <select className="w-full mt-1 px-3 py-2 border border-input rounded-md text-sm bg-background" value={category} onChange={e => setCategory(e.target.value)}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-            </select>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label className="text-xs">Caption (optional)</Label>
@@ -87,6 +99,7 @@ export default function ContractorMedia() {
       </div>
 
       {/* Media Grid */}
+      <PullToRefresh onRefresh={fetchData}>
       {loading ? (
         <div className="grid grid-cols-3 gap-2">{[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-muted rounded-lg animate-pulse" />)}</div>
       ) : media.length === 0 ? (
@@ -108,6 +121,7 @@ export default function ContractorMedia() {
           ))}
         </div>
       )}
+      </PullToRefresh>
     </div>
   );
 }

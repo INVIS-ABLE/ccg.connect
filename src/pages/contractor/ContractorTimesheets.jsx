@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Plus, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { TIMESHEET_STATUSES } from '@/lib/roles';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import PullToRefresh from '@/components/shared/PullToRefresh';
 
 export default function ContractorTimesheets() {
   const [timesheets, setTimesheets] = useState([]);
@@ -17,16 +19,17 @@ export default function ContractorTimesheets() {
   const [form, setForm] = useState({ job_id: '', week_start: '' });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
+  const fetchData = useCallback(async () => {
+    const [t, j] = await Promise.all([
       base44.entities.Timesheet.list('-created_date', 100),
       base44.entities.Job.filter({ archived: false }),
-    ]).then(([t, j]) => {
-      setTimesheets(t);
-      setJobs(j);
-      setLoading(false);
-    });
+    ]);
+    setTimesheets(t);
+    setJobs(j);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleCreate = async () => {
     if (!form.job_id || !form.week_start) return;
@@ -55,6 +58,7 @@ export default function ContractorTimesheets() {
         }
       />
 
+      <PullToRefresh onRefresh={fetchData}>
       {loading ? (
         <div className="space-y-3">{[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-muted rounded-xl animate-pulse" />)}</div>
       ) : timesheets.length === 0 ? (
@@ -93,6 +97,8 @@ export default function ContractorTimesheets() {
         </div>
       )}
 
+      </PullToRefresh>
+
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
           <DialogHeader>
@@ -101,10 +107,14 @@ export default function ContractorTimesheets() {
           <div className="space-y-4 pt-2">
             <div className="space-y-1">
               <Label>Job</Label>
-              <select className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background" value={form.job_id} onChange={e => setForm(f => ({ ...f, job_id: e.target.value }))}>
-                <option value="">Select a job...</option>
-                {jobs.map(j => <option key={j.id} value={j.id}>{j.title}</option>)}
-              </select>
+              <Select value={form.job_id} onValueChange={v => setForm(f => ({ ...f, job_id: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a job..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {jobs.map(j => <SelectItem key={j.id} value={j.id}>{j.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label>Week Starting</Label>

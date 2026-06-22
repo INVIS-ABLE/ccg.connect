@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Send, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
+import PullToRefresh from '@/components/shared/PullToRefresh';
 
 export default function Messages() {
   const [threads, setThreads] = useState([]);
@@ -14,15 +15,15 @@ export default function Messages() {
   const [user, setUser] = useState(null);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    base44.auth.me().then(me => {
-      setUser(me);
-      return base44.entities.JobThread.list('-created_date', 50);
-    }).then(t => {
-      setThreads(t);
-      setLoading(false);
-    });
+  const fetchThreads = useCallback(async () => {
+    const me = await base44.auth.me();
+    setUser(me);
+    const t = await base44.entities.JobThread.list('-created_date', 50);
+    setThreads(t);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchThreads(); }, [fetchThreads]);
 
   const loadMessages = async (thread) => {
     setSelectedThread(thread);
@@ -32,16 +33,28 @@ export default function Messages() {
 
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedThread || !user) return;
-    setSending(true);
-    const created = await base44.entities.JobMessage.create({
+    // Optimistic update
+    const optimistic = {
+      id: `optimistic-${Date.now()}`,
       thread_id: selectedThread.id,
       job_id: selectedThread.job_id,
       sender_id: user.id,
       content: newMessage,
       sent_at: new Date().toISOString(),
-    });
-    setMessages(prev => [...prev, created]);
+      _optimistic: true,
+    };
+    setMessages(prev => [...prev, optimistic]);
+    const text = newMessage;
     setNewMessage('');
+    setSending(true);
+    const created = await base44.entities.JobMessage.create({
+      thread_id: selectedThread.id,
+      job_id: selectedThread.job_id,
+      sender_id: user.id,
+      content: text,
+      sent_at: optimistic.sent_at,
+    });
+    setMessages(prev => prev.map(m => m.id === optimistic.id ? created : m));
     setSending(false);
   };
 
@@ -57,7 +70,8 @@ export default function Messages() {
           <div className="px-4 py-3 border-b border-border">
             <h2 className="font-semibold text-sm">Threads</h2>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-border">
+          <PullToRefresh onRefresh={fetchThreads}>
+          <div className="divide-y divide-border">
             {loading ? (
               [...Array(4)].map((_, i) => <div key={i} className="h-14 mx-4 my-2 bg-muted rounded animate-pulse" />)
             ) : threads.length === 0 ? (
@@ -77,6 +91,7 @@ export default function Messages() {
               ))
             )}
           </div>
+          </PullToRefresh>
         </div>
 
         {/* Message Pane */}

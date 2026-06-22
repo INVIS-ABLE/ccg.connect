@@ -40,10 +40,18 @@ export default function JobDetail() {
   }, [id]);
 
   const advanceStatus = async (newStatus) => {
-    setUpdating(true);
-    await base44.entities.Job.update(job.id, { status: newStatus });
+    const prevStatus = job.status;
+    // Optimistic update — apply immediately
     setJob(j => ({ ...j, status: newStatus }));
     toast.success(`Status updated to "${JOB_STATUSES[newStatus]?.label}"`);
+    setUpdating(true);
+    try {
+      await base44.entities.Job.update(job.id, { status: newStatus });
+    } catch {
+      // Roll back on failure
+      setJob(j => ({ ...j, status: prevStatus }));
+      toast.error('Failed to update status');
+    }
     setUpdating(false);
   };
 

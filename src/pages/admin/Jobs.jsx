@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Plus, Search, CheckSquare, Square, ChevronDown } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PageHeader from '@/components/shared/PageHeader';
@@ -9,6 +9,7 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import { JOB_STATUSES } from '@/lib/roles';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import PullToRefresh from '@/components/shared/PullToRefresh';
 
 const STATUS_FILTERS = ['all', 'draft', 'ready_to_match', 'offers_sent', 'assigned', 'in_progress', 'completed', 'cancelled'];
 const UPDATABLE_STATUSES = ['draft', 'ready_to_match', 'in_progress', 'on_hold', 'completed', 'cancelled'];
@@ -22,12 +23,13 @@ export default function Jobs() {
   const [bulkStatus, setBulkStatus] = useState('');
   const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    base44.entities.Job.filter({ archived: false }).then(data => {
-      setJobs(data);
-      setLoading(false);
-    });
+  const fetchJobs = useCallback(async () => {
+    const data = await base44.entities.Job.filter({ archived: false });
+    setJobs(data);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { fetchJobs(); }, [fetchJobs]);
 
   const filtered = jobs.filter(j => {
     const matchSearch = !search || j.title?.toLowerCase().includes(search.toLowerCase()) || j.job_reference?.toLowerCase().includes(search.toLowerCase()) || j.site_postcode?.toLowerCase().includes(search.toLowerCase());
@@ -122,6 +124,7 @@ export default function Jobs() {
         </div>
       )}
 
+      <PullToRefresh onRefresh={fetchJobs}>
       {loading ? (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => <div key={i} className="h-16 bg-muted rounded-xl animate-pulse" />)}
@@ -179,6 +182,7 @@ export default function Jobs() {
           )}
         </div>
       )}
+      </PullToRefresh>
     </div>
   );
 }

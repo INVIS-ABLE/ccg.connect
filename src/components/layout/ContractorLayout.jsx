@@ -63,6 +63,7 @@ export default function ContractorLayout({ children }) {
             <Link
               key={path}
               to={path}
+              replace={active}
               className={cn(
                 'flex-1 flex flex-col items-center justify-center py-2 text-xs font-medium transition-colors',
                 active ? 'text-primary' : 'text-muted-foreground'
