@@ -85,6 +85,22 @@ export function canSetRole(p: Principal, targetUserId: string): boolean {
   return isAdmin(p) && targetUserId !== p.userId;
 }
 
+// ── Contractors ──────────────────────────────────────────────────────────────
+/** Approving/suspending/risk-rating contractors is an admin action. */
+export const canManageContractors = (p: Principal): boolean => isAdmin(p);
+
+/** A contractor may read/write only their own profile; admins any. */
+export function canReadContractor(p: Principal, profile: OwnedRecord): boolean {
+  return isAdmin(p) || profile.user_id === p.userId;
+}
+export function canWriteContractor(p: Principal, profile: OwnedRecord): boolean {
+  return isAdmin(p) || profile.user_id === p.userId;
+}
+
+// ── Leads (invariant 4) ──────────────────────────────────────────────────────
+/** Anyone may create a Lead (public intake); only admins may ever read them. */
+export const canReadLeads = (p: Principal): boolean => isAdmin(p);
+
 // ── Field redaction ──────────────────────────────────────────────────────────
 /** Job fields that must never reach a non-admin response (invariant 6). */
 export const INTERNAL_JOB_FIELDS = ['internal_notes', 'private_admin_notes'] as const;
