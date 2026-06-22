@@ -15,6 +15,9 @@ import {
   canManageTimesheets,
   canManageInvoices,
   canReadInvoice,
+  canManageCredentials,
+  canReadCredential,
+  canWriteCredential,
   redactForRole,
   INTERNAL_JOB_FIELDS,
 } from './permissions';
@@ -177,6 +180,20 @@ describe('invoices', () => {
     expect(canReadInvoice(client, { client_id: 'cl-1' })).toBe(true);
     expect(canReadInvoice(client, { client_id: 'cl-2' })).toBe(false);
     expect(canReadInvoice(owner, { contractor_id: 'c-1', client_id: 'cl-1' })).toBe(true);
+  });
+});
+
+describe('credentials', () => {
+  it('only admins verify/reject credentials', () => {
+    expect(canManageCredentials(owner)).toBe(true);
+    expect(canManageCredentials(contractor)).toBe(false);
+  });
+  it('a contractor reads/writes only their own credentials', () => {
+    expect(canReadCredential(contractor, { contractor_id: 'c-1' })).toBe(true);
+    expect(canReadCredential(contractor, { contractor_id: 'c-2' })).toBe(false);
+    expect(canWriteCredential(contractor, { contractor_id: 'c-1' })).toBe(true);
+    expect(canWriteCredential(otherContractor, { contractor_id: 'c-1' })).toBe(false);
+    expect(canReadCredential(ops, { contractor_id: 'c-9' })).toBe(true);
   });
 });
 

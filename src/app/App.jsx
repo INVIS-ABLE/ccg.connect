@@ -13,8 +13,10 @@ import Jobs from '@/app/pages/admin/Jobs';
 import JobDetail from '@/app/pages/admin/JobDetail';
 import Contractors from '@/app/pages/admin/Contractors';
 import Leads from '@/app/pages/admin/Leads';
+import Compliance from '@/app/pages/admin/Compliance';
 import ContractorJobs from '@/app/pages/contractor/ContractorJobs';
 import ContractorTimesheets from '@/app/pages/contractor/ContractorTimesheets';
+import ContractorCredentials from '@/app/pages/contractor/ContractorCredentials';
 import ContractorProfile from '@/app/pages/contractor/ContractorProfile';
 import ClientProjects from '@/app/pages/client/ClientProjects';
 
@@ -58,9 +60,11 @@ export default function App() {
             <Route path="/jobs" element={adminShell(<Jobs />)} />
             <Route path="/jobs/:id" element={adminShell(<JobDetail />)} />
             <Route path="/contractors" element={adminShell(<Contractors />)} />
+            <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
             <Route path="/contractor/jobs" element={contractorShell(<ContractorJobs />)} />
             <Route path="/contractor/timesheets" element={contractorShell(<ContractorTimesheets />)} />
+            <Route path="/contractor/credentials" element={contractorShell(<ContractorCredentials />)} />
             <Route path="/contractor/profile" element={contractorShell(<ContractorProfile />)} />
             <Route path="/client/projects" element={clientShell(<ClientProjects />)} />
             <Route path="*" element={<Navigate to="/" replace />} />

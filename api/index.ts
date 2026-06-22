@@ -12,6 +12,7 @@ import timesheetRoutes from './routes/timesheets';
 import invoiceRoutes from './routes/invoices';
 import notificationRoutes from './routes/notifications';
 import mediaRoutes from './routes/media';
+import credentialRoutes from './routes/credentials';
 import { runCredentialExpiryJob } from './jobs/credentialExpiry';
 import type { Bindings } from './env';
 
@@ -47,6 +48,7 @@ app.route('/api/timesheets', timesheetRoutes);
 app.route('/api/invoices', invoiceRoutes);
 app.route('/api/notifications', notificationRoutes);
 app.route('/api/media', mediaRoutes);
+app.route('/api/credentials', credentialRoutes);
 
 // Unknown API routes are genuine 404s — no Base44 fallback any more.
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));

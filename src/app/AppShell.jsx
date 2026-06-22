@@ -8,6 +8,7 @@ const ADMIN_NAV = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/jobs', label: 'Jobs' },
   { to: '/contractors', label: 'Contractors' },
+  { to: '/compliance', label: 'Compliance' },
   { to: '/leads', label: 'Leads' },
 ];
 
@@ -15,6 +16,7 @@ const CONTRACTOR_NAV = [
   { to: '/', label: 'Home', end: true },
   { to: '/contractor/jobs', label: 'My jobs' },
   { to: '/contractor/timesheets', label: 'Timesheets' },
+  { to: '/contractor/credentials', label: 'Credentials' },
   { to: '/contractor/profile', label: 'Profile' },
 ];
 

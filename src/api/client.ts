@@ -10,6 +10,8 @@ import type {
   MatchCandidate,
   AppNotification,
   JobMediaItem,
+  CredentialType,
+  ContractorCredential,
 } from './types';
 
 /** Thrown on any non-2xx API response; carries the status and parsed body. */
@@ -107,6 +109,24 @@ export const api = {
     }) => request<{ timesheet: Timesheet }>('/api/timesheets', { method: 'POST', body: JSON.stringify(data) }),
     review: (id: string, data: { status: string; rejection_reason?: string }) =>
       request<{ timesheet: Timesheet }>(`/api/timesheets/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
+  credentials: {
+    types: () => request<{ credentialTypes: CredentialType[] }>('/api/credentials/types'),
+    list: (contractorId?: string) =>
+      request<{ credentials: ContractorCredential[] }>(
+        `/api/credentials${contractorId ? `?contractor_id=${encodeURIComponent(contractorId)}` : ''}`,
+      ),
+    awaiting: () => request<{ credentials: ContractorCredential[] }>('/api/credentials/awaiting'),
+    create: (data: Partial<ContractorCredential> & { credential_type_id: string }) =>
+      request<{ credential: ContractorCredential }>('/api/credentials', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<ContractorCredential>) =>
+      request<{ credential: ContractorCredential }>(`/api/credentials/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
