@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, Navigate, useLocation } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useUserProfile } from '@/lib/useUserProfile';
 import AdminSidebar from '@/components/layout/AdminSidebar';
 import ContractorLayout from '@/components/layout/ContractorLayout';
 import ClientLayout from '@/components/layout/ClientLayout';
 import { isAdmin, isContractor, isClient } from '@/lib/roles';
+import { canAccessPath, homePathForRole, isAppRole } from '@/domain/auth/roles';
 
 export default function RootLayout() {
   const { userProfile, loading } = useUserProfile();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -19,6 +20,13 @@ export default function RootLayout() {
   }
 
   const role = userProfile?.role;
+
+  // Defence-in-depth route confinement: a signed-in user may only render routes
+  // belonging to their own role group. This complements (never replaces) the
+  // server-side / RLS authorization that protects the underlying data.
+  if (isAppRole(role) && !canAccessPath(role, location.pathname)) {
+    return <Navigate to={homePathForRole(role)} replace />;
+  }
 
   if (isAdmin(role)) {
     return (

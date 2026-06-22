@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Briefcase, HardHat, ShieldCheck, Clock, AlertTriangle, ArrowRight, CheckCircle, Users } from 'lucide-react';
+import { Briefcase, HardHat, ShieldCheck, Clock, AlertTriangle, ArrowRight, Users } from 'lucide-react';
 import StatCard from '@/components/shared/StatCard';
 import PageHeader from '@/components/shared/PageHeader';
-import { JOB_STATUSES, TIMESHEET_STATUSES } from '@/lib/roles';
+import { JOB_STATUSES } from '@/lib/roles';
 import StatusBadge from '@/components/shared/StatusBadge';
 import ExpiringCredentialsPanel from '@/components/dashboard/ExpiringCredentialsPanel';
 import JobScheduleCalendar from '@/components/dashboard/JobScheduleCalendar';

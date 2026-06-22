@@ -26,6 +26,9 @@
     },
     "reason": {
       "type": "string"
+    },
+    "correlation_id": {
+      "type": "string"
     }
   },
   "required": [

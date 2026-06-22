@@ -101,9 +101,13 @@ failures; record sync status; log failures without leaking PII.
 
 ## Test commands
 
-- Type check: `npm run typecheck`
+- Type check: `npm run typecheck` (strict TS via `tsconfig.json`; new `.ts`/`.tsx`
+  domain code is strictly checked, legacy `.jsx` compiles without deep `checkJs`).
 - Lint: `npm run lint` (fix: `npm run lint:fix`)
-- Unit/integration tests: **none configured yet** — to be added (Vitest planned).
+- Unit tests: `npm run test` (Vitest), watch with `npm run test:watch`,
+  coverage with `npm run test:coverage`. Tests live next to code as
+  `*.test.ts` under `src/domain/**`.
+- Everything (lint + typecheck + test + build): `npm run ci`.
 
 ## Build commands
 

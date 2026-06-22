@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import PageHeader from '@/components/shared/PageHeader';
 import StatCard from '@/components/shared/StatCard';
-import { Briefcase, HardHat, FileText, PoundSterling } from 'lucide-react';
+import { Briefcase, HardHat, FileText } from 'lucide-react';
 
 export default function Reports() {
   const [jobs, setJobs] = useState([]);

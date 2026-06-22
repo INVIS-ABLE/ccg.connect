@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Briefcase, Clock, CheckCircle, ArrowRight } from 'lucide-react';
+import { Clock, ArrowRight } from 'lucide-react';
 import { JOB_STATUSES } from '@/lib/roles';
 import StatusBadge from '@/components/shared/StatusBadge';
 

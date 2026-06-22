@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, X } from 'lucide-react';
 import { toast } from 'sonner';
 

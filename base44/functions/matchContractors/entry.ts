@@ -27,7 +27,15 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user || !['owner', 'ops_admin'].includes(user.role)) {
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Authorization is based on the CCG Connect app role (UserProfile.role),
+    // NOT the Base44 platform role (User.role, which is only admin|user).
+    const myProfiles = await base44.entities.UserProfile.filter({ user_id: user.id });
+    const appRole = myProfiles[0]?.role;
+    if (!['owner', 'ops_admin'].includes(appRole)) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 

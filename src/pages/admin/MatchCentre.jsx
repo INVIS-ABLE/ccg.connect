@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Target, HardHat, Star, ChevronRight, Zap, MapPin, Clock, ShieldCheck, Loader2, CheckCircle2 } from 'lucide-react';
+import { Target, ChevronRight, Zap, MapPin, Clock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PageHeader from '@/components/shared/PageHeader';
 import { JOB_STATUSES } from '@/lib/roles';
