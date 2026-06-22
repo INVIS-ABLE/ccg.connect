@@ -1,40 +1,38 @@
 import { Hono } from 'hono';
-import { drizzle } from 'drizzle-orm/d1';
-import * as schema from './db/schema';
-import { createAuth, type AuthEnv } from './auth';
+import { createAuth } from './auth';
+import type { AppEnv, Bindings } from './env';
+import meRoutes from './routes/me';
+import jobRoutes from './routes/jobs';
+import profileRoutes from './routes/profiles';
+import assignmentRoutes from './routes/assignments';
 
 /**
- * CCG Connect Worker (Hono) — Cloudflare-native backend, migrating off Base44.
+ * CCG Connect Worker (Hono) — Cloudflare-native backend.
  *
- * Strangler facade: new endpoints are served here; everything not yet migrated
- * falls through to the Base44 proxy, so the app keeps working unchanged while we
- * move functionality across one slice at a time.
+ * As the app is rebuilt off Base44, native routes are served here and enforce
+ * authorization server-side (src/domain/permissions). The Base44 proxy fallback
+ * remains only until the front-end is fully rebuilt, then it is removed.
  *
- *   /api/auth/*  → Better Auth (new; the front-end does not call this yet)
- *   /api/health  → liveness
- *   /api/*       → proxied to the Base44 backend (current behaviour)
- *   everything else → static assets + SPA fallback (ASSETS binding)
+ *   /api/auth/*   → Better Auth (sign-in/up, OTP, OAuth, session)
+ *   /api/me, /api/jobs, /api/profiles, /api/assignments → native, authorized
+ *   /api/health   → liveness
+ *   /api/*        → (temporary) proxied to Base44 for anything not yet migrated
+ *   everything else → static assets + SPA fallback
  */
-export type Bindings = AuthEnv & {
-  ASSETS: Fetcher;
-  BASE44_APP_BASE_URL?: string;
-};
-
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<AppEnv>();
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'ccg-connect-api' }));
 
-// Smoke test for the D1 + Drizzle binding (no auth; removed once real routes land).
-app.get('/api/_db-check', async (c) => {
-  const db = drizzle(c.env.DB, { schema });
-  const rows = await db.select().from(schema.skills).limit(1);
-  return c.json({ ok: true, sample: rows });
-});
-
-// Better Auth handles all of /api/auth/* (sign-in/up, OTP, OAuth, session).
+// Better Auth handles all of /api/auth/*.
 app.on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw));
 
-// Strangler fallback: anything under /api not handled above still goes to Base44.
+// Native, authorized resource routes.
+app.route('/api/me', meRoutes);
+app.route('/api/jobs', jobRoutes);
+app.route('/api/profiles', profileRoutes);
+app.route('/api/assignments', assignmentRoutes);
+
+// Temporary strangler fallback: anything under /api not handled above → Base44.
 app.all('/api/*', (c) => proxyToBase44(c.req.raw, c.env));
 
 // Static assets + SPA fallback (handled by the assets binding's not_found_handling).
@@ -52,8 +50,6 @@ async function proxyToBase44(request: Request, env: Bindings): Promise<Response>
   const url = new URL(request.url);
   const target = base.replace(/\/+$/, '') + url.pathname + url.search;
 
-  // Preserve method, headers and body; drop the inbound Host so fetch sets it from
-  // the target. `duplex: 'half'` is required when streaming a request body.
   const headers = new Headers(request.headers);
   headers.delete('host');
 
