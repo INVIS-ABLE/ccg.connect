@@ -3,6 +3,7 @@
   // Cloudflare's Git integration deploys this repo as a Worker with static assets
   // (`npx wrangler deploy`); this file is the source of truth so the deploy is
   // reproducible instead of relying on dashboard auto-detection.
+  // Redeploy marker: 2026-06-22 (trigger a fresh build after env vars are set).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ccg-connect",
   "main": "worker/index.js",
