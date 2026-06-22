@@ -28,7 +28,7 @@ export async function resolvePrincipal(
   const db = drizzle(env.DB);
 
   const profileRows = await db
-    .select({ role: userProfiles.role })
+    .select({ role: userProfiles.role, client_id: userProfiles.client_id })
     .from(userProfiles)
     .where(eq(userProfiles.user_id, userId))
     .limit(1);
@@ -44,10 +44,11 @@ export async function resolvePrincipal(
     contractorId = cp[0]?.id ?? null;
   }
 
-  // TODO(client portal): link a client user to their Client org (e.g. a
-  // user_profiles.client_id column) and populate clientId here. Until then a
-  // client sees nothing — the safe default.
-  return { userId, role, contractorId, clientId: null };
+  // A client user is linked to their Client org via user_profiles.client_id
+  // (set by an admin); this scopes everything they can see.
+  const clientId = role === 'client' ? (profileRows[0]?.client_id ?? null) : null;
+
+  return { userId, role, contractorId, clientId };
 }
 
 /** Hono middleware: require a valid session, attach the Principal, else 401. */

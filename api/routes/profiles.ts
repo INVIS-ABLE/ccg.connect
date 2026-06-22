@@ -19,7 +19,7 @@ type ProfileInsert = typeof userProfiles.$inferInsert;
 const SELF_WRITABLE: (keyof ProfileInsert)[] = [
   'first_name', 'last_name', 'display_name', 'phone', 'profile_photo_url',
 ];
-const ADMIN_WRITABLE: (keyof ProfileInsert)[] = ['account_status'];
+const ADMIN_WRITABLE: (keyof ProfileInsert)[] = ['account_status', 'client_id'];
 
 function pick(body: Record<string, unknown>, keys: (keyof ProfileInsert)[]): Partial<ProfileInsert> {
   const out: Record<string, unknown> = {};
