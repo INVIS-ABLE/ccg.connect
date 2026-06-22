@@ -1,0 +1,19 @@
+{
+  // Cloudflare Workers config for CCG Connect (front-end + same-origin /api proxy).
+  // Cloudflare's Git integration deploys this repo as a Worker with static assets
+  // (`npx wrangler deploy`); this file is the source of truth so the deploy is
+  // reproducible instead of relying on dashboard auto-detection.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ccg-connect",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-06-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Client-side routes resolve to the app shell; the Worker still runs first
+    // for /api/* (see worker/index.js).
+    "not_found_handling": "single-page-application"
+  }
+}
