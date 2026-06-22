@@ -54,10 +54,36 @@ redirect URLs** so the auth round-trip can return to the app:
 No CORS allow-list is needed because the browser only ever calls its own origin
 (`/api/*`), which the Function proxies server-side.
 
+## Domains — do I need to buy anything?
+
+**No.** Every Pages project gets a free, production-ready subdomain automatically,
+e.g. `ccg-connect.pages.dev`. It has HTTPS, the PWA installs from it, and auth
+works once the URL is registered in Base44 (see below). You can launch on this at
+zero cost.
+
+A custom domain is **optional** and only about branding:
+
+- You don't "buy a subdomain" on its own — you register a **domain** (e.g.
+  `ccgconnect.com`), and subdomains of it (`app.ccgconnect.com`) are then free to
+  create.
+- **Already own a domain** → add `app.yourdomain.com` (or the root) for free under
+  *Custom domains* below. The only cost is a domain you'd register from scratch.
+
+Recommended path: go live on the free `*.pages.dev` URL now, attach a custom
+domain later if you want one — the switch is non-disruptive.
+
+> Whatever URL you use (`*.pages.dev` and/or a custom domain) **must** be added to
+> Base44's allowed login/redirect URLs, or sign-in fails after the redirect.
+
 ## Custom domain
 
 Pages → your project → **Custom domains** → add the domain and follow the DNS
-steps. Then add the same origin to Base44's allowed redirect URLs.
+steps:
+
+- If the domain's DNS is already on Cloudflare, it's a couple of clicks.
+- Otherwise, add the `CNAME` record Cloudflare shows you at your DNS provider.
+
+Then add the same origin to Base44's allowed redirect URLs.
 
 ## iOS icons (optional polish)
 
