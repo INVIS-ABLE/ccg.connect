@@ -49,8 +49,17 @@ In the Base44 app settings, add your Cloudflare origin(s) as **allowed login /
 redirect URLs** so the auth round-trip can return to the app:
 
 - `https://<project>.pages.dev`
-- your custom domain (if any)
+- your custom domain (if any) — e.g. `https://app.cookconstructiongrowth.co.uk`
 - preview origins if you use them (`https://<hash>.<project>.pages.dev`)
+
+This is the field that takes a **full URL** (with `https://`, dots and all).
+
+> ⚠️ **Do _not_ use Base44's "Custom domain" setting for this.** That field is for
+> apps served **directly** from Base44 (`*.base44.app`) and only accepts a bare
+> hostname **label** (letters/numbers/hyphens, no dots) — so it will reject
+> `app.cookconstructiongrowth.co.uk`. In this architecture the front-end is served
+> by **Cloudflare Pages**, so the domain is attached there (see below); Base44 only
+> needs the origin added to the **allowed login / redirect URLs** list above.
 
 No CORS allow-list is needed because the browser only ever calls its own origin
 (`/api/*`), which the Function proxies server-side.
