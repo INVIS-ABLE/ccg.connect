@@ -8,6 +8,8 @@ import type {
   Timesheet,
   Invoice,
   MatchCandidate,
+  AppNotification,
+  JobMediaItem,
 } from './types';
 
 /** Thrown on any non-2xx API response; carries the status and parsed body. */
@@ -108,6 +110,29 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+  },
+  notifications: {
+    list: () => request<{ notifications: AppNotification[] }>('/api/notifications'),
+    markRead: (id: string) =>
+      request<{ notification: AppNotification }>(`/api/notifications/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({}),
+      }),
+  },
+  media: {
+    list: (jobId: string) =>
+      request<{ media: JobMediaItem[] }>(`/api/media?job_id=${encodeURIComponent(jobId)}`),
+    fileUrl: (id: string) => `/api/media/${encodeURIComponent(id)}/file`,
+    upload: async (jobId: string, file: File, fields: Record<string, string> = {}) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('job_id', jobId);
+      for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+      const res = await fetch('/api/media', { method: 'POST', credentials: 'include', body: fd });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new ApiError(res.status, body);
+      return body as { media: JobMediaItem };
+    },
   },
   invoices: {
     list: () => request<{ invoices: Invoice[] }>('/api/invoices'),

@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { isAdminRole } from '@/domain/auth/roles';
 import { Button } from '@/components/ui/button';
+import { NotificationsBell } from '@/app/NotificationsBell';
 
 const ADMIN_NAV = [
   { to: '/', label: 'Dashboard', end: true },
@@ -67,7 +68,8 @@ export function AppShell({ children }) {
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-sm">
+          <div className="flex items-center gap-2 text-sm">
+            <NotificationsBell />
             <span className="hidden text-muted-foreground sm:inline">
               {name}
               {role ? ` · ${role}` : ''}
