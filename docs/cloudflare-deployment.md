@@ -7,7 +7,7 @@ token/redirect flow keeps working. It is also an installable **PWA**.
 
 > **Workers, not classic Pages.** Cloudflare's Git integration now deploys this as
 > a **Worker with static assets** (`npx wrangler deploy`), not a classic Pages
-> project. A tiny Worker (`worker/index.js`) serves the built SPA from `dist/` and
+> project. A Hono Worker (`api/index.ts`) serves the built SPA from `dist/` and
 > proxies `/api/*` to Base44. Classic Pages Functions (`functions/`) and
 > `_redirects` are **not** used in this model.
 
@@ -19,8 +19,8 @@ token/redirect flow keeps working. It is also an installable **PWA**.
 
 | File | Purpose |
 | --- | --- |
-| `wrangler.jsonc` | Worker config: `main` = `worker/index.js`, static `assets` from `dist/` with SPA `not_found_handling`. |
-| `worker/index.js` | The Worker: proxies `/api/*` → Base44 (`BASE44_APP_BASE_URL`), otherwise serves assets / the SPA shell. |
+| `wrangler.jsonc` | Worker config: `main` = `api/index.ts`, static `assets` from `dist/` with SPA `not_found_handling`, D1 binding. |
+| `api/index.ts` | The Hono Worker (strangler facade): serves `/api/auth/*` (Better Auth) + new routes, proxies the rest of `/api/*` → Base44, otherwise serves assets / the SPA shell. |
 | `vite.config.js` (`VitePWA`) | Generates `manifest.webmanifest` + service worker (`sw.js`). App-shell precache only; **never** caches `/api`. |
 | `public/icon.svg`, `maskable-icon.svg`, `favicon.svg` | Scalable app icons (Android/Chrome/desktop). |
 | `public/pwa-192.png`, `pwa-512.png`, `pwa-maskable-{192,512}.png`, `apple-touch-icon.png` | Branded PNG icons (iOS home-screen + broad install compatibility). |
@@ -162,7 +162,9 @@ plugin) or run the Worker locally with `npx wrangler dev` (set `BASE44_APP_BASE_
 
 ## How routing resolves on the Worker
 
-1. `/api/*` → `worker/index.js` proxies to Base44 (`BASE44_APP_BASE_URL`).
-2. Existing static file (e.g. `/assets/*.js`, `/sw.js`) → served from `dist/`.
-3. Anything else → the Worker calls the assets binding, which serves `/index.html`
+1. `/api/auth/*` → Better Auth (in `api/index.ts`); `/api/health` → liveness.
+2. Other `/api/*` → proxied to Base44 (`BASE44_APP_BASE_URL`) — the strangler
+   fallback, preserving current behaviour until each slice is migrated.
+3. Existing static file (e.g. `/assets/*.js`, `/sw.js`) → served from `dist/`.
+4. Anything else → the Worker calls the assets binding, which serves `/index.html`
    (`not_found_handling: "single-page-application"`); React Router handles it.
