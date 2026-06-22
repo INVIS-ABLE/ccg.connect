@@ -99,6 +99,27 @@ export interface Invoice {
   status: string;
 }
 
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string | null;
+  notification_type: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface JobMediaItem {
+  id: string;
+  job_id: string;
+  media_type: 'image' | 'video' | 'document';
+  category: string;
+  original_filename: string | null;
+  caption: string | null;
+  client_visible: boolean;
+  url: string;
+  created_at: string;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

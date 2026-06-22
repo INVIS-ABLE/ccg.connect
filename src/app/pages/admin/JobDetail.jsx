@@ -4,6 +4,7 @@ import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { MediaGallery } from '@/app/MediaGallery';
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -70,6 +71,12 @@ export default function JobDetail() {
           <CardContent className="pt-6 text-sm">{job.short_description}</CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardContent className="pt-6">
+          <MediaGallery jobId={id} canUpload />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
