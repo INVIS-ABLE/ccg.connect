@@ -10,6 +10,9 @@ import contractorRoutes from './routes/contractors';
 import matchRoutes from './routes/match';
 import timesheetRoutes from './routes/timesheets';
 import invoiceRoutes from './routes/invoices';
+import notificationRoutes from './routes/notifications';
+import { runCredentialExpiryJob } from './jobs/credentialExpiry';
+import type { Bindings } from './env';
 
 /**
  * CCG Connect Worker (Hono) — Cloudflare-native backend.
@@ -41,6 +44,7 @@ app.route('/api/contractors', contractorRoutes);
 app.route('/api/match', matchRoutes);
 app.route('/api/timesheets', timesheetRoutes);
 app.route('/api/invoices', invoiceRoutes);
+app.route('/api/notifications', notificationRoutes);
 
 // Unknown API routes are genuine 404s — no Base44 fallback any more.
 app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
@@ -48,4 +52,10 @@ app.all('/api/*', (c) => c.json({ error: 'not_found' }, 404));
 // Static assets + SPA fallback (handled by the assets binding's not_found_handling).
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
-export default app;
+// Worker entry: HTTP via Hono + a scheduled (cron) handler for background jobs.
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: ScheduledController, env: Bindings, ctx: ExecutionContext) {
+    ctx.waitUntil(runCredentialExpiryJob(env));
+  },
+};
