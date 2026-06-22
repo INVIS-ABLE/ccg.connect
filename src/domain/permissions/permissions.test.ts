@@ -10,6 +10,11 @@ import {
   canManageContractors,
   canReadContractor,
   canReadLeads,
+  canSubmitTimesheet,
+  canReadTimesheet,
+  canManageTimesheets,
+  canManageInvoices,
+  canReadInvoice,
   redactForRole,
   INTERNAL_JOB_FIELDS,
 } from './permissions';
@@ -137,6 +142,41 @@ describe('leads (invariant 4)', () => {
     expect(canReadLeads(ops)).toBe(true);
     expect(canReadLeads(contractor)).toBe(false);
     expect(canReadLeads(client)).toBe(false);
+  });
+});
+
+describe('timesheets', () => {
+  it('a contractor may submit only their own timesheet', () => {
+    expect(canSubmitTimesheet(contractor, 'c-1')).toBe(true);
+    expect(canSubmitTimesheet(contractor, 'c-2')).toBe(false);
+    expect(canSubmitTimesheet(owner, 'c-2')).toBe(true);
+    expect(canSubmitTimesheet(client, 'c-1')).toBe(false);
+  });
+  it('read scope: contractor own, client own job, admin all', () => {
+    expect(canReadTimesheet(contractor, { contractor_id: 'c-1' })).toBe(true);
+    expect(canReadTimesheet(contractor, { contractor_id: 'c-2' })).toBe(false);
+    expect(canReadTimesheet(client, { contractor_id: 'c-1', job_client_id: 'cl-1' })).toBe(true);
+    expect(canReadTimesheet(client, { contractor_id: 'c-1', job_client_id: 'cl-2' })).toBe(false);
+    expect(canReadTimesheet(ops, { contractor_id: 'c-9' })).toBe(true);
+  });
+  it('only admins manage (approve/return) timesheets', () => {
+    expect(canManageTimesheets(owner)).toBe(true);
+    expect(canManageTimesheets(contractor)).toBe(false);
+  });
+});
+
+describe('invoices', () => {
+  it('only admins manage invoices', () => {
+    expect(canManageInvoices(ops)).toBe(true);
+    expect(canManageInvoices(contractor)).toBe(false);
+    expect(canManageInvoices(client)).toBe(false);
+  });
+  it('read scope: contractor own, client own, admin all', () => {
+    expect(canReadInvoice(contractor, { contractor_id: 'c-1' })).toBe(true);
+    expect(canReadInvoice(contractor, { contractor_id: 'c-2' })).toBe(false);
+    expect(canReadInvoice(client, { client_id: 'cl-1' })).toBe(true);
+    expect(canReadInvoice(client, { client_id: 'cl-2' })).toBe(false);
+    expect(canReadInvoice(owner, { contractor_id: 'c-1', client_id: 'cl-1' })).toBe(true);
   });
 });
 
