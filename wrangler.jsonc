@@ -28,5 +28,14 @@
       "database_name": "ccg-connect-db",
       "database_id": "3f02bebb-d008-4d49-ac6f-95a542a5891b"
     }
+  ],
+  // Private bucket for job media + credential documents (served only via the
+  // authorized /api/media/:id/file route — never public). Create it once with
+  // `npx wrangler r2 bucket create ccg-connect-media`.
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "ccg-connect-media"
+    }
   ]
 }
