@@ -10,6 +10,25 @@ const ADMIN_NAV = [
   { to: '/leads', label: 'Leads' },
 ];
 
+const CONTRACTOR_NAV = [
+  { to: '/', label: 'Home', end: true },
+  { to: '/contractor/jobs', label: 'My jobs' },
+  { to: '/contractor/timesheets', label: 'Timesheets' },
+  { to: '/contractor/profile', label: 'Profile' },
+];
+
+const CLIENT_NAV = [
+  { to: '/', label: 'Home', end: true },
+  { to: '/client/projects', label: 'Projects' },
+];
+
+function navForRole(role) {
+  if (isAdminRole(role)) return ADMIN_NAV;
+  if (role === 'contractor') return CONTRACTOR_NAV;
+  if (role === 'client') return CLIENT_NAV;
+  return [{ to: '/', label: 'Home', end: true }];
+}
+
 /** Authenticated layout: brand header, role-aware nav, current user, sign-out. */
 export function AppShell({ children }) {
   const { profile, principal, signOut } = useAuth();
@@ -19,7 +38,7 @@ export function AppShell({ children }) {
     [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') ||
     profile?.email ||
     'Account';
-  const nav = isAdminRole(role) ? ADMIN_NAV : [{ to: '/', label: 'Home', end: true }];
+  const nav = navForRole(role);
 
   return (
     <div className="min-h-screen bg-background">

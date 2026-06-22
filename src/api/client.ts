@@ -66,6 +66,8 @@ export const api = {
   },
   contractors: {
     list: () => request<{ contractors: Contractor[] }>('/api/contractors'),
+    create: (data: Partial<Contractor>) =>
+      request<{ contractor: Contractor }>('/api/contractors', { method: 'POST', body: JSON.stringify(data) }),
     get: (id: string) => request<{ contractor: Contractor }>(`/api/contractors/${encodeURIComponent(id)}`),
     update: (id: string, data: Partial<Contractor>) =>
       request<{ contractor: Contractor }>(`/api/contractors/${encodeURIComponent(id)}`, {
@@ -89,6 +91,18 @@ export const api = {
   },
   timesheets: {
     list: () => request<{ timesheets: Timesheet[] }>('/api/timesheets'),
+    submit: (data: {
+      job_id: string;
+      week_start: string;
+      entries: {
+        work_date: string;
+        start_time: string;
+        finish_time: string;
+        break_minutes?: number;
+        rate?: number;
+        description?: string;
+      }[];
+    }) => request<{ timesheet: Timesheet }>('/api/timesheets', { method: 'POST', body: JSON.stringify(data) }),
     review: (id: string, data: { status: string; rejection_reason?: string }) =>
       request<{ timesheet: Timesheet }>(`/api/timesheets/${encodeURIComponent(id)}`, {
         method: 'PATCH',

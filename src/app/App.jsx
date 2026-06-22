@@ -13,11 +13,21 @@ import Jobs from '@/app/pages/admin/Jobs';
 import JobDetail from '@/app/pages/admin/JobDetail';
 import Contractors from '@/app/pages/admin/Contractors';
 import Leads from '@/app/pages/admin/Leads';
+import ContractorJobs from '@/app/pages/contractor/ContractorJobs';
+import ContractorTimesheets from '@/app/pages/contractor/ContractorTimesheets';
+import ContractorProfile from '@/app/pages/contractor/ContractorProfile';
 
 /** Admin-only gate: non-admins are sent back to their dashboard. */
 function AdminRoute({ children }) {
   const { principal } = useAuth();
   if (!isAdminRole(principal?.role)) return <Navigate to="/" replace />;
+  return children;
+}
+
+/** Restrict a route to a specific app role. */
+function RoleRoute({ role, children }) {
+  const { principal } = useAuth();
+  if (principal?.role !== role) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -28,6 +38,7 @@ const shell = (node) => (
 );
 
 const adminShell = (node) => shell(<AdminRoute>{node}</AdminRoute>);
+const contractorShell = (node) => shell(<RoleRoute role="contractor">{node}</RoleRoute>);
 
 /**
  * Cloudflare-native CCG Connect app (Better Auth + the native API). Per-role
@@ -46,6 +57,9 @@ export default function App() {
             <Route path="/jobs/:id" element={adminShell(<JobDetail />)} />
             <Route path="/contractors" element={adminShell(<Contractors />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
+            <Route path="/contractor/jobs" element={contractorShell(<ContractorJobs />)} />
+            <Route path="/contractor/timesheets" element={contractorShell(<ContractorTimesheets />)} />
+            <Route path="/contractor/profile" element={contractorShell(<ContractorProfile />)} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
