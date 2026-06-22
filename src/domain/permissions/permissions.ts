@@ -135,6 +135,23 @@ export function canReadInvoice(p: Principal, inv: InvoiceScope): boolean {
   return false;
 }
 
+// ── Credentials ──────────────────────────────────────────────────────────────
+export interface CredentialScope {
+  contractor_id: string;
+}
+
+/** Verifying/rejecting credentials is an admin action. */
+export const canManageCredentials = (p: Principal): boolean => isAdmin(p);
+
+export function canReadCredential(p: Principal, cr: CredentialScope): boolean {
+  if (isAdmin(p)) return true;
+  if (p.role === 'contractor') return p.contractorId != null && cr.contractor_id === p.contractorId;
+  return false;
+}
+export function canWriteCredential(p: Principal, cr: CredentialScope): boolean {
+  return isAdmin(p) || (p.role === 'contractor' && p.contractorId != null && cr.contractor_id === p.contractorId);
+}
+
 // ── Leads (invariant 4) ──────────────────────────────────────────────────────
 /** Anyone may create a Lead (public intake); only admins may ever read them. */
 export const canReadLeads = (p: Principal): boolean => isAdmin(p);

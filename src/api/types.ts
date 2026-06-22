@@ -99,6 +99,25 @@ export interface Invoice {
   status: string;
 }
 
+export interface CredentialType {
+  id: string;
+  name: string;
+  category: string | null;
+  requires_expiry: boolean;
+}
+
+export interface ContractorCredential {
+  id: string;
+  contractor_id: string;
+  credential_type_id: string;
+  issuer: string | null;
+  registration_or_policy_number: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+  verification_status: 'awaiting_review' | 'verified' | 'rejected' | 'expired' | 'superseded';
+  rejection_reason: string | null;
+}
+
 export interface AppNotification {
   id: string;
   title: string;
