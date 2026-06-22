@@ -1,0 +1,63 @@
+{
+  "name": "JobMessage",
+  "type": "object",
+  "properties": {
+    "thread_id": {
+      "type": "string"
+    },
+    "job_id": {
+      "type": "string"
+    },
+    "sender_user_id": {
+      "type": "string"
+    },
+    "message_text": {
+      "type": "string"
+    },
+    "message_type": {
+      "type": "string",
+      "enum": [
+        "text",
+        "image",
+        "document",
+        "system"
+      ],
+      "default": "text"
+    },
+    "attachment_url": {
+      "type": "string"
+    },
+    "client_visible": {
+      "type": "boolean",
+      "default": false
+    },
+    "internal_only": {
+      "type": "boolean",
+      "default": false
+    },
+    "reply_to_message_id": {
+      "type": "string"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "edited_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "read_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "thread_id",
+    "job_id",
+    "sender_user_id"
+  ]
+}

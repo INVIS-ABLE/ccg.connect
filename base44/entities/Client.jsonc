@@ -1,0 +1,67 @@
+{
+  "name": "Client",
+  "type": "object",
+  "properties": {
+    "client_reference": {
+      "type": "string"
+    },
+    "client_type": {
+      "type": "string",
+      "enum": [
+        "individual",
+        "company",
+        "housing_association",
+        "local_authority",
+        "other"
+      ],
+      "default": "company"
+    },
+    "individual_or_company_name": {
+      "type": "string"
+    },
+    "main_contact_name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "billing_email": {
+      "type": "string"
+    },
+    "billing_address": {
+      "type": "string"
+    },
+    "default_site_address": {
+      "type": "string"
+    },
+    "default_postcode": {
+      "type": "string"
+    },
+    "account_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive",
+        "suspended"
+      ],
+      "default": "active"
+    },
+    "portal_enabled": {
+      "type": "boolean",
+      "default": false
+    },
+    "private_admin_notes": {
+      "type": "string"
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "individual_or_company_name"
+  ]
+}

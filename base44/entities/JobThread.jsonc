@@ -1,0 +1,30 @@
+{
+  "name": "JobThread",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "thread_type": {
+      "type": "string",
+      "enum": [
+        "internal_operations",
+        "contractor",
+        "client"
+      ],
+      "default": "internal_operations"
+    },
+    "client_visible": {
+      "type": "boolean",
+      "default": false
+    },
+    "active": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "job_id",
+    "thread_type"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "name": "JobChecklistItem",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "template_item_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "not_applicable",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "completed_by": {
+      "type": "string"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "evidence_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id"
+  ]
+}

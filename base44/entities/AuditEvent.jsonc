@@ -1,0 +1,35 @@
+{
+  "name": "AuditEvent",
+  "type": "object",
+  "properties": {
+    "actor_user_id": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string"
+    },
+    "entity_type": {
+      "type": "string"
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "previous_values": {
+      "type": "string"
+    },
+    "new_values": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "entity_type"
+  ]
+}

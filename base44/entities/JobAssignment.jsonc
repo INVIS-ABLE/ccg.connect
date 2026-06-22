@@ -1,0 +1,64 @@
+{
+  "name": "JobAssignment",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "contractor_id": {
+      "type": "string"
+    },
+    "assignment_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "cancelled",
+        "suspended"
+      ],
+      "default": "active"
+    },
+    "agreed_rate_type": {
+      "type": "string",
+      "enum": [
+        "hourly",
+        "daily",
+        "fixed"
+      ],
+      "default": "daily"
+    },
+    "agreed_rate": {
+      "type": "number"
+    },
+    "planned_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "planned_finish": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "actual_finish": {
+      "type": "string",
+      "format": "date"
+    },
+    "assigned_by": {
+      "type": "string"
+    },
+    "assigned_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cancellation_reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "job_id",
+    "contractor_id"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "JobRequiredSkill",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "skill_id": {
+      "type": "string"
+    },
+    "required_level": {
+      "type": "string",
+      "enum": [
+        "any",
+        "intermediate",
+        "experienced",
+        "expert"
+      ],
+      "default": "any"
+    },
+    "mandatory": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "job_id",
+    "skill_id"
+  ]
+}

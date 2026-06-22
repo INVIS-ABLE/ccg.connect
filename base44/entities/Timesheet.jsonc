@@ -1,0 +1,58 @@
+{
+  "name": "Timesheet",
+  "type": "object",
+  "properties": {
+    "job_id": {
+      "type": "string"
+    },
+    "contractor_id": {
+      "type": "string"
+    },
+    "week_start": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted",
+        "needs_correction",
+        "approved",
+        "exported",
+        "paid",
+        "disputed"
+      ],
+      "default": "draft"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewed_by": {
+      "type": "string"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "rejection_reason": {
+      "type": "string"
+    },
+    "total_hours": {
+      "type": "number"
+    },
+    "total_amount": {
+      "type": "number"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "job_id",
+    "contractor_id",
+    "week_start"
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "name": "ContractorSkill",
+  "type": "object",
+  "properties": {
+    "contractor_id": {
+      "type": "string"
+    },
+    "skill_id": {
+      "type": "string"
+    },
+    "proficiency_level": {
+      "type": "string",
+      "enum": [
+        "beginner",
+        "intermediate",
+        "experienced",
+        "expert"
+      ],
+      "default": "experienced"
+    },
+    "years_experience": {
+      "type": "number"
+    },
+    "primary_skill": {
+      "type": "boolean",
+      "default": false
+    },
+    "admin_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "contractor_id",
+    "skill_id"
+  ]
+}
