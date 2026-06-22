@@ -1,0 +1,13 @@
+# The service worker and manifest must always be revalidated so updates ship
+# promptly (registerType: autoUpdate).
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+
+# Baseline security headers. Intentionally NO X-Frame-Options here so the Base44
+# builder can still embed the app preview in an iframe.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(self)
