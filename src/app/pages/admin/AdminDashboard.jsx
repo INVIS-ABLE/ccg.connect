@@ -4,7 +4,8 @@ import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Users, Clock, AlertTriangle, CheckCircle, CalendarDays } from 'lucide-react';
+import { Briefcase, Users, Clock, AlertTriangle, CheckCircle, CalendarDays, GanttChart } from 'lucide-react';
+import JobGantt from '@/app/components/JobGantt';
 
 const STATUS_COLOR = {
   draft: 'bg-gray-200 text-gray-700',
@@ -146,6 +147,22 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Schedule / Gantt timeline */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <GanttChart size={16} /> Schedule timeline
+            </CardTitle>
+            <Link to="/jobs">
+              <Button variant="ghost" size="sm" className="text-xs">Manage jobs</Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {jobs === null && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {jobs !== null && <JobGantt jobs={jobs} />}
           </CardContent>
         </Card>
 
