@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import JobCheckIn from '@/app/components/JobCheckIn';
 
 /** A contractor's assigned jobs (the API already scopes /api/jobs to them). */
 export default function ContractorJobs() {
@@ -40,7 +41,12 @@ export default function ContractorJobs() {
                       {j.site_postcode ? ` · ${j.site_postcode}` : ''}
                     </div>
                   </div>
-                  <Badge variant="secondary">{j.status}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge variant="secondary">{j.status}</Badge>
+                    {j.status === 'in_progress' && (
+                      <JobCheckIn job={j} />
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

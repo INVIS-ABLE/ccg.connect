@@ -3,6 +3,7 @@ import { useAuth } from '@/app/auth/AuthProvider';
 import { isAdminRole } from '@/domain/auth/roles';
 import { Button } from '@/components/ui/button';
 import { NotificationsBell } from '@/app/NotificationsBell';
+import ContractorMobileNav from '@/app/components/ContractorMobileNav';
 
 const ADMIN_NAV = [
   { to: '/', label: 'Dashboard', end: true },
@@ -83,7 +84,8 @@ export function AppShell({ children }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main className={`mx-auto max-w-6xl px-4 py-6 ${role === 'contractor' ? 'pb-24 sm:pb-6' : ''}`}>{children}</main>
+      {role === 'contractor' && <ContractorMobileNav />}
     </div>
   );
 }

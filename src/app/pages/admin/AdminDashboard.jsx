@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Briefcase, Users, Clock, AlertTriangle, CheckCircle, CalendarDays, GanttChart } from 'lucide-react';
 import JobGantt from '@/app/components/JobGantt';
+import AdminJobCalendar from '@/app/components/AdminJobCalendar';
 
 const STATUS_COLOR = {
   draft: 'bg-gray-200 text-gray-700',
@@ -147,6 +148,19 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Monthly calendar view */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <CalendarDays size={16} /> Job calendar
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {jobs === null && <p className="text-sm text-muted-foreground">Loading…</p>}
+            {jobs !== null && <AdminJobCalendar jobs={jobs} />}
           </CardContent>
         </Card>
 
