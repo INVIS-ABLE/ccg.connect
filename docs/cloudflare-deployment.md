@@ -90,9 +90,12 @@ npx wrangler secret put DOCUMENSO_API_KEY
 
 - **Novu:** every in-app notification also triggers a Novu event named after the
   notification type (`job_assigned`, `timesheet_approved`, `timesheet_returned`),
-  with `subscriberId` = the user id and `{ title, body, deepLink }` payload.
-  Create matching workflows in Novu and add the user as a subscriber to receive
-  external channels. Without the key, only the in-app bell fires.
+  with `subscriberId` = the user id, the recipient's email/phone/name, and a
+  `{ title, body, deepLink }` payload. The app sends the contact details, so Novu
+  delivers email/SMS without manual subscriber upkeep — just create matching
+  workflows. **Region:** defaults to **EU** (`eu.api.novu.co`, UK/Europe); set
+  `NOVU_API_URL=https://api.novu.co` only for a US Novu account. Without the key,
+  only the in-app bell fires.
 - **Documenso:** the job page's "Request client e-signature" calls Documenso for
   the job's client. Without the key the button reports that e-signatures aren't
   enabled. Configure the document template/fields on the Documenso side.
