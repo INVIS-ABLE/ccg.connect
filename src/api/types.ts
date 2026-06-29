@@ -63,6 +63,22 @@ export interface Contractor {
   hourly_rate: number | null;
 }
 
+export interface Client {
+  id: string;
+  client_reference: string | null;
+  client_type: 'individual' | 'company' | 'housing_association' | 'local_authority' | 'other';
+  individual_or_company_name: string;
+  main_contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  billing_email: string | null;
+  billing_address: string | null;
+  default_site_address: string | null;
+  default_postcode: string | null;
+  account_status: 'active' | 'inactive' | 'suspended';
+  portal_enabled: boolean;
+}
+
 export interface Lead {
   id: string;
   name: string;
