@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { DataTable } from '@/components/data-table/DataTable';
 
 const STATUS_VARIANT = {
   approved: 'default',
@@ -15,7 +15,7 @@ const STATUS_VARIANT = {
 export default function Contractors() {
   const [contractors, setContractors] = useState(null);
   const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   async function load() {
     try {
@@ -29,72 +29,118 @@ export default function Contractors() {
     void load();
   }, []);
 
-  async function setStatus(id, approval_status) {
-    setBusy(id);
+  async function setStatus(ids, approval_status) {
+    setBusy(true);
     try {
-      await api.contractors.update(id, { approval_status });
+      await Promise.all(ids.map((id) => api.contractors.update(id, { approval_status })));
       await load();
     } catch {
       setError('Could not update contractor.');
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
+
+  const columns = [
+    {
+      id: 'name',
+      accessorFn: (r) => r.trading_name ?? r.legal_name ?? 'Unnamed contractor',
+      header: 'Name',
+      meta: { exportLabel: 'Name' },
+      cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+    },
+    {
+      id: 'trade',
+      accessorFn: (r) => r.primary_trade ?? '',
+      header: 'Trade',
+      meta: { exportLabel: 'Trade' },
+      cell: (info) => info.getValue() || '—',
+    },
+    {
+      id: 'postcode',
+      accessorFn: (r) => r.base_postcode ?? '',
+      header: 'Postcode',
+      meta: { exportLabel: 'Postcode' },
+      cell: (info) => info.getValue() || '—',
+    },
+    {
+      id: 'status',
+      accessorFn: (r) => r.approval_status,
+      header: 'Status',
+      meta: { exportLabel: 'Status' },
+      cell: (info) => <Badge variant={STATUS_VARIANT[info.getValue()] ?? 'secondary'}>{info.getValue()}</Badge>,
+    },
+    {
+      id: 'preferred',
+      accessorFn: (r) => (r.preferred_contractor ? 'Preferred' : ''),
+      header: 'Preferred',
+      meta: { exportLabel: 'Preferred' },
+      cell: (info) => (info.getValue() ? <Badge variant="outline">Preferred</Badge> : null),
+    },
+    {
+      id: 'actions',
+      header: '',
+      enableSorting: false,
+      enableHiding: false,
+      cell: ({ row }) => {
+        const ct = row.original;
+        return (
+          <div className="flex justify-end gap-2">
+            {ct.approval_status !== 'approved' && (
+              <Button size="sm" disabled={busy} onClick={() => setStatus([ct.id], 'approved')}>
+                Approve
+              </Button>
+            )}
+            {ct.approval_status !== 'suspended' && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus([ct.id], 'suspended')}>
+                Suspend
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Contractors</h1>
-      <Card>
-        <CardContent className="pt-6">
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          {!error && contractors === null && (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          )}
-          {!error && contractors?.length === 0 && (
-            <p className="text-sm text-muted-foreground">No contractors yet.</p>
-          )}
-          {!error && contractors && contractors.length > 0 && (
-            <ul className="divide-y">
-              {contractors.map((ct) => (
-                <li key={ct.id} className="flex items-center justify-between gap-4 py-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {ct.trading_name ?? ct.legal_name ?? 'Unnamed contractor'}
-                      </span>
-                      <Badge variant={STATUS_VARIANT[ct.approval_status] ?? 'secondary'}>
-                        {ct.approval_status}
-                      </Badge>
-                      {ct.preferred_contractor && <Badge variant="outline">Preferred</Badge>}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {ct.primary_trade ?? '—'}
-                      {ct.base_postcode ? ` · ${ct.base_postcode}` : ''}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {ct.approval_status !== 'approved' && (
-                      <Button size="sm" disabled={busy === ct.id} onClick={() => setStatus(ct.id, 'approved')}>
-                        Approve
-                      </Button>
-                    )}
-                    {ct.approval_status !== 'suspended' && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busy === ct.id}
-                        onClick={() => setStatus(ct.id, 'suspended')}
-                      >
-                        Suspend
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <DataTable
+        columns={columns}
+        data={contractors ?? []}
+        getRowId={(r) => r.id}
+        loading={contractors === null && !error}
+        emptyMessage="No contractors yet."
+        searchPlaceholder="Search contractors…"
+        exportFilename="contractors.csv"
+        enableSelection
+        renderBulkActions={(rows, clear) => (
+          <>
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={async () => {
+                await setStatus(rows.map((r) => r.id), 'approved');
+                clear();
+              }}
+            >
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={async () => {
+                await setStatus(rows.map((r) => r.id), 'suspended');
+                clear();
+              }}
+            >
+              Suspend
+            </Button>
+          </>
+        )}
+      />
     </div>
   );
 }
