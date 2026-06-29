@@ -21,6 +21,9 @@ export type AuthEnv = {
   BETTER_AUTH_URL?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  // One-time first-admin bootstrap (see routes/adminBootstrap.ts). When unset the
+  // bootstrap route is disabled. Provision transiently via `wrangler secret put`.
+  ADMIN_BOOTSTRAP_SECRET?: string;
 };
 
 export function createAuth(env: AuthEnv) {

@@ -14,6 +14,7 @@ import notificationRoutes from './routes/notifications';
 import mediaRoutes from './routes/media';
 import credentialRoutes from './routes/credentials';
 import adminPromotionRoutes from './routes/adminPromotion';
+import adminBootstrapRoutes from './routes/adminBootstrap';
 import { runCredentialExpiryJob } from './jobs/credentialExpiry';
 import type { Bindings } from './env';
 
@@ -50,6 +51,9 @@ app.route('/api/invoices', invoiceRoutes);
 app.route('/api/notifications', notificationRoutes);
 app.route('/api/media', mediaRoutes);
 app.route('/api/credentials', credentialRoutes);
+// Registered before the admin promotion routes so the unauthenticated, one-time
+// bootstrap is not caught by their requireAuth middleware (it has its own gate).
+app.route('/api/admin/bootstrap', adminBootstrapRoutes);
 app.route('/api/admin', adminPromotionRoutes);
 
 // Unknown API routes are genuine 404s — no Base44 fallback any more.

@@ -45,6 +45,34 @@ npx wrangler secret put BETTER_AUTH_URL
 > The old `VITE_BASE44_*` / `BASE44_APP_BASE_URL` variables are obsolete and can be
 > deleted from the project.
 
+## Bootstrapping the first admin (owner)
+
+Every privileged action is admin-gated, so the **first** `owner` account must be
+created out of band — there is no admin yet to promote it. Use the one-time
+bootstrap route (`POST /api/admin/bootstrap`, see `api/routes/adminBootstrap.ts`).
+It is disabled unless `ADMIN_BOOTSTRAP_SECRET` is set, self-disables once any
+owner exists, and hashes the password via Better Auth. **The password is never
+committed to the repo or stored in plaintext** — you supply it at request time.
+
+```bash
+# 1. Set a throwaway bootstrap secret on the Worker.
+openssl rand -base64 32 | npx wrangler secret put ADMIN_BOOTSTRAP_SECRET
+# (note the value it prints / that you piped in — you need it for the next call)
+
+# 2. Create the first owner. Replace the secret, email and password.
+#    The password is sent only over TLS at request time; do not hard-code it anywhere.
+curl -sS -X POST https://app.cookconstructiongrowth.co.uk/api/admin/bootstrap \
+  -H "content-type: application/json" \
+  -H "x-bootstrap-secret: <THE_SECRET_FROM_STEP_1>" \
+  -d '{"email":"invis-able@outlook.com","password":"<CHOSEN_PASSWORD>","name":"Admin"}'
+
+# 3. Delete the secret so the route is permanently disabled again.
+npx wrangler secret delete ADMIN_BOOTSTRAP_SECRET
+```
+
+The new owner then signs in normally at `/api/auth` (email + password). Further
+admins are created by promoting existing users via `PATCH /api/admin/users/:id/role`.
+
 ## Database (D1)
 
 The D1 database is bound as `DB` in `wrangler.jsonc`. Apply migrations after schema
