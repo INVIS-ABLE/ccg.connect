@@ -30,6 +30,7 @@ import Leads from '@/app/pages/admin/Leads';
 import Compliance from '@/app/pages/admin/Compliance';
 import UserManagement from '@/app/pages/admin/UserManagement';
 import Timesheets from '@/app/pages/admin/Timesheets';
+import Clients from '@/app/pages/admin/Clients';
 
 // Contractor pages
 import ContractorJobs from '@/app/pages/contractor/ContractorJobs';
@@ -120,6 +121,7 @@ export default function App() {
               )}
             />
             <Route path="/contractors" element={adminShell(<Contractors />)} />
+            <Route path="/clients" element={adminShell(<Clients />)} />
             <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
             <Route path="/users" element={adminShell(<UserManagement />)} />

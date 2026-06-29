@@ -47,7 +47,7 @@ const ADMIN_NAV = [
     icon: Users,
     items: [
       { label: 'Contractors', to: '/contractors', icon: Users },
-      { label: 'Clients', to: '/clients', icon: Building2, soon: true },
+      { label: 'Clients', to: '/clients', icon: Building2 },
       { label: 'Leads', to: '/leads', icon: UserPlus },
       { label: 'Users', to: '/users', icon: UserCog },
     ],

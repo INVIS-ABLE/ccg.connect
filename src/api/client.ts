@@ -4,6 +4,7 @@ import type {
   UserProfile,
   Principal,
   Contractor,
+  Client,
   Lead,
   Timesheet,
   Invoice,
@@ -78,6 +79,17 @@ export const api = {
     get: (id: string) => request<{ contractor: Contractor }>(`/api/contractors/${encodeURIComponent(id)}`),
     update: (id: string, data: Partial<Contractor>) =>
       request<{ contractor: Contractor }>(`/api/contractors/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
+  clients: {
+    list: () => request<{ clients: Client[] }>('/api/clients'),
+    get: (id: string) => request<{ client: Client }>(`/api/clients/${encodeURIComponent(id)}`),
+    create: (data: Partial<Client> & { individual_or_company_name: string }) =>
+      request<{ client: Client }>('/api/clients', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Client>) =>
+      request<{ client: Client }>(`/api/clients/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
