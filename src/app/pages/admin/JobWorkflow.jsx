@@ -84,6 +84,47 @@ export default function JobWorkflow() {
     }
   }
 
+  function jobDocProps() {
+    return {
+      reference: job.job_reference ?? job.id.slice(0, 8).toUpperCase(),
+      title: job.title,
+      site: [job.site_address, job.site_postcode].filter(Boolean).join(' · '),
+      dates: job.start_date
+        ? `${new Date(job.start_date).toLocaleDateString('en-GB')}${job.end_date ? ` – ${new Date(job.end_date).toLocaleDateString('en-GB')}` : ''}`
+        : '',
+      trade: job.trade_category ?? '',
+      urgency: job.urgency ?? '',
+      status: job.status ?? '',
+      description: job.short_description ?? '',
+      clientNotes: job.client_visible_notes ?? '',
+    };
+  }
+
+  function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadJobSheet() {
+    const mod = await import('@/features/documents/jobDocuments');
+    const blob = await mod.generateJobSheetBlob({ job: jobDocProps(), logoUrl: `${window.location.origin}/ccg-logo.png` });
+    triggerDownload(blob, `job-sheet-${jobDocProps().reference}.pdf`);
+  }
+
+  async function downloadCompletion() {
+    const mod = await import('@/features/documents/jobDocuments');
+    const blob = await mod.generateCompletionBlob({
+      job: jobDocProps(),
+      completedDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+      logoUrl: `${window.location.origin}/ccg-logo.png`,
+    });
+    triggerDownload(blob, `completion-${jobDocProps().reference}.pdf`);
+  }
+
   if (error && !job) return <p className="text-sm text-destructive">{error}</p>;
   if (!job) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
@@ -234,6 +275,21 @@ export default function JobWorkflow() {
         </CardHeader>
         <CardContent>
           <MediaGallery jobId={id} canUpload />
+        </CardContent>
+      </Card>
+
+      {/* Documents */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Documents</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={downloadJobSheet}>
+            Download job sheet
+          </Button>
+          <Button size="sm" variant="outline" onClick={downloadCompletion}>
+            Download completion record
+          </Button>
         </CardContent>
       </Card>
 
