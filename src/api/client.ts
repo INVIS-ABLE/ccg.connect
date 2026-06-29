@@ -13,6 +13,7 @@ import type {
   JobMediaItem,
   CredentialType,
   ContractorCredential,
+  Quote,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -209,6 +210,25 @@ export const api = {
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,
         { method: 'POST', body: JSON.stringify({ body }) },
       ),
+  },
+  quotes: {
+    list: (jobId?: string) =>
+      request<{ quotes: Quote[] }>(`/api/quotes${jobId ? `?job_id=${encodeURIComponent(jobId)}` : ''}`),
+    create: (data: {
+      job_id?: string;
+      client_id?: string;
+      quote_number?: string;
+      recipient_name?: string;
+      line_items: { description?: string; qty?: number; unitPrice?: number }[];
+      vat_rate?: number;
+      valid_until?: string;
+      notes?: string;
+    }) => request<{ quote: Quote }>('/api/quotes', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { status?: string; notes?: string }) =>
+      request<{ quote: Quote }>(`/api/quotes/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
   },
   invoices: {
     list: () => request<{ invoices: Invoice[] }>('/api/invoices'),
