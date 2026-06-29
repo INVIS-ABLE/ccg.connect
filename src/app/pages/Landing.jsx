@@ -179,9 +179,13 @@ export default function Landing() {
             </Link>
           </p>
           <p className="mt-3 text-center text-sm text-gray-500">
-            No account?{' '}
-            <Link to="/register" className="font-medium text-[#F97316] hover:underline">
-              Register
+            New client?{' '}
+            <Link to="/client-signup" className="font-medium text-[#F97316] hover:underline">
+              Request a quote
+            </Link>
+            {' · '}
+            <Link to="/register" className="text-gray-400 hover:underline">
+              Contractor/staff register
             </Link>
           </p>
         </div>

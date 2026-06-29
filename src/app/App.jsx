@@ -37,6 +37,10 @@ import ContractorProfile from '@/app/pages/contractor/ContractorProfile';
 // Client pages
 import ClientProjects from '@/app/pages/client/ClientProjects';
 import ClientJobSubmit from '@/app/pages/client/ClientJobSubmit';
+import ClientSignup from '@/app/pages/ClientSignup';
+
+// Admin — standalone match engine
+import ContractorMatchEngine from '@/app/pages/admin/ContractorMatchEngine';
 
 /** Admin-only gate */
 function AdminRoute({ children }) {
@@ -81,6 +85,7 @@ export default function App() {
             {/* Public */}
             <Route path="/login" element={<Landing />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/client-signup" element={<ClientSignup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -96,6 +101,7 @@ export default function App() {
             <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
             <Route path="/users" element={adminShell(<UserManagement />)} />
+            <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
 
             {/* Contractor */}
             <Route path="/contractor/jobs" element={contractorShell(<ContractorJobs />)} />

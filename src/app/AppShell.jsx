@@ -13,6 +13,7 @@ const ADMIN_NAV = [
   { to: '/leads', label: 'Leads' },
   { to: '/invoices', label: 'Invoices' },
   { to: '/users', label: 'Users' },
+  { to: '/match-engine', label: 'Match Engine' },
 ];
 
 const CONTRACTOR_NAV = [
