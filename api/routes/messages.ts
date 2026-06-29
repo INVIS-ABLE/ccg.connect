@@ -221,6 +221,30 @@ route.post('/conversations/:id/messages', async (c) => {
     .set({ last_message_at: now, last_message_preview: text.slice(0, 140), updated_at: new Date() })
     .where(eq(conversations.id, convo.id));
 
+  // Fan out to connected sockets via the conversation's Durable Object
+  // (best-effort; clients still have polling as a fallback).
+  try {
+    const stub = c.env.CHAT_ROOMS.get(c.env.CHAT_ROOMS.idFromName(convo.id));
+    c.executionCtx.waitUntil(
+      stub.fetch('https://chat/broadcast', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'message',
+          message: {
+            id: created.id,
+            conversation_id: convo.id,
+            sender_user_id: created.sender_user_id,
+            body: created.body,
+            read_at: created.read_at,
+            created_at: created.created_at,
+          },
+        }),
+      }),
+    );
+  } catch {
+    /* non-fatal: realtime is an enhancement over polling */
+  }
+
   return c.json(
     {
       message: {
@@ -234,6 +258,22 @@ route.post('/conversations/:id/messages', async (c) => {
     },
     201,
   );
+});
+
+// GET /api/messages/conversations/:id/ws — realtime channel for a conversation.
+// Authorized here (participant check), then handed to the conversation's DO.
+route.get('/conversations/:id/ws', async (c) => {
+  if (c.req.header('upgrade')?.toLowerCase() !== 'websocket') {
+    return c.json({ error: 'expected_websocket' }, 426);
+  }
+  const loaded = await loadOwnedConversation(c);
+  if ('error' in loaded) return loaded.error;
+  const { convo, me } = loaded;
+
+  const stub = c.env.CHAT_ROOMS.get(c.env.CHAT_ROOMS.idFromName(convo.id));
+  const headers = new Headers(c.req.raw.headers);
+  headers.set('x-user-id', me.userId);
+  return stub.fetch(new Request(c.req.raw.url, { method: 'GET', headers }));
 });
 
 export default route;

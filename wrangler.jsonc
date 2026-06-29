@@ -41,5 +41,11 @@
       "binding": "MEDIA",
       "bucket_name": "ccg-connect-media"
     }
-  ]
+  ],
+  // Realtime chat: one Durable Object per conversation (see api/chat/ConversationRoom.ts).
+  "durable_objects": {
+    "bindings": [{ "name": "CHAT_ROOMS", "class_name": "ConversationRoom" }]
+  },
+  // SQLite-backed DO class so it runs on the free plan (storage unused — pure fan-out).
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ConversationRoom"] }]
 }
