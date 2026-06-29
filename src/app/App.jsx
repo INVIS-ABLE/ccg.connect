@@ -10,6 +10,8 @@ import { AppShell } from '@/app/AppShell';
 // Auth pages
 import Landing from '@/app/pages/Landing';
 import Register from '@/app/pages/Register';
+import ForgotPassword from '@/app/pages/ForgotPassword';
+import ResetPassword from '@/app/pages/ResetPassword';
 
 // Dashboards
 import AdminDashboard from '@/app/pages/admin/AdminDashboard';
@@ -79,6 +81,8 @@ export default function App() {
             {/* Public */}
             <Route path="/login" element={<Landing />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Role-aware root dashboard */}
             <Route path="/" element={shell(<RoleDashboard />)} />
