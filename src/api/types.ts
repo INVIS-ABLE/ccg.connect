@@ -123,6 +123,7 @@ export interface AppNotification {
   title: string;
   body: string | null;
   notification_type: string | null;
+  deep_link: string | null;
   read_at: string | null;
   created_at: string;
 }

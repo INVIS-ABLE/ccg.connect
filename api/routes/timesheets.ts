@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc } from 'drizzle-orm';
-import { timesheets, timesheetEntries, jobs } from '../db/schema';
+import { timesheets, timesheetEntries, jobs, contractorProfiles } from '../db/schema';
 import { requireAuth } from '../lib/session';
+import { notify } from '../lib/notify';
+import { timesheetReviewed } from '../../src/domain/notifications/templates';
 import {
   isAdmin,
   canManageTimesheets,
@@ -157,7 +159,31 @@ route.patch('/:id', async (c) => {
     .where(eq(timesheets.id, c.req.param('id')))
     .returning();
   if (!updated[0]) return c.json({ error: 'not_found' }, 404);
-  return c.json({ timesheet: updated[0] });
+  const ts = updated[0];
+
+  // Notify the contractor of the review outcome (best-effort).
+  c.executionCtx.waitUntil(
+    (async () => {
+      const cp = await db
+        .select({ user_id: contractorProfiles.user_id })
+        .from(contractorProfiles)
+        .where(eq(contractorProfiles.id, ts.contractor_id))
+        .limit(1);
+      const userId = cp[0]?.user_id;
+      if (!userId) return;
+      const t = timesheetReviewed(status, ts.week_start);
+      await notify(c.env, {
+        userId,
+        jobId: ts.job_id,
+        notification_type: t.notification_type,
+        title: t.title,
+        body: t.body,
+        deep_link: t.deep_link,
+      });
+    })(),
+  );
+
+  return c.json({ timesheet: ts });
 });
 
 export default route;
