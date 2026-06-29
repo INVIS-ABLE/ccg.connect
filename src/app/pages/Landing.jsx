@@ -188,7 +188,22 @@ export default function Landing() {
             </Button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-gray-500">
+          {/* Clear sign-up call to action for new contractors/staff. */}
+          <div className="mt-6 flex items-center gap-3 text-xs text-gray-600">
+            <span className="h-px flex-1 bg-white/10" />
+            New here?
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+          <Button
+            type="button"
+            onClick={() => navigate('/register')}
+            className="mt-4 w-full bg-transparent border border-[#F97316]/50 text-[#F97316] hover:bg-[#F97316]/10 font-semibold"
+          >
+            Create an account
+          </Button>
+          <p className="mt-2 text-center text-xs text-gray-600">For contractors &amp; staff</p>
+
+          <p className="mt-5 text-center text-sm text-gray-500">
             <Link to="/forgot-password" className="text-[#F97316] hover:underline">
               Forgot your password?
             </Link>
@@ -197,10 +212,6 @@ export default function Landing() {
             New client?{' '}
             <Link to="/client-signup" className="font-medium text-[#F97316] hover:underline">
               Request a quote
-            </Link>
-            {' · '}
-            <Link to="/register" className="text-gray-400 hover:underline">
-              Contractor/staff register
             </Link>
           </p>
         </div>
