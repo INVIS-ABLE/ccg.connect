@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { ChevronUp } from 'lucide-react';
 import HeroCanvas from '@/components/hero/HeroCanvas';
 
-const CCG_LOGO =
-  'https://cookconstructiongrowth.co.uk/wp-content/uploads/2024/11/CCG-Logo.png';
+// Served from public/ — the Cook Construction Growth brand logo. (The old
+// wp-content URL 404s now that the marketing site moved it.)
+const CCG_LOGO = '/ccg-logo.png';
 
 /**
  * The app's "front door": the CCG website hero — including its animated 3D
@@ -74,22 +75,27 @@ export default function Landing() {
           }}
         />
 
-        {/* Logo (top-left) — no marketing nav. */}
+        {/* Logo (top-left) — no marketing nav. On a white chip so the dark-navy
+            brand logo stays legible over the dark 3D scene. */}
         <header className="relative z-10 flex items-center px-6 pt-12 pb-4">
-          <img
-            src={CCG_LOGO}
-            alt="Cook Construction Growth"
-            className="h-12 object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
+          <span className="inline-flex rounded-xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-black/5">
+            <img
+              src={CCG_LOGO}
+              alt="Cook Construction Growth"
+              className="h-10 w-auto object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </span>
         </header>
 
-        {/* Hero copy — sits in a translucent blurred panel so the 3D scene stays
-            visible behind the writing. */}
+        {/* Hero copy — sits in a lightly tinted panel so the 3D scene shows
+            through it while the text stays readable. */}
         <main className="relative z-10 flex-1 flex flex-col justify-end px-6 pb-8">
-          <div className="max-w-md rounded-2xl bg-black/55 p-6 ring-1 ring-white/10 backdrop-blur-md">
+          <div
+            className="max-w-md rounded-2xl bg-black/30 p-6 ring-1 ring-white/10 backdrop-blur-[2px] [text-shadow:0_1px_10px_rgba(0,0,0,0.6)]"
+          >
             <p className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-5">
               <span className="inline-block w-6 h-px bg-[#F97316]" />
               Growth partner for the construction industry
@@ -129,16 +135,19 @@ export default function Landing() {
         style={{ background: '#0e1117' }}
       >
         <div className="w-full max-w-sm">
-          {/* Mini logo */}
+          {/* Mini logo — white chip keeps the dark-navy logo legible on the
+              dark login panel. */}
           <div className="flex justify-center mb-8">
-            <img
-              src={CCG_LOGO}
-              alt="Cook Construction Growth"
-              className="h-10 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+            <span className="inline-flex rounded-xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-black/5">
+              <img
+                src={CCG_LOGO}
+                alt="Cook Construction Growth"
+                className="h-9 w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </span>
           </div>
 
           <h2 className="text-2xl font-bold text-white mb-1 text-center">Portal Login</h2>
