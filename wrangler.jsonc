@@ -26,7 +26,11 @@
     {
       "binding": "DB",
       "database_name": "ccg-connect-db",
-      "database_id": "3f02bebb-d008-4d49-ac6f-95a542a5891b"
+      "database_id": "3f02bebb-d008-4d49-ac6f-95a542a5891b",
+      // Drizzle writes migrations here (see drizzle.config.ts `out`). Without this,
+      // `wrangler d1 migrations apply` looks in the default ./migrations dir, finds
+      // nothing, and silently creates no tables — so set it explicitly.
+      "migrations_dir": "api/db/migrations"
     }
   ],
   // Private bucket for job media + credential documents (served only via the
