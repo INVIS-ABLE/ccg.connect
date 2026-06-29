@@ -5,10 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChevronUp } from 'lucide-react';
+import HeroCanvas from '@/components/hero/HeroCanvas';
+
+const CCG_LOGO =
+  'https://cookconstructiongrowth.co.uk/wp-content/uploads/2024/11/CCG-Logo.png';
 
 /**
- * Full-page landing that mirrors the CCG website hero.
- * Swipe / scroll up reveals the sign-in form on the second "snap" panel.
+ * The app's "front door": the CCG website hero — including its animated 3D
+ * growth scene — sits as the face of the app, minus the marketing nav (just the
+ * logo, top-left). Swiping / scrolling up snaps to the sign-in panel.
  */
 export default function Landing() {
   const navigate = useNavigate();
@@ -38,57 +43,60 @@ export default function Landing() {
   return (
     <div
       className="h-screen overflow-y-scroll snap-y snap-mandatory"
-      style={{ scrollSnapType: 'y mandatory' }}
+      style={{ scrollSnapType: 'y mandatory', background: '#08090b' }}
     >
-      {/* ── PANEL 1: Hero ── */}
-      <section
-        className="snap-start relative flex flex-col justify-between min-h-screen w-full overflow-hidden"
-        style={{ background: '#0e1117' }}
-      >
-        {/* Subtle grid texture overlay */}
+      {/* ── PANEL 1: Hero (animated 3D growth scene behind the copy) ── */}
+      <section className="snap-start relative flex flex-col justify-between min-h-screen w-full overflow-hidden">
+        {/* Animated 3D brand hero, ported from the CCG website. */}
+        <HeroCanvas />
+
+        {/* Overlays: darken the bottom so the copy + CTA stay legible over the scene. */}
         <div
-          className="absolute inset-0 opacity-5 pointer-events-none"
+          className="pointer-events-none absolute inset-0 z-[1]"
           style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
+            background:
+              'linear-gradient(to bottom, rgba(8,9,11,0.15) 0%, rgba(8,9,11,0) 35%, rgba(8,9,11,0.85) 100%)',
           }}
         />
 
-        {/* Logo */}
+        {/* Logo (top-left) — no marketing nav. */}
         <header className="relative z-10 flex items-center px-6 pt-12 pb-4">
           <img
-            src="https://cookconstructiongrowth.co.uk/wp-content/uploads/2024/11/CCG-Logo.png"
+            src={CCG_LOGO}
             alt="Cook Construction Growth"
             className="h-12 object-contain"
-            onError={(e) => { e.target.style.display = 'none'; }}
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </header>
 
-        {/* Hero copy */}
-        <main className="relative z-10 flex-1 flex flex-col justify-center px-6 pb-8">
-          <p className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-6">
-            <span className="inline-block w-6 h-px bg-[#F97316]" />
-            Growth partner for the construction industry
-          </p>
+        {/* Hero copy — sits in a translucent blurred panel so the 3D scene stays
+            visible behind the writing. */}
+        <main className="relative z-10 flex-1 flex flex-col justify-end px-6 pb-8">
+          <div className="max-w-md rounded-2xl bg-black/55 p-6 ring-1 ring-white/10 backdrop-blur-md">
+            <p className="flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-[#F97316] mb-5">
+              <span className="inline-block w-6 h-px bg-[#F97316]" />
+              Growth partner for the construction industry
+            </p>
 
-          <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight text-white mb-6">
-            We do the{' '}
-            <span className="text-[#F97316]">heavy lifting</span>{' '}
-            so your business can build.
-          </h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight text-white mb-4">
+              We do the <span className="text-[#F97316]">heavy lifting</span> so your business can build.
+            </h1>
 
-          <p className="text-sm sm:text-base text-gray-400 max-w-md leading-relaxed">
-            Cook Construction Growth pairs trades and construction businesses with quality jobs
-            and projects — and connects clients with vetted, reliable contractors who hold a
-            real standard of work.
-          </p>
+            <p className="text-sm text-gray-300 leading-relaxed">
+              Cook Construction Growth pairs trades and construction businesses with quality jobs
+              and projects — and connects clients with vetted, reliable contractors who hold a
+              real standard of work.
+            </p>
+          </div>
         </main>
 
-        {/* Swipe-up prompt */}
+        {/* Swipe-up prompt → sign-in panel. */}
         <button
+          type="button"
           onClick={scrollToLogin}
-          className="relative z-10 flex flex-col items-center gap-1 pb-10 w-full text-gray-400 hover:text-white transition-colors"
+          className="relative z-10 flex flex-col items-center gap-1 pb-10 w-full text-gray-300 hover:text-white transition-colors"
         >
           <span className="text-xs font-medium tracking-wide uppercase">Sign in to your portal</span>
           <ChevronUp
@@ -109,10 +117,12 @@ export default function Landing() {
           {/* Mini logo */}
           <div className="flex justify-center mb-8">
             <img
-              src="https://cookconstructiongrowth.co.uk/wp-content/uploads/2024/11/CCG-Logo.png"
+              src={CCG_LOGO}
               alt="Cook Construction Growth"
               className="h-10 object-contain"
-              onError={(e) => { e.target.style.display = 'none'; }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
 
