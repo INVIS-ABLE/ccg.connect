@@ -94,7 +94,16 @@ export const api = {
   },
   match: {
     forJob: (jobId: string) =>
-      request<{ job_id: string; matches: MatchCandidate[] }>(`/api/match/${encodeURIComponent(jobId)}`),
+      request<{
+        job_id: string;
+        job: { title: string; site_postcode: string | null; latitude: number | null; longitude: number | null };
+        matches: MatchCandidate[];
+      }>(`/api/match/${encodeURIComponent(jobId)}`),
+    geocodeBackfill: () =>
+      request<{ contractorsGeocoded: number; jobsGeocoded: number; more: boolean }>(
+        '/api/match/geocode-backfill',
+        { method: 'POST', body: JSON.stringify({}) },
+      ),
   },
   timesheets: {
     list: () => request<{ timesheets: Timesheet[] }>('/api/timesheets'),

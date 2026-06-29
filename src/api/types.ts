@@ -167,6 +167,8 @@ export interface DirectMessage {
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;
+  latitude: number | null;
+  longitude: number | null;
   eligible: boolean;
   totalScore: number;
   breakdown: { skill: number; distance: number; availability: number; credential: number; preference: number };

@@ -136,6 +136,10 @@ export const contractorProfiles = sqliteTable('contractor_profiles', {
   biography: text('biography'),
   base_postcode: text('base_postcode'),
   postcode_district: text('postcode_district'),
+  // Geocoded from base_postcode (see api/lib/geocode.ts) — drives map pins and
+  // the distance component of matching.
+  latitude: real('latitude'),
+  longitude: real('longitude'),
   service_radius_miles: real('service_radius_miles'),
   maximum_travel_miles: real('maximum_travel_miles'),
   transport_available: integer('transport_available', { mode: 'boolean' })

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and, isNull, isNotNull } from 'drizzle-orm';
+import { geocodePostcode } from '../lib/geocode';
 import {
   jobs,
   jobRequiredSkills,
@@ -89,9 +90,9 @@ route.get('/:jobId', async (c) => {
 
   const matches = contractors.map((ct) => {
     const candidate: ContractorForMatch = {
-      // Contractor coordinates are not stored yet → distance is neutral until a
-      // geocoding adapter lands; the travel-radius gate still applies when coords exist.
-      base: null,
+      // Coordinates are geocoded from base_postcode (see /geocode-backfill); when
+      // present they activate the distance score and travel-radius gate.
+      base: ct.latitude != null && ct.longitude != null ? { lat: ct.latitude, lng: ct.longitude } : null,
       maxTravelMiles: ct.maximum_travel_miles ?? null,
       skillIds: (skillsByC.get(ct.id) ?? []).map((s) => s.skill_id),
       credentials: (credsByC.get(ct.id) ?? []).map((cr) => ({
@@ -104,13 +105,74 @@ route.get('/:jobId', async (c) => {
         .map((a) => ({ start: a.start_date, end: a.end_date })),
       preferred: ct.preferred_contractor,
     };
-    return { contractor_id: ct.id, trading_name: ct.trading_name, ...scoreMatch(requirement, candidate) };
+    return {
+      contractor_id: ct.id,
+      trading_name: ct.trading_name,
+      latitude: ct.latitude,
+      longitude: ct.longitude,
+      ...scoreMatch(requirement, candidate),
+    };
   });
 
   matches.sort(
     (a, b) => Number(b.eligible) - Number(a.eligible) || b.totalScore - a.totalScore,
   );
-  return c.json({ job_id: jobId, matches });
+  return c.json({
+    job_id: jobId,
+    job: {
+      title: job.title,
+      site_postcode: job.site_postcode,
+      latitude: job.latitude,
+      longitude: job.longitude,
+    },
+    matches,
+  });
+});
+
+// POST /api/match/geocode-backfill — geocode contractors/jobs that have a
+// postcode but no coordinates yet (admin; best-effort, batched).
+route.post('/geocode-backfill', async (c) => {
+  const p = c.get('principal');
+  if (!canManageJobs(p)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const LIMIT = 25;
+
+  const cRows = await db
+    .select({ id: contractorProfiles.id, pc: contractorProfiles.base_postcode })
+    .from(contractorProfiles)
+    .where(and(isNull(contractorProfiles.latitude), isNotNull(contractorProfiles.base_postcode)))
+    .limit(LIMIT);
+  let contractorsGeocoded = 0;
+  for (const r of cRows) {
+    const g = await geocodePostcode(r.pc);
+    if (g) {
+      await db
+        .update(contractorProfiles)
+        .set({ latitude: g.lat, longitude: g.lng })
+        .where(eq(contractorProfiles.id, r.id));
+      contractorsGeocoded++;
+    }
+  }
+
+  const jRows = await db
+    .select({ id: jobs.id, pc: jobs.site_postcode })
+    .from(jobs)
+    .where(and(isNull(jobs.latitude), isNotNull(jobs.site_postcode)))
+    .limit(LIMIT);
+  let jobsGeocoded = 0;
+  for (const r of jRows) {
+    const g = await geocodePostcode(r.pc);
+    if (g) {
+      await db.update(jobs).set({ latitude: g.lat, longitude: g.lng }).where(eq(jobs.id, r.id));
+      jobsGeocoded++;
+    }
+  }
+
+  return c.json({
+    contractorsGeocoded,
+    jobsGeocoded,
+    more: cRows.length === LIMIT || jRows.length === LIMIT,
+  });
 });
 
 export default route;
