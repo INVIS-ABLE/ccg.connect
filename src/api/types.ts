@@ -139,6 +139,31 @@ export interface JobMediaItem {
   created_at: string;
 }
 
+// ── Direct messaging ─────────────────────────────────────────────────────────
+export interface MessagingContact {
+  user_id: string;
+  name: string;
+  role: AppRole | null;
+  profile_photo_url: string | null;
+}
+
+export interface ConversationSummary {
+  id: string;
+  other: MessagingContact;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  unread: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  sender_user_id: string;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+  mine: boolean;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

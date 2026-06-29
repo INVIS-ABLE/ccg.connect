@@ -695,3 +695,29 @@ export const auditEvents = sqliteTable('audit_events', {
   correlation_id: text('correlation_id'),
   created_at: createdAt(),
 });
+
+// ── Direct messaging (1:1 chat) ──────────────────────────────────────────────
+// People-centric WhatsApp-style chat between two users. Authorization (who may
+// talk to whom) lives in src/domain/permissions (hub-and-spoke around admins).
+
+export const conversations = sqliteTable('conversations', {
+  id: pk(),
+  // Canonical sorted "userA__userB" key so each pair has exactly one conversation.
+  pair_key: text('pair_key').notNull().unique(),
+  a_user_id: text('a_user_id').notNull(),
+  b_user_id: text('b_user_id').notNull(),
+  last_message_at: text('last_message_at'),
+  last_message_preview: text('last_message_preview'),
+  created_at: createdAt(),
+  updated_at: updatedAt(),
+});
+
+export const directMessages = sqliteTable('direct_messages', {
+  id: pk(),
+  conversation_id: text('conversation_id').notNull(),
+  sender_user_id: text('sender_user_id').notNull(),
+  body: text('body').notNull(),
+  // Set when the *other* participant has read it (drives unread badges).
+  read_at: text('read_at'),
+  created_at: createdAt(),
+});

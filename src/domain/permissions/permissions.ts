@@ -156,6 +156,32 @@ export function canWriteCredential(p: Principal, cr: CredentialScope): boolean {
 /** Anyone may create a Lead (public intake); only admins may ever read them. */
 export const canReadLeads = (p: Principal): boolean => isAdmin(p);
 
+// ── Direct messages (1:1 chat) ───────────────────────────────────────────────
+/**
+ * Hub-and-spoke messaging: a conversation is permitted only if at least one
+ * participant is an admin (owner/ops_admin). This keeps invariants 1 & 2 intact —
+ * contractors and clients may message the ops team but never each other, and
+ * clients never reach contractors directly.
+ */
+export function canMessageRoles(a: AppRole, b: AppRole): boolean {
+  return isAdminRole(a) || isAdminRole(b);
+}
+
+/** Whether the caller may start/continue a 1:1 chat with someone of `recipientRole`. */
+export function canStartConversation(p: Principal, recipientRole: AppRole): boolean {
+  return canMessageRoles(p.role, recipientRole);
+}
+
+export interface ConversationScope {
+  a_user_id: string;
+  b_user_id: string;
+}
+
+/** Only the two participants may read or post in a conversation. */
+export function isConversationParticipant(p: Principal, convo: ConversationScope): boolean {
+  return convo.a_user_id === p.userId || convo.b_user_id === p.userId;
+}
+
 // ── Field redaction ──────────────────────────────────────────────────────────
 /** Job fields that must never reach a non-admin response (invariant 6). */
 export const INTERNAL_JOB_FIELDS = ['internal_notes', 'private_admin_notes'] as const;
