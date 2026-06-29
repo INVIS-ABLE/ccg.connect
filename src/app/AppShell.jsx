@@ -12,6 +12,7 @@ const ADMIN_NAV = [
   { to: '/compliance', label: 'Compliance' },
   { to: '/leads', label: 'Leads' },
   { to: '/invoices', label: 'Invoices' },
+  { to: '/users', label: 'Users' },
 ];
 
 const CONTRACTOR_NAV = [
