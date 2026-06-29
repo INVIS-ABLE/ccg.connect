@@ -58,7 +58,7 @@ const ADMIN_NAV = [
     items: [
       { label: 'Timesheets', to: '/timesheets', icon: Clock },
       { label: 'Invoices', to: '/invoices', icon: FileText },
-      { label: 'Reports', to: '/reports', icon: BarChart3, soon: true },
+      { label: 'Reports', to: '/reports', icon: BarChart3 },
     ],
   },
   { label: 'Compliance', to: '/compliance', icon: ShieldCheck },

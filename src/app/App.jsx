@@ -50,8 +50,9 @@ import JobStatusBoard from '@/app/pages/admin/JobStatusBoard';
 // Shared
 import Messages from '@/app/pages/Messages';
 
-// Heavy, route-split pages (calendar/gantt libraries kept out of the main bundle)
+// Heavy, route-split pages (calendar/gantt/charts kept out of the main bundle)
 const Schedule = lazy(() => import('@/app/pages/admin/Schedule'));
+const Reports = lazy(() => import('@/app/pages/admin/Reports'));
 
 /** Admin-only gate */
 function AdminRoute({ children }) {
@@ -110,6 +111,14 @@ export default function App() {
             <Route path="/jobs/:id/match" element={adminShell(<MatchEngine />)} />
             <Route path="/invoices" element={adminShell(<BulkInvoice />)} />
             <Route path="/timesheets" element={adminShell(<Timesheets />)} />
+            <Route
+              path="/reports"
+              element={adminShell(
+                <Suspense fallback={<p className="text-sm text-muted-foreground">Loading reports…</p>}>
+                  <Reports />
+                </Suspense>,
+              )}
+            />
             <Route path="/contractors" element={adminShell(<Contractors />)} />
             <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
