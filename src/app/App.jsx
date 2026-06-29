@@ -6,7 +6,7 @@ import { isAdminRole } from '@/domain/auth/roles';
 import { AuthProvider, useAuth } from '@/app/auth/AuthProvider';
 import { ProtectedRoute } from '@/app/auth/ProtectedRoute';
 import { AppShell } from '@/app/AppShell';
-import Login from '@/app/pages/Login';
+import Login from '@/app/pages/Landing';
 import Register from '@/app/pages/Register';
 import Dashboard from '@/app/pages/Dashboard';
 import Jobs from '@/app/pages/admin/Jobs';
