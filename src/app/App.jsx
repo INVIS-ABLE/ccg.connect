@@ -6,32 +6,57 @@ import { isAdminRole } from '@/domain/auth/roles';
 import { AuthProvider, useAuth } from '@/app/auth/AuthProvider';
 import { ProtectedRoute } from '@/app/auth/ProtectedRoute';
 import { AppShell } from '@/app/AppShell';
-import Login from '@/app/pages/Landing';
+
+// Auth pages
+import Landing from '@/app/pages/Landing';
 import Register from '@/app/pages/Register';
-import Dashboard from '@/app/pages/Dashboard';
+
+// Dashboards
+import AdminDashboard from '@/app/pages/admin/AdminDashboard';
+import ContractorDashboard from '@/app/pages/contractor/ContractorDashboard';
+import ClientDashboard from '@/app/pages/client/ClientDashboard';
+
+// Admin pages
 import Jobs from '@/app/pages/admin/Jobs';
-import JobDetail from '@/app/pages/admin/JobDetail';
+import JobWorkflow from '@/app/pages/admin/JobWorkflow';
+import MatchEngine from '@/app/pages/admin/MatchEngine';
+import BulkInvoice from '@/app/pages/admin/BulkInvoice';
 import Contractors from '@/app/pages/admin/Contractors';
 import Leads from '@/app/pages/admin/Leads';
 import Compliance from '@/app/pages/admin/Compliance';
+
+// Contractor pages
 import ContractorJobs from '@/app/pages/contractor/ContractorJobs';
 import ContractorTimesheets from '@/app/pages/contractor/ContractorTimesheets';
 import ContractorCredentials from '@/app/pages/contractor/ContractorCredentials';
 import ContractorProfile from '@/app/pages/contractor/ContractorProfile';
-import ClientProjects from '@/app/pages/client/ClientProjects';
 
-/** Admin-only gate: non-admins are sent back to their dashboard. */
+// Client pages
+import ClientProjects from '@/app/pages/client/ClientProjects';
+import ClientJobSubmit from '@/app/pages/client/ClientJobSubmit';
+
+/** Admin-only gate */
 function AdminRoute({ children }) {
   const { principal } = useAuth();
   if (!isAdminRole(principal?.role)) return <Navigate to="/" replace />;
   return children;
 }
 
-/** Restrict a route to a specific app role. */
+/** Restrict a route to a specific app role */
 function RoleRoute({ role, children }) {
   const { principal } = useAuth();
   if (principal?.role !== role) return <Navigate to="/" replace />;
   return children;
+}
+
+/** Role-aware root redirect — sends each role to their correct dashboard */
+function RoleDashboard() {
+  const { principal } = useAuth();
+  const role = principal?.role;
+  if (isAdminRole(role)) return <AdminDashboard />;
+  if (role === 'contractor') return <ContractorDashboard />;
+  if (role === 'client') return <ClientDashboard />;
+  return <AdminDashboard />;
 }
 
 const shell = (node) => (
@@ -44,29 +69,38 @@ const adminShell = (node) => shell(<AdminRoute>{node}</AdminRoute>);
 const contractorShell = (node) => shell(<RoleRoute role="contractor">{node}</RoleRoute>);
 const clientShell = (node) => shell(<RoleRoute role="client">{node}</RoleRoute>);
 
-/**
- * Cloudflare-native CCG Connect app (Better Auth + the native API). Per-role
- * screens hang off the protected shell; admin routes are role-guarded.
- */
 export default function App() {
   return (
     <QueryClientProvider client={queryClientInstance}>
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/login" element={<Login />} />
+            {/* Public */}
+            <Route path="/login" element={<Landing />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/" element={shell(<Dashboard />)} />
+
+            {/* Role-aware root dashboard */}
+            <Route path="/" element={shell(<RoleDashboard />)} />
+
+            {/* Admin */}
             <Route path="/jobs" element={adminShell(<Jobs />)} />
-            <Route path="/jobs/:id" element={adminShell(<JobDetail />)} />
+            <Route path="/jobs/:id" element={adminShell(<JobWorkflow />)} />
+            <Route path="/jobs/:id/match" element={adminShell(<MatchEngine />)} />
+            <Route path="/invoices" element={adminShell(<BulkInvoice />)} />
             <Route path="/contractors" element={adminShell(<Contractors />)} />
             <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
+
+            {/* Contractor */}
             <Route path="/contractor/jobs" element={contractorShell(<ContractorJobs />)} />
             <Route path="/contractor/timesheets" element={contractorShell(<ContractorTimesheets />)} />
             <Route path="/contractor/credentials" element={contractorShell(<ContractorCredentials />)} />
             <Route path="/contractor/profile" element={contractorShell(<ContractorProfile />)} />
+
+            {/* Client */}
             <Route path="/client/projects" element={clientShell(<ClientProjects />)} />
+            <Route path="/client/submit-job" element={clientShell(<ClientJobSubmit />)} />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>

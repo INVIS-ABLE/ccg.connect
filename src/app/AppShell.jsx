@@ -10,6 +10,7 @@ const ADMIN_NAV = [
   { to: '/contractors', label: 'Contractors' },
   { to: '/compliance', label: 'Compliance' },
   { to: '/leads', label: 'Leads' },
+  { to: '/invoices', label: 'Invoices' },
 ];
 
 const CONTRACTOR_NAV = [
@@ -23,6 +24,7 @@ const CONTRACTOR_NAV = [
 const CLIENT_NAV = [
   { to: '/', label: 'Home', end: true },
   { to: '/client/projects', label: 'Projects' },
+  { to: '/client/submit-job', label: 'Submit a job' },
 ];
 
 function navForRole(role) {
@@ -32,7 +34,6 @@ function navForRole(role) {
   return [{ to: '/', label: 'Home', end: true }];
 }
 
-/** Authenticated layout: brand header, role-aware nav, current user, sign-out. */
 export function AppShell({ children }) {
   const { profile, principal, signOut } = useAuth();
   const role = principal?.role;
