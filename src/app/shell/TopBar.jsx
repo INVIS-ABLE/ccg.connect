@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { NotificationsBell } from '@/app/NotificationsBell';
+import { OfflineIndicator } from '@/offline/OfflineIndicator';
 
 const CCG_LOGO = '/ccg-logo.png';
 
@@ -45,6 +46,7 @@ export function TopBar({ role, name, onOpenSearch, onSignOut }) {
       </button>
 
       <div className="ml-auto flex items-center gap-1.5">
+        <OfflineIndicator />
         <NotificationsBell />
         <DropdownMenu>
           <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">

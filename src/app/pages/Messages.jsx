@@ -11,7 +11,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search } from 'lucide-react';
+import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock } from 'lucide-react';
+import { enqueue } from '@/offline/syncQueue';
+import { useDraft } from '@/offline/drafts';
 
 /**
  * WhatsApp-style 1:1 messaging, backed by /api/messages and synced to the app's
@@ -79,7 +81,8 @@ export default function Messages() {
   const [activeId, setActiveId] = useState(null);
   const [activeOther, setActiveOther] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  // Composer text is persisted as a per-conversation draft (survives refresh/crash).
+  const [input, setInput, clearInput] = useDraft(activeId ? `msg:${activeId}` : '', '');
   const [sending, setSending] = useState(false);
 
   const [contactsOpen, setContactsOpen] = useState(false);
@@ -246,7 +249,8 @@ export default function Messages() {
     const text = input.trim();
     if (!text || !activeId || sending) return;
     setSending(true);
-    setInput('');
+    clearInput();
+    const convId = activeId;
     // Optimistic append.
     const optimistic = {
       id: `tmp-${Date.now()}`,
@@ -259,12 +263,15 @@ export default function Messages() {
     };
     setMessages((m) => [...m, optimistic]);
     try {
-      await api.messages.send(activeId, text);
-      await loadMessages(activeId);
+      if (!navigator.onLine) throw new Error('offline');
+      await api.messages.send(convId, text);
+      await loadMessages(convId);
       void loadConversations();
     } catch {
-      setInput(text); // restore so the user can retry
-      setMessages((m) => m.filter((x) => x.id !== optimistic.id));
+      // Offline or send failed → queue for delivery when back online; keep the
+      // bubble visible, marked as queued.
+      await enqueue('sendMessage', { conversationId: convId, body: text });
+      setMessages((m) => m.map((x) => (x.id === optimistic.id ? { ...x, queued: true, pending: false } : x)));
     } finally {
       setSending(false);
     }
@@ -433,7 +440,13 @@ export default function Messages() {
                     >
                       {fmtWhen(m.created_at)}
                       {m.mine &&
-                        (m.read_at ? <CheckCheck size={13} /> : <Check size={13} className={m.pending ? 'opacity-50' : ''} />)}
+                        (m.queued ? (
+                          <Clock size={12} />
+                        ) : m.read_at ? (
+                          <CheckCheck size={13} />
+                        ) : (
+                          <Check size={13} className={m.pending ? 'opacity-50' : ''} />
+                        ))}
                     </span>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import { isAdminRole } from '@/domain/auth/roles';
 import { AuthProvider, useAuth } from '@/app/auth/AuthProvider';
 import { ProtectedRoute } from '@/app/auth/ProtectedRoute';
 import { AppShell } from '@/app/AppShell';
+import { OfflineSync } from '@/offline/OfflineSync';
 
 // Auth pages
 import Landing from '@/app/pages/Landing';
@@ -88,6 +89,7 @@ const clientShell = (node) => shell(<RoleRoute role="client">{node}</RoleRoute>)
 export default function App() {
   return (
     <QueryClientProvider client={queryClientInstance}>
+      <OfflineSync />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
