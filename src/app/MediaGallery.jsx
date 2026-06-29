@@ -1,14 +1,30 @@
-import { useEffect, useRef, useState } from 'react';
-import { api, ApiError } from '@/api/client';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import { api } from '@/api/client';
 import { Badge } from '@/components/ui/badge';
+import { MediaUploader } from '@/components/uploads/MediaUploader';
+import { Gallery, Item } from 'react-photoswipe-gallery';
+import 'photoswipe/dist/photoswipe.css';
+import { FileText, Film } from 'lucide-react';
 
-/** Lists and uploads media for a job. Used on job detail screens. */
+function MetaRow({ m }) {
+  return (
+    <div className="flex items-center justify-between p-1.5 text-[11px] text-muted-foreground">
+      <span className="truncate capitalize">{m.category}</span>
+      {m.client_visible && (
+        <Badge variant="outline" className="text-[9px]">
+          client
+        </Badge>
+      )}
+    </div>
+  );
+}
+
+/** Lists and uploads media for a job. Images open in a PhotoSwipe lightbox; other
+ *  files open in a new tab. Uploading uses the reusable Uppy uploader. */
 export function MediaGallery({ jobId, canUpload = false }) {
   const [media, setMedia] = useState(null);
   const [error, setError] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
+  const [dims, setDims] = useState({});
 
   async function load() {
     try {
@@ -22,70 +38,70 @@ export function MediaGallery({ jobId, canUpload = false }) {
     void load();
   }, [jobId]);
 
-  async function onFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError(null);
-    try {
-      await api.media.upload(jobId, file, { category: 'progress' });
-      if (fileRef.current) fileRef.current.value = '';
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? `Upload failed (${err.status}).` : 'Upload failed.');
-    } finally {
-      setUploading(false);
-    }
-  }
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Site media</h3>
-        {canUpload && (
-          <div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*,video/*,application/pdf"
-              className="hidden"
-              onChange={onFile}
-            />
-            <Button size="sm" variant="outline" disabled={uploading} onClick={() => fileRef.current?.click()}>
-              {uploading ? 'Uploading…' : 'Upload'}
-            </Button>
-          </div>
-        )}
-      </div>
+    <div className="space-y-4">
+      <h3 className="text-sm font-medium">Site media</h3>
+
+      {canUpload && <MediaUploader jobId={jobId} onUploaded={load} />}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {media === null && <p className="text-sm text-muted-foreground">Loading…</p>}
       {media?.length === 0 && <p className="text-sm text-muted-foreground">No media yet.</p>}
 
       {media && media.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {media.map((m) => (
-            <a
-              key={m.id}
-              href={m.url}
-              target="_blank"
-              rel="noreferrer"
-              className="group block overflow-hidden rounded-md border"
-            >
-              {m.media_type === 'image' ? (
-                <img src={m.url} alt={m.caption ?? m.original_filename ?? 'media'} className="aspect-square w-full object-cover" />
+        <Gallery withCaption>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {media.map((m) =>
+              m.media_type === 'image' ? (
+                <Item
+                  key={m.id}
+                  original={m.url}
+                  thumbnail={m.url}
+                  caption={m.caption ?? m.original_filename ?? m.category}
+                  width={dims[m.id]?.w ?? 1600}
+                  height={dims[m.id]?.h ?? 1200}
+                >
+                  {({ ref, open }) => (
+                    <div className="block cursor-zoom-in overflow-hidden rounded-md border">
+                      <img
+                        ref={ref}
+                        onClick={open}
+                        src={m.url}
+                        alt={m.caption ?? m.original_filename ?? 'media'}
+                        className="aspect-square w-full object-cover"
+                        onLoad={(e) =>
+                          setDims((d) =>
+                            d[m.id]
+                              ? d
+                              : { ...d, [m.id]: { w: e.target.naturalWidth, h: e.target.naturalHeight } },
+                          )
+                        }
+                      />
+                      <MetaRow m={m} />
+                    </div>
+                  )}
+                </Item>
               ) : (
-                <div className="flex aspect-square w-full items-center justify-center bg-muted text-2xl">
-                  {m.media_type === 'video' ? '🎬' : '📄'}
-                </div>
-              )}
-              <div className="flex items-center justify-between p-1.5 text-[11px] text-muted-foreground">
-                <span className="truncate">{m.category}</span>
-                {m.client_visible && <Badge variant="outline" className="text-[9px]">client</Badge>}
-              </div>
-            </a>
-          ))}
-        </div>
+                <a
+                  key={m.id}
+                  href={m.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block overflow-hidden rounded-md border"
+                >
+                  <div className="flex aspect-square w-full items-center justify-center bg-muted">
+                    {m.media_type === 'video' ? (
+                      <Film className="h-7 w-7 text-muted-foreground" />
+                    ) : (
+                      <FileText className="h-7 w-7 text-muted-foreground" />
+                    )}
+                  </div>
+                  <MetaRow m={m} />
+                </a>
+              ),
+            )}
+          </div>
+        </Gallery>
       )}
     </div>
   );
