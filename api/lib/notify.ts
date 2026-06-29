@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { and, eq, isNull } from 'drizzle-orm';
-import { notifications } from '../db/schema';
+import { notifications, userProfiles } from '../db/schema';
+import { user as authUser } from '../db/auth-schema';
 import type { Bindings } from '../env';
 import { novuTrigger } from './integrations/novu';
 
@@ -53,12 +54,29 @@ export async function notify(env: Bindings, input: NotifyInput): Promise<void> {
       sent_at: new Date().toISOString(),
     });
 
+    // Look up the recipient's contact details so Novu can deliver email/SMS
+    // (it upserts the subscriber from these).
+    const authRow = (
+      await db.select({ email: authUser.email, name: authUser.name }).from(authUser).where(eq(authUser.id, input.userId)).limit(1)
+    )[0];
+    const profRow = (
+      await db
+        .select({ phone: userProfiles.phone, first_name: userProfiles.first_name, last_name: userProfiles.last_name, email: userProfiles.email })
+        .from(userProfiles)
+        .where(eq(userProfiles.user_id, input.userId))
+        .limit(1)
+    )[0];
+
     await novuTrigger(env, {
       userId: input.userId,
       type: input.notification_type,
       title: input.title,
       body: input.body ?? '',
       deepLink: input.deep_link,
+      email: authRow?.email ?? profRow?.email ?? null,
+      phone: profRow?.phone ?? null,
+      firstName: profRow?.first_name ?? null,
+      lastName: profRow?.last_name ?? null,
     });
   } catch {
     /* notifications must never break the originating action */

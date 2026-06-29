@@ -26,6 +26,8 @@ export type AuthEnv = {
   ADMIN_BOOTSTRAP_SECRET?: string;
   // Optional integrations (step 10). Unset → in-app only / signature seam inert.
   NOVU_API_KEY?: string;
+  // Novu API base. Defaults to EU (UK/Europe). Set to https://api.novu.co for US.
+  NOVU_API_URL?: string;
   DOCUMENSO_API_KEY?: string;
 };
 
