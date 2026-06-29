@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export function NotificationsBell() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [open, setOpen] = useState(false);
 
@@ -51,7 +53,13 @@ export function NotificationsBell() {
           {items.map((n) => (
             <button
               key={n.id}
-              onClick={() => markRead(n.id)}
+              onClick={() => {
+                markRead(n.id);
+                if (n.deep_link) {
+                  setOpen(false);
+                  navigate(n.deep_link);
+                }
+              }}
               className={`block w-full border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted ${
                 n.read_at ? 'opacity-60' : ''
               }`}

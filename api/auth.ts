@@ -24,6 +24,9 @@ export type AuthEnv = {
   // One-time first-admin bootstrap (see routes/adminBootstrap.ts). When unset the
   // bootstrap route is disabled. Provision transiently via `wrangler secret put`.
   ADMIN_BOOTSTRAP_SECRET?: string;
+  // Optional integrations (step 10). Unset → in-app only / signature seam inert.
+  NOVU_API_KEY?: string;
+  DOCUMENSO_API_KEY?: string;
 };
 
 export function createAuth(env: AuthEnv) {
