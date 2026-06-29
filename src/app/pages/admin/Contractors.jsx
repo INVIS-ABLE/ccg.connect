@@ -16,6 +16,53 @@ export default function Contractors() {
   const [contractors, setContractors] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [reportId, setReportId] = useState(null);
+
+  async function downloadReport(ct) {
+    setReportId(ct.id);
+    setError(null);
+    try {
+      const [creds, types, assigns] = await Promise.all([
+        api.credentials.list(ct.id),
+        api.credentials.types(),
+        api.assignments.list().catch(() => ({ assignments: [] })),
+      ]);
+      const typeName = (id) => types.credentialTypes.find((t) => t.id === id)?.name ?? id;
+      const credentials = (creds.credentials ?? []).map((cr) => ({
+        name: typeName(cr.credential_type_id),
+        status: cr.verification_status.replace(/_/g, ' '),
+        expiry: cr.expiry_date,
+      }));
+      const verified = (creds.credentials ?? []).filter((cr) => cr.verification_status === 'verified').length;
+      const assignments = (assigns.assignments ?? []).filter((a) => a.contractor_id === ct.id).length;
+      const mod = await import('@/features/documents/businessDocuments');
+      const blob = await mod.generateContractorReportBlob({
+        contractor: {
+          name: ct.trading_name ?? ct.legal_name ?? 'Contractor',
+          primary_trade: ct.primary_trade,
+          base_postcode: ct.base_postcode,
+          approval_status: ct.approval_status,
+          day_rate: ct.day_rate,
+          hourly_rate: ct.hourly_rate,
+          preferred: ct.preferred_contractor,
+        },
+        credentials,
+        stats: { verified, assignments },
+        dateStr: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+        logoUrl: `${window.location.origin}/ccg-logo.png`,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contractor-report-${(ct.trading_name ?? ct.id).replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError('Could not generate contractor report.');
+    } finally {
+      setReportId(null);
+    }
+  }
 
   async function load() {
     try {
@@ -86,6 +133,9 @@ export default function Contractors() {
         const ct = row.original;
         return (
           <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" disabled={reportId === ct.id} onClick={() => downloadReport(ct)}>
+              {reportId === ct.id ? 'Report…' : 'Report'}
+            </Button>
             {ct.approval_status !== 'approved' && (
               <Button size="sm" disabled={busy} onClick={() => setStatus([ct.id], 'approved')}>
                 Approve

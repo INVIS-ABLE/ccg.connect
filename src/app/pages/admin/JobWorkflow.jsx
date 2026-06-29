@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MediaGallery } from '@/app/MediaGallery';
+import { QuoteBuilder } from '@/app/components/QuoteBuilder';
 import { ArrowLeft, Phone, Mail, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
@@ -290,6 +291,16 @@ export default function JobWorkflow() {
           <Button size="sm" variant="outline" onClick={downloadCompletion}>
             Download completion record
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Quote builder */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Quote</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <QuoteBuilder job={job} />
         </CardContent>
       </Card>
 
