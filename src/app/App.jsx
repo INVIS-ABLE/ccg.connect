@@ -29,6 +29,7 @@ import Contractors from '@/app/pages/admin/Contractors';
 import Leads from '@/app/pages/admin/Leads';
 import Compliance from '@/app/pages/admin/Compliance';
 import UserManagement from '@/app/pages/admin/UserManagement';
+import Timesheets from '@/app/pages/admin/Timesheets';
 
 // Contractor pages
 import ContractorJobs from '@/app/pages/contractor/ContractorJobs';
@@ -108,6 +109,7 @@ export default function App() {
             <Route path="/jobs/:id" element={adminShell(<JobWorkflow />)} />
             <Route path="/jobs/:id/match" element={adminShell(<MatchEngine />)} />
             <Route path="/invoices" element={adminShell(<BulkInvoice />)} />
+            <Route path="/timesheets" element={adminShell(<Timesheets />)} />
             <Route path="/contractors" element={adminShell(<Contractors />)} />
             <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
