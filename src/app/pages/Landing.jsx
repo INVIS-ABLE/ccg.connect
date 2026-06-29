@@ -27,13 +27,28 @@ export default function Landing() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const { error: signInError } = await signIn.email({ email, password });
-    setSubmitting(false);
-    if (signInError) {
-      setError(signInError.message ?? 'Sign in failed. Check your details and try again.');
-      return;
+    try {
+      const { error: signInError } = await signIn.email({ email, password });
+      setSubmitting(false);
+      if (signInError) {
+        const msg = signInError.message ?? '';
+        if (msg.toLowerCase().includes('method not allowed') || msg.includes('405')) {
+          setError('The authentication server is not reachable. Make sure the Cloudflare Worker is deployed and running.');
+        } else {
+          setError(msg || 'Sign in failed. Check your details and try again.');
+        }
+        return;
+      }
+      navigate('/', { replace: true });
+    } catch (err) {
+      setSubmitting(false);
+      const msg = String(err?.message ?? err ?? '');
+      if (msg.includes('405') || msg.toLowerCase().includes('method not allowed')) {
+        setError('The authentication server is not reachable. Make sure the Cloudflare Worker is deployed and running.');
+      } else {
+        setError(msg || 'Sign in failed. Please try again.');
+      }
     }
-    navigate('/', { replace: true });
   }
 
   function scrollToLogin() {
