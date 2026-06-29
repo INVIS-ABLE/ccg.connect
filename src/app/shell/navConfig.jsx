@@ -38,7 +38,7 @@ const ADMIN_NAV = [
     items: [
       { label: 'Jobs', to: '/jobs', icon: Briefcase },
       { label: 'Job Board', to: '/job-board', icon: LayoutGrid },
-      { label: 'Calendar', to: '/calendar', icon: CalendarDays, soon: true },
+      { label: 'Calendar', to: '/calendar', icon: CalendarDays },
       { label: 'Matching', to: '/match-engine', icon: Sparkles },
     ],
   },
