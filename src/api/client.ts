@@ -12,6 +12,9 @@ import type {
   JobMediaItem,
   CredentialType,
   ContractorCredential,
+  MessagingContact,
+  ConversationSummary,
+  DirectMessage,
 } from './types';
 
 /** Thrown on any non-2xx API response; carries the status and parsed body. */
@@ -153,6 +156,25 @@ export const api = {
       if (!res.ok) throw new ApiError(res.status, body);
       return body as { media: JobMediaItem };
     },
+  },
+  messages: {
+    contacts: () => request<{ contacts: MessagingContact[] }>('/api/messages/contacts'),
+    conversations: () =>
+      request<{ conversations: ConversationSummary[] }>('/api/messages/conversations'),
+    startConversation: (userId: string) =>
+      request<{ conversation: { id: string; other: MessagingContact } }>(
+        '/api/messages/conversations',
+        { method: 'POST', body: JSON.stringify({ user_id: userId }) },
+      ),
+    listMessages: (conversationId: string) =>
+      request<{ messages: DirectMessage[] }>(
+        `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,
+      ),
+    send: (conversationId: string, body: string) =>
+      request<{ message: DirectMessage }>(
+        `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,
+        { method: 'POST', body: JSON.stringify({ body }) },
+      ),
   },
   invoices: {
     list: () => request<{ invoices: Invoice[] }>('/api/invoices'),

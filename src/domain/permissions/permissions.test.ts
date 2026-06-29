@@ -20,6 +20,9 @@ import {
   canWriteCredential,
   redactForRole,
   INTERNAL_JOB_FIELDS,
+  canMessageRoles,
+  canStartConversation,
+  isConversationParticipant,
 } from './permissions';
 
 const owner: Principal = { userId: 'u-owner', role: 'owner', contractorId: null, clientId: null };
@@ -80,6 +83,41 @@ describe('canReadJob (invariants 1 & 2)', () => {
   it('denies a client with no clientId', () => {
     const orphan: Principal = { ...client, clientId: null };
     expect(canReadJob(orphan, { client_id: null }, { assignedContractorIds: [] })).toBe(false);
+  });
+});
+
+describe('direct messaging (invariants 1 & 2 — hub-and-spoke)', () => {
+  it('admins may message any role (and each other)', () => {
+    expect(canStartConversation(owner, 'contractor')).toBe(true);
+    expect(canStartConversation(owner, 'client')).toBe(true);
+    expect(canStartConversation(ops, 'contractor')).toBe(true);
+    expect(canStartConversation(ops, 'owner')).toBe(true);
+  });
+
+  it('contractors and clients may only message the ops team', () => {
+    expect(canStartConversation(contractor, 'owner')).toBe(true);
+    expect(canStartConversation(contractor, 'ops_admin')).toBe(true);
+    expect(canStartConversation(client, 'owner')).toBe(true);
+    // ...but never each other
+    expect(canStartConversation(contractor, 'contractor')).toBe(false);
+    expect(canStartConversation(contractor, 'client')).toBe(false);
+    expect(canStartConversation(client, 'contractor')).toBe(false);
+    expect(canStartConversation(client, 'client')).toBe(false);
+  });
+
+  it('canMessageRoles is symmetric (true iff one side is admin)', () => {
+    expect(canMessageRoles('contractor', 'owner')).toBe(true);
+    expect(canMessageRoles('owner', 'contractor')).toBe(true);
+    expect(canMessageRoles('contractor', 'client')).toBe(false);
+    expect(canMessageRoles('client', 'contractor')).toBe(false);
+  });
+
+  it('only the two participants may access a conversation', () => {
+    const convo = { a_user_id: 'u-owner', b_user_id: 'u-con' };
+    expect(isConversationParticipant(owner, convo)).toBe(true);
+    expect(isConversationParticipant(contractor, convo)).toBe(true);
+    expect(isConversationParticipant(client, convo)).toBe(false);
+    expect(isConversationParticipant(otherContractor, convo)).toBe(false);
   });
 });
 

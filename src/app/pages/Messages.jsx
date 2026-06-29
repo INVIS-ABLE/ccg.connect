@@ -1,211 +1,377 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { api } from '@/api/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { MessageSquare, Send, Plus, ChevronLeft } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search } from 'lucide-react';
 
 /**
- * Simple in-app messaging backed by the jobs notifications API.
- * Messages are stored as job notifications scoped by job_id.
- * Conversations = active jobs the user has access to.
+ * WhatsApp-style 1:1 messaging, backed by /api/messages and synced to the app's
+ * user profiles. Who may message whom is enforced server-side (hub-and-spoke
+ * around the ops team); this UI just reflects what the API allows.
  */
-function formatTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' +
-    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+const ROLE_COLOR = {
+  owner: 'bg-purple-100 text-purple-700',
+  ops_admin: 'bg-blue-100 text-blue-700',
+  contractor: 'bg-amber-100 text-amber-700',
+  client: 'bg-green-100 text-green-700',
+};
+const ROLE_LABEL = {
+  owner: 'Owner',
+  ops_admin: 'Ops',
+  contractor: 'Contractor',
+  client: 'Client',
+};
+
+function initials(name) {
+  return (name || 'U')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join('');
 }
 
-// Local message store — persisted in sessionStorage per conversation
-function getLocalMessages(convId) {
-  try { return JSON.parse(sessionStorage.getItem(`msg_${convId}`) ?? '[]'); } catch { return []; }
+function fmtWhen(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
-function saveLocalMessages(convId, msgs) {
-  try { sessionStorage.setItem(`msg_${convId}`, JSON.stringify(msgs)); } catch {}
+
+function PersonAvatar({ contact, size = 'h-10 w-10' }) {
+  return (
+    <Avatar className={size}>
+      {contact?.profile_photo_url && <AvatarImage src={contact.profile_photo_url} alt={contact?.name} />}
+      <AvatarFallback className="bg-secondary text-secondary-foreground text-xs font-semibold">
+        {initials(contact?.name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function RoleBadge({ role }) {
+  if (!role) return null;
+  return (
+    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${ROLE_COLOR[role] ?? 'bg-muted text-muted-foreground'}`}>
+      {ROLE_LABEL[role] ?? role}
+    </span>
+  );
 }
 
 export default function Messages() {
-  const { principal, profile } = useAuth();
-  const jobParam = new URLSearchParams(window.location.search).get('job');
-  const [jobs, setJobs] = useState([]);
-  const [activeJobId, setActiveJobId] = useState(jobParam ?? null);
+  const { principal } = useAuth();
+  const myId = principal?.userId;
+
+  const [conversations, setConversations] = useState([]);
+  const [loadingConvos, setLoadingConvos] = useState(true);
+  const [activeId, setActiveId] = useState(null);
+  const [activeOther, setActiveOther] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(true);
-  const messagesEndRef = useRef(null);
+  const [sending, setSending] = useState(false);
 
-  const displayName = profile
-    ? [profile.first_name, profile.last_name].filter(Boolean).join(' ') || profile.display_name || profile.email || 'You'
-    : 'You';
-  const role = principal?.role ?? 'user';
+  const [contactsOpen, setContactsOpen] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactSearch, setContactSearch] = useState('');
 
-  // Load jobs the current user can see
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const r = await api.jobs.list();
-        const list = (r.jobs ?? []).filter((j) => j.status !== 'cancelled' && j.status !== 'draft');
-        setJobs(list);
-        if (!activeJobId && list.length) setActiveJobId(list[0].id);
-      } catch {}
-      finally { setLoading(false); }
-    };
-    void load();
+  const endRef = useRef(null);
+  const lastCountRef = useRef(0);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const r = await api.messages.conversations();
+      setConversations(r.conversations ?? []);
+    } catch {
+      /* non-fatal — list just stays as-is */
+    } finally {
+      setLoadingConvos(false);
+    }
   }, []);
 
-  // Load messages when active job changes
-  useEffect(() => {
-    if (!activeJobId) return;
-    const stored = getLocalMessages(activeJobId);
-    setMessages(stored);
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-  }, [activeJobId]);
+  const loadMessages = useCallback(async (convId) => {
+    if (!convId) return;
+    try {
+      const r = await api.messages.listMessages(convId);
+      setMessages(r.messages ?? []);
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
 
-  function sendMessage(e) {
-    e.preventDefault();
-    if (!input.trim() || !activeJobId) return;
-    const msg = {
-      id: Date.now().toString(),
-      sender: displayName,
-      role,
-      text: input.trim(),
-      timestamp: new Date().toISOString(),
-    };
-    const updated = [...getLocalMessages(activeJobId), msg];
-    saveLocalMessages(activeJobId, updated);
-    setMessages(updated);
-    setInput('');
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+  // Initial load + poll the conversation list for new activity / unread counts.
+  useEffect(() => {
+    void loadConversations();
+    const t = setInterval(() => void loadConversations(), 5000);
+    return () => clearInterval(t);
+  }, [loadConversations]);
+
+  // Load + poll the open conversation's messages.
+  useEffect(() => {
+    if (!activeId) return;
+    void loadMessages(activeId);
+    const t = setInterval(() => void loadMessages(activeId), 3000);
+    return () => clearInterval(t);
+  }, [activeId, loadMessages]);
+
+  // Auto-scroll to the newest message when the count grows.
+  useEffect(() => {
+    if (messages.length !== lastCountRef.current) {
+      lastCountRef.current = messages.length;
+      setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 40);
+    }
+  }, [messages]);
+
+  function openConversation(convo) {
+    setActiveId(convo.id);
+    setActiveOther(convo.other);
+    setMessages([]);
+    lastCountRef.current = 0;
   }
 
-  const activeJob = jobs.find((j) => j.id === activeJobId);
+  async function openContacts() {
+    setContactsOpen(true);
+    setLoadingContacts(true);
+    try {
+      const r = await api.messages.contacts();
+      setContacts(r.contacts ?? []);
+    } catch {
+      setContacts([]);
+    } finally {
+      setLoadingContacts(false);
+    }
+  }
 
-  const ROLE_COLOR = {
-    owner: 'bg-purple-100 text-purple-700',
-    ops_admin: 'bg-blue-100 text-blue-700',
-    contractor: 'bg-amber-100 text-amber-700',
-    client: 'bg-green-100 text-green-700',
-  };
+  async function startWith(contact) {
+    try {
+      const r = await api.messages.startConversation(contact.user_id);
+      setContactsOpen(false);
+      setContactSearch('');
+      openConversation({ id: r.conversation.id, other: r.conversation.other });
+      void loadConversations();
+    } catch {
+      /* ignore — most likely a permission/network error */
+    }
+  }
+
+  async function sendMessage(e) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || !activeId || sending) return;
+    setSending(true);
+    setInput('');
+    // Optimistic append.
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
+      sender_user_id: myId,
+      body: text,
+      read_at: null,
+      created_at: new Date().toISOString(),
+      mine: true,
+      pending: true,
+    };
+    setMessages((m) => [...m, optimistic]);
+    try {
+      await api.messages.send(activeId, text);
+      await loadMessages(activeId);
+      void loadConversations();
+    } catch {
+      setInput(text); // restore so the user can retry
+      setMessages((m) => m.filter((x) => x.id !== optimistic.id));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const filteredContacts = contacts.filter((c) =>
+    c.name.toLowerCase().includes(contactSearch.toLowerCase()),
+  );
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
-          <MessageSquare size={22} className="text-primary" /> Messages
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">Discuss job details directly with your team.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-heading font-bold flex items-center gap-2">
+            <MessageSquare size={22} className="text-primary" /> Messages
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">Chat directly with your team.</p>
+        </div>
+        <Dialog open={contactsOpen} onOpenChange={(o) => (o ? openContacts() : setContactsOpen(false))}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-1.5">
+              <Plus size={16} /> New chat
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Start a conversation</DialogTitle>
+            </DialogHeader>
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                value={contactSearch}
+                onChange={(e) => setContactSearch(e.target.value)}
+                placeholder="Search people…"
+                className="pl-9"
+              />
+            </div>
+            <div className="max-h-80 overflow-y-auto -mx-2">
+              {loadingContacts && <p className="px-4 py-6 text-sm text-muted-foreground text-center">Loading…</p>}
+              {!loadingContacts && filteredContacts.length === 0 && (
+                <p className="px-4 py-6 text-sm text-muted-foreground text-center">No one to message.</p>
+              )}
+              {filteredContacts.map((c) => (
+                <button
+                  key={c.user_id}
+                  onClick={() => startWith(c)}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
+                >
+                  <PersonAvatar contact={c} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate font-medium text-sm">{c.name}</span>
+                      <RoleBadge role={c.role} />
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex gap-4 h-[calc(100vh-220px)] min-h-[520px]">
-        {/* Job list sidebar */}
-        <div className={`w-64 flex-shrink-0 flex flex-col gap-2 ${activeJobId ? 'hidden sm:flex' : 'flex w-full sm:w-64'}`}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Jobs</p>
+        {/* Conversation list */}
+        <div className={`w-72 flex-shrink-0 flex-col gap-1 ${activeId ? 'hidden sm:flex' : 'flex w-full sm:w-72'}`}>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-1">Chats</p>
 
-          {loading && <p className="text-sm text-muted-foreground px-1">Loading…</p>}
+          {loadingConvos && <p className="text-sm text-muted-foreground px-1">Loading…</p>}
 
-          {!loading && jobs.length === 0 && (
+          {!loadingConvos && conversations.length === 0 && (
             <div className="rounded-lg border border-dashed p-5 text-center">
-              <p className="text-xs text-muted-foreground">No active jobs to discuss.</p>
+              <p className="text-xs text-muted-foreground">No conversations yet.</p>
+              <Button variant="link" size="sm" className="mt-1" onClick={openContacts}>
+                Start one
+              </Button>
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto space-y-1">
-            {jobs.map((j) => {
-              const msgCount = getLocalMessages(j.id).length;
-              return (
-                <button
-                  key={j.id}
-                  onClick={() => setActiveJobId(j.id)}
-                  className={`w-full text-left rounded-lg px-3 py-2.5 transition-colors ${j.id === activeJobId ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                >
-                  <p className="font-medium text-sm truncate">{j.title}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <p className="text-xs text-muted-foreground truncate">{j.status} · {j.site_postcode ?? '—'}</p>
-                    {msgCount > 0 && (
-                      <span className="ml-auto text-xs bg-primary/15 text-primary rounded-full px-1.5">{msgCount}</span>
+          <div className="flex-1 overflow-y-auto space-y-0.5">
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => openConversation(conv)}
+                className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors ${
+                  conv.id === activeId ? 'bg-primary/10' : 'hover:bg-muted'
+                }`}
+              >
+                <PersonAvatar contact={conv.other} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate font-medium text-sm">{conv.other?.name}</span>
+                    <RoleBadge role={conv.other?.role} />
+                    <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
+                      {fmtWhen(conv.last_message_at)}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="truncate text-xs text-muted-foreground">
+                      {conv.last_message_preview || 'No messages yet'}
+                    </span>
+                    {conv.unread > 0 && (
+                      <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shrink-0">
+                        {conv.unread}
+                      </span>
                     )}
-                  </div>
-                </button>
-              );
-            })}
+                  </span>
+                </span>
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Chat panel */}
-        {activeJobId ? (
-          <Card className="flex-1 flex flex-col overflow-hidden">
-            <CardHeader className="border-b pb-3 pt-3">
-              <div className="flex items-center gap-2">
-                <button className="sm:hidden text-muted-foreground" onClick={() => setActiveJobId(null)}>
-                  <ChevronLeft size={18} />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-base truncate">{activeJob?.title ?? 'Job chat'}</CardTitle>
-                  {activeJob && (
-                    <p className="text-xs text-muted-foreground">{activeJob.trade_category ?? ''} · {activeJob.site_postcode ?? ''}</p>
-                  )}
+        {activeId ? (
+          <div className="flex-1 flex flex-col overflow-hidden rounded-xl border bg-card">
+            {/* Header */}
+            <div className="flex items-center gap-3 border-b px-3 py-2.5">
+              <button className="sm:hidden text-muted-foreground" onClick={() => setActiveId(null)} aria-label="Back">
+                <ChevronLeft size={20} />
+              </button>
+              <PersonAvatar contact={activeOther} size="h-9 w-9" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-sm truncate">{activeOther?.name}</p>
+                  <RoleBadge role={activeOther?.role} />
                 </div>
-                {activeJob?.status && (
-                  <Badge variant="outline" className="text-xs capitalize">{activeJob.status.replace('_', ' ')}</Badge>
-                )}
               </div>
-            </CardHeader>
+            </div>
 
             {/* Messages */}
-            <CardContent className="flex-1 overflow-y-auto py-4 space-y-3">
+            <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 bg-muted/30">
               {messages.length === 0 && (
                 <div className="text-center py-12">
                   <MessageSquare size={28} className="mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No messages yet. Start the conversation!</p>
+                  <p className="text-sm text-muted-foreground">No messages yet. Say hello 👋</p>
                 </div>
               )}
 
-              {messages.map((msg) => {
-                const isOwn = msg.sender === displayName;
-                const roleBadge = ROLE_COLOR[msg.role] ?? 'bg-muted text-muted-foreground';
-
-                return (
-                  <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[78%] space-y-1 ${isOwn ? 'items-end flex flex-col' : 'items-start flex flex-col'}`}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-muted-foreground">{msg.sender}</span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleBadge}`}>{msg.role}</span>
-                      </div>
-                      <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'}`}>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{formatTime(msg.timestamp)}</p>
-                    </div>
+              {messages.map((m) => (
+                <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className={`max-w-[78%] rounded-2xl px-3.5 py-2 ${
+                      m.mine
+                        ? 'bg-primary text-primary-foreground rounded-br-sm'
+                        : 'bg-card border text-foreground rounded-bl-sm'
+                    }`}
+                  >
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.body}</p>
+                    <span
+                      className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${
+                        m.mine ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {fmtWhen(m.created_at)}
+                      {m.mine &&
+                        (m.read_at ? <CheckCheck size={13} /> : <Check size={13} className={m.pending ? 'opacity-50' : ''} />)}
+                    </span>
                   </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
-            </CardContent>
-
-            {/* Input */}
-            <div className="border-t p-3">
-              <form onSubmit={sendMessage} className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={`Message as ${displayName}…`}
-                  className="flex-1"
-                />
-                <Button type="submit" size="icon" disabled={!input.trim()}>
-                  <Send size={16} />
-                </Button>
-              </form>
+                </div>
+              ))}
+              <div ref={endRef} />
             </div>
-          </Card>
+
+            {/* Composer */}
+            <form onSubmit={sendMessage} className="flex gap-2 border-t p-3">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type a message…"
+                className="flex-1"
+              />
+              <Button type="submit" size="icon" disabled={!input.trim() || sending} aria-label="Send">
+                <Send size={16} />
+              </Button>
+            </form>
+          </div>
         ) : (
           <div className="hidden sm:flex flex-1 items-center justify-center border rounded-xl border-dashed">
             <div className="text-center">
               <MessageSquare size={36} className="mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">Select a job to start messaging</p>
+              <p className="text-sm text-muted-foreground">Select a chat or start a new one</p>
             </div>
           </div>
         )}
