@@ -20,6 +20,10 @@
   "dependencies": {
     "@base44/sdk": "^0.8.35",
     "@base44/vite-plugin": "^1.0.24",
+    "@fullcalendar/daygrid": "^6.1.21",
+    "@fullcalendar/interaction": "^6.1.21",
+    "@fullcalendar/react": "^6.1.21",
+    "@fullcalendar/timegrid": "^6.1.21",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -69,6 +73,7 @@
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.5.2",
     "framer-motion": "^11.16.4",
+    "frappe-gantt": "^1.2.2",
     "hono": "^4.12.26",
     "html2canvas": "^1.4.1",
     "input-otp": "^1.4.2",

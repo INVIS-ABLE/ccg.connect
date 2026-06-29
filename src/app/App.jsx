@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
@@ -46,6 +47,9 @@ import JobStatusBoard from '@/app/pages/admin/JobStatusBoard';
 
 // Shared
 import Messages from '@/app/pages/Messages';
+
+// Heavy, route-split pages (calendar/gantt libraries kept out of the main bundle)
+const Schedule = lazy(() => import('@/app/pages/admin/Schedule'));
 
 /** Admin-only gate */
 function AdminRoute({ children }) {
@@ -109,6 +113,18 @@ export default function App() {
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
             <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
             <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />
+            <Route
+              path="/calendar"
+              element={adminShell(
+                <Suspense fallback={<p className="text-sm text-muted-foreground">Loading schedule…</p>}>
+                  <Schedule />
+                </Suspense>,
+              )}
+            />
+            <Route
+              path="/schedule"
+              element={<Navigate to="/calendar" replace />}
+            />
             <Route path="/messages" element={shell(<Messages />)} />
 
             {/* Contractor */}
