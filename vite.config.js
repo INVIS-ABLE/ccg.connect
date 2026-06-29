@@ -57,6 +57,30 @@ export default defineConfig({
         skipWaiting: true,
         // Some bundles (e.g. three.js) are large; raise the precache size ceiling.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        runtimeCaching: [
+          {
+            // API reads: network-first so online users always get fresh data,
+            // but the last successful response is served when offline.
+            urlPattern: ({ url, request }) => url.pathname.startsWith('/api/') && request.method === 'GET',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'ccg-api-get',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // Map tiles: cache-first so the coverage map works offline and loads fast.
+            urlPattern: ({ url }) => url.hostname.endsWith('tile.openstreetmap.org'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'osm-tiles',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       devOptions: {
         // Keep the SW out of `npm run dev` to avoid stale-cache confusion in development.
