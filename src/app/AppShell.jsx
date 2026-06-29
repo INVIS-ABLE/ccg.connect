@@ -12,8 +12,11 @@ const ADMIN_NAV = [
   { to: '/compliance', label: 'Compliance' },
   { to: '/leads', label: 'Leads' },
   { to: '/invoices', label: 'Invoices' },
-  { to: '/users', label: 'Users' },
+  { to: '/job-board', label: 'Job Board' },
+  { to: '/compliance-dashboard', label: 'Compliance' },
   { to: '/match-engine', label: 'Match Engine' },
+  { to: '/users', label: 'Users' },
+  { to: '/messages', label: 'Messages' },
 ];
 
 const CONTRACTOR_NAV = [
@@ -22,12 +25,14 @@ const CONTRACTOR_NAV = [
   { to: '/contractor/timesheets', label: 'Timesheets' },
   { to: '/contractor/credentials', label: 'Credentials' },
   { to: '/contractor/profile', label: 'Profile' },
+  { to: '/messages', label: 'Messages' },
 ];
 
 const CLIENT_NAV = [
   { to: '/', label: 'Home', end: true },
   { to: '/client/projects', label: 'Projects' },
   { to: '/client/submit-job', label: 'Submit a job' },
+  { to: '/messages', label: 'Messages' },
 ];
 
 function navForRole(role) {

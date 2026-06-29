@@ -41,6 +41,11 @@ import ClientSignup from '@/app/pages/ClientSignup';
 
 // Admin — standalone match engine
 import ContractorMatchEngine from '@/app/pages/admin/ContractorMatchEngine';
+import ComplianceDashboard from '@/app/pages/admin/ComplianceDashboard';
+import JobStatusBoard from '@/app/pages/admin/JobStatusBoard';
+
+// Shared
+import Messages from '@/app/pages/Messages';
 
 /** Admin-only gate */
 function AdminRoute({ children }) {
@@ -102,6 +107,9 @@ export default function App() {
             <Route path="/leads" element={adminShell(<Leads />)} />
             <Route path="/users" element={adminShell(<UserManagement />)} />
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
+            <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
+            <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />
+            <Route path="/messages" element={shell(<Messages />)} />
 
             {/* Contractor */}
             <Route path="/contractor/jobs" element={contractorShell(<ContractorJobs />)} />
