@@ -89,6 +89,11 @@ export default function Messages() {
 
   const endRef = useRef(null);
   const lastCountRef = useRef(0);
+  const wsRef = useRef(null);
+  const typingTimerRef = useRef(null);
+  const lastTypingSentRef = useRef(0);
+  const [peerTyping, setPeerTyping] = useState(false);
+  const [onlineIds, setOnlineIds] = useState(() => new Set());
 
   const loadConversations = useCallback(async () => {
     try {
@@ -118,13 +123,83 @@ export default function Messages() {
     return () => clearInterval(t);
   }, [loadConversations]);
 
-  // Load + poll the open conversation's messages.
+  // Load the open conversation's messages, then keep a relaxed poll as a safety
+  // net behind the realtime socket.
   useEffect(() => {
     if (!activeId) return;
     void loadMessages(activeId);
-    const t = setInterval(() => void loadMessages(activeId), 3000);
+    const t = setInterval(() => void loadMessages(activeId), 10000);
     return () => clearInterval(t);
   }, [activeId, loadMessages]);
+
+  // Realtime channel (Durable Object) for the open conversation: live messages,
+  // typing and presence. Falls back to the poll above if the socket can't open.
+  useEffect(() => {
+    if (!activeId) return;
+    let closed = false;
+    let reconnectTimer = null;
+
+    function connect() {
+      const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${window.location.host}/api/messages/conversations/${activeId}/ws`);
+      wsRef.current = ws;
+      ws.onmessage = (ev) => {
+        let data;
+        try {
+          data = JSON.parse(ev.data);
+        } catch {
+          return;
+        }
+        if (data.type === 'message' && data.message?.conversation_id === activeId) {
+          const msg = data.message;
+          setMessages((prev) =>
+            prev.some((m) => m.id === msg.id) ? prev : [...prev, { ...msg, mine: msg.sender_user_id === myId }],
+          );
+          void loadConversations();
+        } else if (data.type === 'typing' && data.userId && data.userId !== myId) {
+          setPeerTyping(true);
+          clearTimeout(typingTimerRef.current);
+          typingTimerRef.current = setTimeout(() => setPeerTyping(false), 3000);
+        } else if (data.type === 'presence') {
+          setOnlineIds(new Set(data.online ?? []));
+        }
+      };
+      ws.onclose = () => {
+        wsRef.current = null;
+        if (!closed) reconnectTimer = setTimeout(connect, 2500);
+      };
+      ws.onerror = () => {
+        try {
+          ws.close();
+        } catch {
+          /* ignore */
+        }
+      };
+    }
+    connect();
+
+    return () => {
+      closed = true;
+      clearTimeout(reconnectTimer);
+      clearTimeout(typingTimerRef.current);
+      setPeerTyping(false);
+      setOnlineIds(new Set());
+      try {
+        wsRef.current?.close();
+      } catch {
+        /* ignore */
+      }
+      wsRef.current = null;
+    };
+  }, [activeId, myId, loadConversations]);
+
+  function notifyTyping() {
+    const now = Date.now();
+    if (now - lastTypingSentRef.current > 1500 && wsRef.current?.readyState === WebSocket.OPEN) {
+      lastTypingSentRef.current = now;
+      wsRef.current.send(JSON.stringify({ type: 'typing' }));
+    }
+  }
 
   // Auto-scroll to the newest message when the count grows.
   useEffect(() => {
@@ -311,12 +386,24 @@ export default function Messages() {
               <button className="sm:hidden text-muted-foreground" onClick={() => setActiveId(null)} aria-label="Back">
                 <ChevronLeft size={20} />
               </button>
-              <PersonAvatar contact={activeOther} size="h-9 w-9" />
+              <div className="relative">
+                <PersonAvatar contact={activeOther} size="h-9 w-9" />
+                {activeOther?.user_id && onlineIds.has(activeOther.user_id) && (
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
+                )}
+              </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="font-semibold text-sm truncate">{activeOther?.name}</p>
                   <RoleBadge role={activeOther?.role} />
                 </div>
+                <p className="h-4 text-xs text-primary">
+                  {peerTyping
+                    ? 'typing…'
+                    : activeOther?.user_id && onlineIds.has(activeOther.user_id)
+                      ? 'Online'
+                      : ''}
+                </p>
               </div>
             </div>
 
@@ -358,7 +445,10 @@ export default function Messages() {
             <form onSubmit={sendMessage} className="flex gap-2 border-t p-3">
               <Input
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  notifyTyping();
+                }}
                 placeholder="Type a message…"
                 className="flex-1"
               />

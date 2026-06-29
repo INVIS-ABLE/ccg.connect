@@ -19,6 +19,9 @@ import adminBootstrapRoutes from './routes/adminBootstrap';
 import { runCredentialExpiryJob } from './jobs/credentialExpiry';
 import type { Bindings } from './env';
 
+// Durable Object class must be exported from the Worker entry for wrangler.
+export { ConversationRoom } from './chat/ConversationRoom';
+
 /**
  * CCG Connect Worker (Hono) — Cloudflare-native backend.
  *
