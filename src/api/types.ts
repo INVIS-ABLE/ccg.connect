@@ -114,6 +114,7 @@ export interface ContractorCredential {
   registration_or_policy_number: string | null;
   issue_date: string | null;
   expiry_date: string | null;
+  file_url: string | null;
   verification_status: 'awaiting_review' | 'verified' | 'rejected' | 'expired' | 'superseded';
   rejection_reason: string | null;
 }
