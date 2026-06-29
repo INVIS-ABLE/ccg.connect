@@ -73,6 +73,30 @@ npx wrangler secret delete ADMIN_BOOTSTRAP_SECRET
 The new owner then signs in normally at `/api/auth` (email + password). Further
 admins are created by promoting existing users via `PATCH /api/admin/users/:id/role`.
 
+## External integrations (optional)
+
+In-app notifications and the e-signature button work without any of these. They
+light up the moment the matching secret is set — no code change.
+
+| Secret | Enables |
+| --- | --- |
+| `NOVU_API_KEY` | External notification channels (email/SMS/push) behind the in-app bell, via Novu. |
+| `DOCUMENSO_API_KEY` | The "Request client e-signature" action on a job (Documenso). |
+
+```bash
+npx wrangler secret put NOVU_API_KEY
+npx wrangler secret put DOCUMENSO_API_KEY
+```
+
+- **Novu:** every in-app notification also triggers a Novu event named after the
+  notification type (`job_assigned`, `timesheet_approved`, `timesheet_returned`),
+  with `subscriberId` = the user id and `{ title, body, deepLink }` payload.
+  Create matching workflows in Novu and add the user as a subscriber to receive
+  external channels. Without the key, only the in-app bell fires.
+- **Documenso:** the job page's "Request client e-signature" calls Documenso for
+  the job's client. Without the key the button reports that e-signatures aren't
+  enabled. Configure the document template/fields on the Documenso side.
+
 ## Database (D1)
 
 The D1 database is bound as `DB` in `wrangler.jsonc`. Apply migrations after schema

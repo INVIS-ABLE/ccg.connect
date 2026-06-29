@@ -230,6 +230,13 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  signatures: {
+    request: (jobId: string) =>
+      request<{ configured: boolean; id?: string }>('/api/signatures/request', {
+        method: 'POST',
+        body: JSON.stringify({ job_id: jobId }),
+      }),
+  },
   invoices: {
     list: () => request<{ invoices: Invoice[] }>('/api/invoices'),
     create: (data: Partial<Invoice> & { job_id: string; net_amount: number }) =>

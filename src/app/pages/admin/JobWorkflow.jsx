@@ -56,6 +56,7 @@ export default function JobWorkflow() {
   const [note, setNote] = useState('');
   const [contactMsg, setContactMsg] = useState('');
   const [quotesRefresh, setQuotesRefresh] = useState(0);
+  const [sigMsg, setSigMsg] = useState(null);
 
   useEffect(() => {
     api.jobs.get(id).then((r) => setJob(r.job)).catch(() => setError('Could not load job.'));
@@ -126,6 +127,20 @@ export default function JobWorkflow() {
       logoUrl: `${window.location.origin}/ccg-logo.png`,
     });
     triggerDownload(blob, `completion-${jobDocProps().reference}.pdf`);
+  }
+
+  async function requestSignature() {
+    setSigMsg('Requesting…');
+    try {
+      const r = await api.signatures.request(id);
+      setSigMsg(
+        r.configured
+          ? 'Signature request sent to the client.'
+          : 'E-signatures are not enabled yet (add DOCUMENSO_API_KEY).',
+      );
+    } catch {
+      setSigMsg('Could not request a signature — check the job has a client with an email.');
+    }
   }
 
   if (error && !job) return <p className="text-sm text-destructive">{error}</p>;
@@ -293,6 +308,10 @@ export default function JobWorkflow() {
           <Button size="sm" variant="outline" onClick={downloadCompletion}>
             Download completion record
           </Button>
+          <Button size="sm" variant="outline" onClick={requestSignature}>
+            Request client e-signature
+          </Button>
+          {sigMsg && <p className="w-full text-xs text-muted-foreground">{sigMsg}</p>}
         </CardContent>
       </Card>
 

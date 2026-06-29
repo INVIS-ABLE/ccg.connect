@@ -16,6 +16,7 @@ import notificationRoutes from './routes/notifications';
 import mediaRoutes from './routes/media';
 import credentialRoutes from './routes/credentials';
 import messageRoutes from './routes/messages';
+import signatureRoutes from './routes/signatures';
 import adminPromotionRoutes from './routes/adminPromotion';
 import adminBootstrapRoutes from './routes/adminBootstrap';
 import { runCredentialExpiryJob } from './jobs/credentialExpiry';
@@ -60,6 +61,7 @@ app.route('/api/notifications', notificationRoutes);
 app.route('/api/media', mediaRoutes);
 app.route('/api/credentials', credentialRoutes);
 app.route('/api/messages', messageRoutes);
+app.route('/api/signatures', signatureRoutes);
 // Registered before the admin promotion routes so the unauthenticated, one-time
 // bootstrap is not caught by their requireAuth middleware (it has its own gate).
 app.route('/api/admin/bootstrap', adminBootstrapRoutes);
