@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MediaGallery } from '@/app/MediaGallery';
 import { ArrowLeft, Phone, Mail, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
@@ -223,6 +224,16 @@ export default function JobWorkflow() {
           <Link to={`/jobs/${id}/match`}>
             <Button size="sm">Run match</Button>
           </Link>
+        </CardContent>
+      </Card>
+
+      {/* Site evidence */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Site evidence</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MediaGallery jobId={id} canUpload />
         </CardContent>
       </Card>
 
