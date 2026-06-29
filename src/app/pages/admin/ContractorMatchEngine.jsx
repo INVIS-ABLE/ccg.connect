@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState, Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { isAdminRole } from '@/domain/auth/roles';
+import { serviceAreaCircle } from '@/domain/geo/geo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, MapPin, Star, ShieldCheck, ShieldOff, Search, ArrowRight } from 'lucide-react';
+import { Zap, MapPin, Star, ShieldCheck, ShieldOff, ArrowRight, RefreshCw } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
+
+const CoverageMap = lazy(() => import('@/components/map/CoverageMap'));
 
 function ScoreBar({ label, value, max, color }) {
   const pct = Math.min(100, Math.round((value / max) * 100));
@@ -33,7 +35,9 @@ export default function ContractorMatchEngine() {
   const [selectedJobId, setSelectedJobId] = useState('');
   const [postcode, setPostcode] = useState('');
   const [matches, setMatches] = useState(null);
+  const [jobGeo, setJobGeo] = useState(null);
   const [running, setRunning] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [assigning, setAssigning] = useState(null);
   const [assigned, setAssigned] = useState(null);
   const [error, setError] = useState(null);
@@ -44,6 +48,28 @@ export default function ContractorMatchEngine() {
       setJobs(list.filter((j) => !['completed', 'cancelled'].includes(j.status)));
     }).catch(() => {});
   }, []);
+
+  // Map markers: the job (orange) + contractors that have coordinates.
+  const mapData = useMemo(() => {
+    const markers = [];
+    const center =
+      jobGeo?.latitude != null && jobGeo?.longitude != null
+        ? { lng: jobGeo.longitude, lat: jobGeo.latitude }
+        : null;
+    if (center) markers.push({ id: 'job', lng: center.lng, lat: center.lat, color: '#f97316', label: jobGeo.title ?? 'Job site' });
+    for (const m of matches ?? []) {
+      if (m.latitude != null && m.longitude != null) {
+        markers.push({
+          id: m.contractor_id,
+          lng: m.longitude,
+          lat: m.latitude,
+          color: m.eligible ? '#16a34a' : '#9ca3af',
+          label: `${m.trading_name ?? 'Contractor'}${m.distanceMiles != null ? ` · ${m.distanceMiles} mi` : ''}`,
+        });
+      }
+    }
+    return { markers, center, circle: center ? serviceAreaCircle(center, 25) : null };
+  }, [jobGeo, matches]);
 
   if (!isAdminRole(principal?.role)) return <Navigate to="/" replace />;
 
@@ -58,10 +84,24 @@ export default function ContractorMatchEngine() {
     try {
       const r = await api.match.forJob(selectedJobId);
       setMatches(r.matches ?? []);
+      setJobGeo(r.job ?? null);
     } catch {
       setError('Could not run matching. Ensure contractors have postcodes and skills set.');
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function refreshLocations() {
+    setGeocoding(true);
+    setError(null);
+    try {
+      await api.match.geocodeBackfill();
+      await runMatch();
+    } catch {
+      setError('Could not refresh map locations.');
+    } finally {
+      setGeocoding(false);
     }
   }
 
@@ -187,6 +227,31 @@ export default function ContractorMatchEngine() {
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {/* Coverage map */}
+      {Array.isArray(matches) && matches.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-base">Coverage map</CardTitle>
+            <Button variant="outline" size="sm" onClick={refreshLocations} disabled={geocoding || running} className="flex items-center gap-2">
+              <RefreshCw size={14} className={geocoding ? 'animate-spin' : ''} />
+              {geocoding ? 'Locating…' : 'Refresh locations'}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {mapData.center ? (
+              <Suspense fallback={<div className="h-[360px] rounded-lg border bg-muted/30" />}>
+                <CoverageMap center={mapData.center} markers={mapData.markers} circle={mapData.circle} />
+              </Suspense>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No map locations yet. Click <span className="font-medium">Refresh locations</span> to geocode the job
+                and contractor postcodes.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Results */}
       {Array.isArray(matches) && matches.length === 0 && (
