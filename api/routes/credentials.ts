@@ -9,7 +9,16 @@ import {
   canReadCredential,
   canWriteCredential,
 } from '../../src/domain/permissions/permissions';
+import { validateUpload } from '../../src/domain/media/validation';
 import type { AppEnv } from '../env';
+
+/** Minimal shape of an uploaded file (Workers File/Blob), avoiding the DOM lib. */
+interface UploadedFile {
+  type: string;
+  size: number;
+  name: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
 
 const route = new Hono<AppEnv>();
 route.use('*', requireAuth);
@@ -133,6 +142,66 @@ route.patch('/:id', async (c) => {
     .where(eq(contractorCredentials.id, cred.id))
     .returning();
   return c.json({ credential: updated[0] });
+});
+
+// POST /api/credentials/:id/file — attach the proof document (PDF/image). Owner
+// contractor or an admin; re-sets status to awaiting_review so a new file is
+// re-checked.
+route.post('/:id/file', async (c) => {
+  const p = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const rows = await db
+    .select()
+    .from(contractorCredentials)
+    .where(eq(contractorCredentials.id, c.req.param('id')))
+    .limit(1);
+  const cred = rows[0];
+  if (!cred) return c.json({ error: 'not_found' }, 404);
+  if (!canWriteCredential(p, cred)) return c.json({ error: 'forbidden' }, 403);
+
+  const form = await c.req.formData().catch(() => null);
+  const fileEntry = form?.get('file');
+  if (fileEntry == null || typeof fileEntry === 'string') return c.json({ error: 'file_required' }, 400);
+  const file = fileEntry as unknown as UploadedFile;
+
+  const v = validateUpload(file.type, file.size);
+  if (!v.ok) return c.json({ error: v.reason }, 400);
+  if (v.mediaType === 'video') return c.json({ error: 'unsupported_type' }, 400); // proofs are PDF/image
+
+  const key = `credentials/${cred.contractor_id}/${crypto.randomUUID()}`;
+  await c.env.MEDIA.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+
+  const updated = await db
+    .update(contractorCredentials)
+    .set({ file_url: key, verification_status: 'awaiting_review' })
+    .where(eq(contractorCredentials.id, cred.id))
+    .returning();
+  return c.json({ credential: updated[0] });
+});
+
+// GET /api/credentials/:id/file — stream the proof document if authorized
+// (admin or the owning contractor).
+route.get('/:id/file', async (c) => {
+  const p = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const rows = await db
+    .select()
+    .from(contractorCredentials)
+    .where(eq(contractorCredentials.id, c.req.param('id')))
+    .limit(1);
+  const cred = rows[0];
+  if (!cred) return c.json({ error: 'not_found' }, 404);
+  if (!canReadCredential(p, cred)) return c.json({ error: 'forbidden' }, 403);
+  if (!cred.file_url) return c.json({ error: 'no_file' }, 404);
+
+  const object = await c.env.MEDIA.get(cred.file_url);
+  if (!object) return c.json({ error: 'file_missing' }, 404);
+  return new Response(object.body, {
+    headers: {
+      'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+      'cache-control': 'private, max-age=3600',
+    },
+  });
 });
 
 export default route;

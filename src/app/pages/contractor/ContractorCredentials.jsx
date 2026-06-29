@@ -21,6 +21,21 @@ export default function ContractorCredentials() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ credential_type_id: '', issuer: '', registration_or_policy_number: '', issue_date: '', expiry_date: '' });
   const [saving, setSaving] = useState(false);
+  const [uploadingId, setUploadingId] = useState(null);
+
+  async function uploadFile(cr, file) {
+    if (!file) return;
+    setUploadingId(cr.id);
+    setError(null);
+    try {
+      await api.credentials.uploadFile(cr.id, file);
+      await load();
+    } catch {
+      setError('Could not upload that file. Use a PDF or image under the size limit.');
+    } finally {
+      setUploadingId(null);
+    }
+  }
 
   async function load() {
     try {
@@ -120,7 +135,7 @@ export default function ContractorCredentials() {
           {!error && creds && creds.length > 0 && (
             <ul className="divide-y">
               {creds.map((cr) => (
-                <li key={cr.id} className="flex items-center justify-between py-3">
+                <li key={cr.id} className="flex items-center justify-between gap-4 py-3">
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{typeName(cr.credential_type_id)}</span>
@@ -135,6 +150,34 @@ export default function ContractorCredentials() {
                     {cr.rejection_reason && (
                       <div className="text-xs text-destructive">Rejected: {cr.rejection_reason}</div>
                     )}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {cr.file_url && (
+                      <a
+                        href={api.credentials.fileUrl(cr.id)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View
+                      </a>
+                    )}
+                    <label className="cursor-pointer">
+                      <span className="inline-flex items-center rounded-md border px-2 py-1 text-sm hover:bg-muted">
+                        {uploadingId === cr.id ? 'Uploading…' : cr.file_url ? 'Replace' : 'Upload proof'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="application/pdf,image/*"
+                        className="hidden"
+                        disabled={uploadingId === cr.id}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = '';
+                          uploadFile(cr, f);
+                        }}
+                      />
+                    </label>
                   </div>
                 </li>
               ))}

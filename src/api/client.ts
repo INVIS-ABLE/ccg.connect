@@ -142,6 +142,19 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    fileUrl: (id: string) => `/api/credentials/${encodeURIComponent(id)}/file`,
+    uploadFile: async (id: string, file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/credentials/${encodeURIComponent(id)}/file`, {
+        method: 'POST',
+        credentials: 'include',
+        body: fd,
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new ApiError(res.status, body);
+      return body as { credential: ContractorCredential };
+    },
   },
   notifications: {
     list: () => request<{ notifications: AppNotification[] }>('/api/notifications'),
