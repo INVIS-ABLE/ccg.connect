@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, Download } from 'lucide-react';
+import { Plus, Trash2, Download, Save } from 'lucide-react';
 
 const VAT_RATE = 0.2;
 
@@ -12,11 +13,35 @@ function gbp(n) {
 
 /** Inline quote builder: add line items, see live totals, and download a branded
  *  Quote PDF. Client-side only (not persisted) — generate-and-send for now. */
-export function QuoteBuilder({ job }) {
+export function QuoteBuilder({ job, onSaved }) {
   const [recipient, setRecipient] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState([{ description: '', qty: 1, unitPrice: 0 }]);
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  function quoteNumber() {
+    return `Q-${new Date().getFullYear()}-${String(Math.floor(Date.now() / 1000) % 10000).padStart(4, '0')}`;
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api.quotes.create({
+        job_id: job.id,
+        client_id: job.client_id ?? undefined,
+        quote_number: quoteNumber(),
+        recipient_name: recipient || undefined,
+        line_items: lines,
+        vat_rate: Math.round(VAT_RATE * 100),
+        valid_until: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
+        notes: notes || undefined,
+      });
+      onSaved?.();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const net = lines.reduce((sum, l) => sum + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0);
   const vat = net * VAT_RATE;
@@ -110,10 +135,13 @@ export function QuoteBuilder({ job }) {
         <div className="text-muted-foreground">
           Net {gbp(net)} · VAT {gbp(vat)}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <span className="font-semibold">Total {gbp(gross)}</span>
+          <Button size="sm" variant="outline" disabled={saving} onClick={save} className="gap-1.5">
+            <Save size={14} /> {saving ? 'Saving…' : 'Save'}
+          </Button>
           <Button size="sm" disabled={busy} onClick={download} className="gap-1.5">
-            <Download size={14} /> {busy ? 'Generating…' : 'Download quote'}
+            <Download size={14} /> {busy ? 'Generating…' : 'Download'}
           </Button>
         </div>
       </div>

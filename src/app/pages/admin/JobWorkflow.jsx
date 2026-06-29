@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MediaGallery } from '@/app/MediaGallery';
 import { QuoteBuilder } from '@/app/components/QuoteBuilder';
+import { SavedQuotes } from '@/app/components/SavedQuotes';
 import { ArrowLeft, Phone, Mail, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
@@ -54,6 +55,7 @@ export default function JobWorkflow() {
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState('');
   const [contactMsg, setContactMsg] = useState('');
+  const [quotesRefresh, setQuotesRefresh] = useState(0);
 
   useEffect(() => {
     api.jobs.get(id).then((r) => setJob(r.job)).catch(() => setError('Could not load job.'));
@@ -300,7 +302,8 @@ export default function JobWorkflow() {
           <CardTitle className="text-sm">Quote</CardTitle>
         </CardHeader>
         <CardContent>
-          <QuoteBuilder job={job} />
+          <QuoteBuilder job={job} onSaved={() => setQuotesRefresh((n) => n + 1)} />
+          <SavedQuotes job={job} refresh={quotesRefresh} />
         </CardContent>
       </Card>
 

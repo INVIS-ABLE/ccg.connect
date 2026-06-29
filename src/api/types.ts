@@ -115,6 +115,23 @@ export interface Invoice {
   status: string;
 }
 
+export interface Quote {
+  id: string;
+  job_id: string | null;
+  client_id: string | null;
+  quote_number: string | null;
+  recipient_name: string | null;
+  status: 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+  line_items: string | null;
+  net_amount: number | null;
+  vat_rate: number;
+  vat_amount: number | null;
+  gross_amount: number | null;
+  valid_until: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 export interface CredentialType {
   id: string;
   name: string;

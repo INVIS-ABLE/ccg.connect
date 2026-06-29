@@ -700,6 +700,29 @@ export const auditEvents = sqliteTable('audit_events', {
   created_at: createdAt(),
 });
 
+// ── Quotes ───────────────────────────────────────────────────────────────────
+export const quotes = sqliteTable('quotes', {
+  id: pk(),
+  job_id: text('job_id'),
+  client_id: text('client_id'),
+  quote_number: text('quote_number'),
+  recipient_name: text('recipient_name'),
+  status: text('status', { enum: ['draft', 'sent', 'accepted', 'declined', 'expired'] })
+    .notNull()
+    .default('draft'),
+  // Line items stored as a JSON array string: [{description, qty, unitPrice}].
+  line_items: text('line_items'),
+  net_amount: real('net_amount'),
+  vat_rate: real('vat_rate').notNull().default(20),
+  vat_amount: real('vat_amount'),
+  gross_amount: real('gross_amount'),
+  valid_until: text('valid_until'),
+  notes: text('notes'),
+  created_by: text('created_by'),
+  created_at: createdAt(),
+  updated_at: updatedAt(),
+});
+
 // ── Direct messaging (1:1 chat) ──────────────────────────────────────────────
 // People-centric WhatsApp-style chat between two users. Authorization (who may
 // talk to whom) lives in src/domain/permissions (hub-and-spoke around admins).
