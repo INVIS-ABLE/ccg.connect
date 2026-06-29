@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { FileText, Download, Printer } from 'lucide-react';
+import { FileText, Download } from 'lucide-react';
 
 const VAT_RATE = 0.20;
 const CCG_ADDRESS = 'Cook Construction Growth\n123 High Street\nLondon\nSW1A 1AA';
@@ -135,6 +135,7 @@ export default function BulkInvoice() {
   const [selected, setSelected] = useState(new Set());
   const [previewing, setPreviewing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const printRef = useRef(null);
 
   useEffect(() => {
@@ -164,8 +165,62 @@ export default function BulkInvoice() {
 
   const selectedJobs = completedJobs.filter((j) => selected.has(j.id));
 
-  function printInvoices() {
-    window.print();
+  function invoiceNumberFor(idx) {
+    return `CCG-${new Date().getFullYear()}-${String(idx + 1).padStart(4, '0')}`;
+  }
+
+  // Generate a real branded PDF (react-pdf), lazy-loaded on demand.
+  async function downloadInvoicePdf(job, idx) {
+    const jobTs = (timesheets ?? []).filter((t) => t.job_id === job.id && t.status === 'approved');
+    const net = jobTs.reduce((sum, t) => sum + (t.total_amount ?? 0), 0);
+    const contractor = contractorMap[job.client_id] ?? null;
+    const invoiceNumber = invoiceNumberFor(idx);
+    const longDate = (d) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const mod = await import('@/features/documents/InvoiceDocument');
+    const blob = await mod.generateInvoiceBlob({
+      invoiceNumber,
+      dateStr: longDate(new Date()),
+      dueStr: longDate(new Date(Date.now() + 30 * 86400000)),
+      billTo: {
+        name: contractor?.trading_name ?? contractor?.legal_name ?? 'Client',
+        line: contractor?.base_postcode ?? '',
+      },
+      job: {
+        reference: job.job_reference ?? job.id.slice(0, 8).toUpperCase(),
+        title: job.title,
+        site: [job.site_address, job.site_postcode].filter(Boolean).join(' · '),
+        dates: job.start_date
+          ? `${new Date(job.start_date).toLocaleDateString('en-GB')}${job.end_date ? ` – ${new Date(job.end_date).toLocaleDateString('en-GB')}` : ''}`
+          : '',
+      },
+      lineItems: jobTs.map((t) => ({
+        description: `Week of ${t.week_start}`,
+        hours: t.total_hours ?? 0,
+        amount: t.total_amount ?? 0,
+      })),
+      net,
+      vatRate: VAT_RATE,
+      logoUrl: `${window.location.origin}/ccg-logo.png`,
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${invoiceNumber}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadAllPdfs() {
+    setDownloading(true);
+    try {
+      for (let i = 0; i < selectedJobs.length; i++) {
+        await downloadInvoicePdf(selectedJobs[i], i);
+      }
+    } catch {
+      alert('Could not generate PDFs. Try again.');
+    } finally {
+      setDownloading(false);
+    }
   }
 
   async function generateAndSave() {
@@ -247,11 +302,9 @@ export default function BulkInvoice() {
           <Button onClick={generateAndSave} disabled={generating} className="flex items-center gap-2">
             {generating ? 'Saving…' : `Save ${selected.size} invoice${selected.size !== 1 ? 's' : ''}`}
           </Button>
-          {previewing && (
-            <Button variant="outline" onClick={printInvoices} className="flex items-center gap-2">
-              <Printer size={16} /> Print / PDF
-            </Button>
-          )}
+          <Button variant="outline" onClick={downloadAllPdfs} disabled={downloading} className="flex items-center gap-2">
+            <Download size={16} /> {downloading ? 'Generating…' : `Download ${selected.size} PDF${selected.size !== 1 ? 's' : ''}`}
+          </Button>
         </div>
       )}
 
@@ -263,6 +316,11 @@ export default function BulkInvoice() {
             const contractor = contractorMap[job.client_id] ?? null;
             return (
               <div key={job.id} className="print:page-break-after-always">
+                <div className="mb-2 flex justify-end">
+                  <Button size="sm" variant="outline" onClick={() => downloadInvoicePdf(job, idx)} className="flex items-center gap-2">
+                    <Download size={14} /> Download PDF
+                  </Button>
+                </div>
                 <InvoicePreview
                   job={job}
                   timesheets={timesheets ?? []}
