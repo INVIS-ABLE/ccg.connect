@@ -727,6 +727,40 @@ export interface PortalCommercial {
   invoices: PortalInvoice[];
 }
 
+export interface WorkerAssignment {
+  deployment_id: string;
+  status: string;
+  start_date: string | null;
+  finish_date: string | null;
+  role: string | null;
+  site_name: string | null;
+  site_postcode: string | null;
+}
+
+export interface WorkerCredential {
+  id: string;
+  card_type: string;
+  reference: string | null;
+  issuer: string | null;
+  expiry_date: string | null;
+  verification_status: string;
+  status: 'valid' | 'expiring' | 'expired' | 'none';
+}
+
+export interface WorkerPortalKid {
+  id: string;
+  deployment_id: string;
+  status: 'issued' | 'acknowledged' | 'superseded';
+  version: number;
+}
+
+export interface WorkerPortal {
+  worker: { id: string; full_name: string; primary_trade: string | null; right_to_work_status: string; status: string } | null;
+  assignments: WorkerAssignment[];
+  credentials: WorkerCredential[];
+  kids: WorkerPortalKid[];
+}
+
 export type FormType = 'rams' | 'method_statement';
 
 export interface RamsHazard {
