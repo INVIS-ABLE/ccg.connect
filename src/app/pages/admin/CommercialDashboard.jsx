@@ -19,7 +19,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Truck, HardHat, Receipt, TrendingUp, CalendarCheck, ShieldAlert, Lock } from 'lucide-react';
+import { Truck, HardHat, Receipt, TrendingUp, CalendarCheck, ShieldAlert, Lock, MapPin, UserX, Inbox, FileClock, Wallet } from 'lucide-react';
 
 const PALETTE = ['#f97316', '#1e3a5f', '#16a34a', '#8b5cf6', '#eab308', '#ef4444', '#0ea5e9', '#6b7280'];
 
@@ -119,6 +119,25 @@ export default function CommercialDashboard() {
               value={data.kpis.openIncidents}
               tone={data.kpis.openIncidents > 0 ? 'text-amber-700 dark:text-amber-400' : ''}
             />
+          </div>
+
+          {/* Today — operational picture */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <StatCard icon={MapPin} label="On site today" value={data.kpis.workersOnSiteToday} />
+            <StatCard
+              icon={UserX}
+              label="Absent today"
+              value={data.kpis.absentToday}
+              tone={data.kpis.absentToday > 0 ? 'text-red-700 dark:text-red-400' : ''}
+            />
+            <StatCard icon={Inbox} label="Open requests" value={data.kpis.openRequests} />
+            <StatCard
+              icon={FileClock}
+              label="Timesheets to approve"
+              value={data.kpis.timesheetsAwaitingApproval}
+              tone={data.kpis.timesheetsAwaitingApproval > 0 ? 'text-amber-700 dark:text-amber-400' : ''}
+            />
+            <StatCard icon={Wallet} label="Payroll exposure" value={gbp(data.kpis.payrollExposure)} sub="approved, not yet invoiced" />
           </div>
 
           {/* Trends */}

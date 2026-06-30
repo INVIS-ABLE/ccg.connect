@@ -658,9 +658,13 @@ export interface CommercialDashboard {
   kpis: {
     activeDeployments: number;
     workersDeployed: number;
+    workersOnSiteToday: number;
+    absentToday: number;
     openRequests: number;
+    timesheetsAwaitingApproval: number;
     revenue: number;
     outstanding: number;
+    payrollExposure: number;
     margin: number;
     marginPct: number;
     attendanceRate: number;
