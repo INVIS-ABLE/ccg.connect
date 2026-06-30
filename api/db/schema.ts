@@ -766,6 +766,28 @@ export const conversations = sqliteTable('conversations', {
   updated_at: updatedAt(),
 });
 
+/**
+ * Per-user preferences for a conversation (pin to top, mute notifications).
+ * Each participant has their own row, so pinning/muting is private to them and
+ * never visible to the other party. One row per (conversation, user).
+ */
+export const conversationPrefs = sqliteTable(
+  'conversation_prefs',
+  {
+    id: pk(),
+    conversation_id: text('conversation_id').notNull(),
+    user_id: text('user_id').notNull(),
+    pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
+    muted: integer('muted', { mode: 'boolean' }).notNull().default(false),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    uniqByConvUser: uniqueIndex('ux_convpref_conv_user').on(t.conversation_id, t.user_id),
+    byUser: index('ix_convpref_user').on(t.user_id),
+  }),
+);
+
 export const directMessages = sqliteTable('direct_messages', {
   id: pk(),
   conversation_id: text('conversation_id').notNull(),

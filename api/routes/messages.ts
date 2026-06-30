@@ -1,7 +1,13 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
-import { conversations, directMessages, messageReactions, userProfiles } from '../db/schema';
+import {
+  conversations,
+  conversationPrefs,
+  directMessages,
+  messageReactions,
+  userProfiles,
+} from '../db/schema';
 import { requireAuth } from '../lib/session';
 import {
   canStartConversation,
@@ -138,6 +144,21 @@ route.get('/conversations', async (c) => {
     .orderBy(desc(conversations.last_message_at))
     .all();
 
+  // My private pin/mute prefs for these conversations (one row per conversation).
+  const prefRows = rows.length
+    ? await db
+        .select()
+        .from(conversationPrefs)
+        .where(
+          and(
+            eq(conversationPrefs.user_id, me.userId),
+            inArray(conversationPrefs.conversation_id, rows.map((r) => r.id)),
+          ),
+        )
+        .all()
+    : [];
+  const prefByConv = new Map(prefRows.map((p) => [p.conversation_id, p]));
+
   const otherIds = rows.map((r) => (r.a_user_id === me.userId ? r.b_user_id : r.a_user_id));
   const profiles = otherIds.length
     ? await db.select().from(userProfiles).where(inArray(userProfiles.user_id, otherIds)).all()
@@ -164,6 +185,7 @@ route.get('/conversations', async (c) => {
   const conversationsOut = rows.map((r) => {
     const otherId = r.a_user_id === me.userId ? r.b_user_id : r.a_user_id;
     const other = profileByUser.get(otherId);
+    const pref = prefByConv.get(r.id);
     return {
       id: r.id,
       other: other
@@ -172,10 +194,68 @@ route.get('/conversations', async (c) => {
       last_message_at: r.last_message_at,
       last_message_preview: r.last_message_preview,
       unread: unreadByConv.get(r.id) ?? 0,
+      pinned: pref?.pinned ?? false,
+      muted: pref?.muted ?? false,
     };
   });
 
+  // Pinned conversations float to the top; within each group, newest activity
+  // first (the query already ordered by last_message_at desc).
+  conversationsOut.sort((a, b) => Number(b.pinned) - Number(a.pinned));
+
   return c.json({ conversations: conversationsOut });
+});
+
+// PATCH /api/messages/conversations/:id/prefs — set this user's private pin/mute
+// state for a conversation (upsert). Body: { pinned?, muted? }.
+route.patch('/conversations/:id/prefs', async (c) => {
+  const loaded = await loadOwnedConversation(c);
+  if ('error' in loaded) return loaded.error;
+  const { convo, db, me } = loaded;
+
+  const body = (await c.req.json().catch(() => null)) as
+    | { pinned?: boolean; muted?: boolean }
+    | null;
+  if (!body || (body.pinned === undefined && body.muted === undefined)) {
+    return c.json({ error: 'nothing_to_update' }, 400);
+  }
+
+  const existing = (
+    await db
+      .select()
+      .from(conversationPrefs)
+      .where(
+        and(
+          eq(conversationPrefs.conversation_id, convo.id),
+          eq(conversationPrefs.user_id, me.userId),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  if (existing) {
+    await db
+      .update(conversationPrefs)
+      .set({
+        ...(body.pinned !== undefined ? { pinned: body.pinned } : {}),
+        ...(body.muted !== undefined ? { muted: body.muted } : {}),
+        updated_at: new Date(),
+      })
+      .where(eq(conversationPrefs.id, existing.id));
+  } else {
+    await db.insert(conversationPrefs).values({
+      conversation_id: convo.id,
+      user_id: me.userId,
+      pinned: body.pinned ?? false,
+      muted: body.muted ?? false,
+    });
+  }
+
+  return c.json({
+    id: convo.id,
+    pinned: body.pinned ?? existing?.pinned ?? false,
+    muted: body.muted ?? existing?.muted ?? false,
+  });
 });
 
 // POST /api/messages/conversations — find or create a 1:1 conversation with a user.
