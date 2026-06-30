@@ -5,6 +5,7 @@ import {
   deployments,
   deploymentWorkers,
   deploymentAttendance,
+  deploymentReplacements,
   siteDiaryEntries,
   labourRequests,
   gangMembers,
@@ -16,6 +17,7 @@ import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import { complianceMatrix, mergeRequirements, RTW_REQUIREMENT } from '../../src/domain/workforce/compliance';
 import { isAttendanceStatus } from '../../src/domain/commercial/attendance';
+import { rankReplacementCandidates } from '../../src/domain/commercial/replacement';
 import type { AppEnv } from '../env';
 
 /**
@@ -284,6 +286,103 @@ route.post('/:id/diary', async (c) => {
     created_by: me.userId,
   }).returning();
   return c.json({ entry: inserted[0] }, 201);
+});
+
+// ── Replacements ─────────────────────────────────────────────────────────────
+// Surface compliant stand-ins ranked best-first. Every candidate is checked
+// individually against the request's requirements — a gang is never a shortcut.
+route.get('/:id/replacement-candidates', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const dep = (await db.select().from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  if (!dep) return c.json({ error: 'not_found' }, 404);
+  const req = (await db.select().from(labourRequests).where(eq(labourRequests.id, dep.labour_request_id)).limit(1))[0] ?? null;
+  const requirements = req ? requestRequirements(req) : [RTW_REQUIREMENT];
+
+  // Available workers = active workers not already on this deployment.
+  const onDeployment = new Set(
+    (await db.select({ worker_id: deploymentWorkers.worker_id }).from(deploymentWorkers).where(eq(deploymentWorkers.deployment_id, id)).all())
+      .map((d) => d.worker_id),
+  );
+  const allWorkers = await db.select().from(workers).where(eq(workers.status, 'active')).all();
+  const available = allWorkers.filter((w) => !onDeployment.has(w.id));
+  const ids = available.map((w) => w.id);
+  const crows = ids.length ? await db.select().from(workerCards).where(inArray(workerCards.worker_id, ids)).all() : [];
+  const cardsByWorker = new Map<string, typeof crows>();
+  for (const cd of crows) {
+    const arr = cardsByWorker.get(cd.worker_id) ?? [];
+    arr.push(cd);
+    cardsByWorker.set(cd.worker_id, arr);
+  }
+  const inputs = available.map((w) => ({
+    id: w.id,
+    full_name: w.full_name,
+    right_to_work_status: w.right_to_work_status,
+    rtw_expiry: w.rtw_expiry,
+    cards: cardsByWorker.get(w.id) ?? [],
+  }));
+  const candidates = rankReplacementCandidates(inputs, requirements, new Date());
+  return c.json({ requirements, candidates });
+});
+
+route.get('/:id/replacements', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const rows = await db.select().from(deploymentReplacements)
+    .where(eq(deploymentReplacements.deployment_id, c.req.param('id')))
+    .orderBy(desc(deploymentReplacements.created_at)).all();
+  return c.json({ replacements: rows });
+});
+
+// Swap one worker for another, preserving role/rates, and record an audit row.
+route.post('/:id/replacements', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const dep = (await db.select().from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  if (!dep) return c.json({ error: 'not_found' }, 404);
+
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const originalWorkerId = str(body.original_worker_id);
+  const replacementWorkerId = str(body.replacement_worker_id);
+  if (!originalWorkerId || !replacementWorkerId) return c.json({ error: 'original_and_replacement_required' }, 400);
+  if (originalWorkerId === replacementWorkerId) return c.json({ error: 'same_worker' }, 400);
+
+  const original = (await db.select().from(deploymentWorkers)
+    .where(and(eq(deploymentWorkers.deployment_id, id), eq(deploymentWorkers.worker_id, originalWorkerId))).limit(1))[0];
+  if (!original) return c.json({ error: 'original_not_on_deployment' }, 404);
+
+  const replacement = (await db.select().from(workers).where(eq(workers.id, replacementWorkerId)).limit(1))[0];
+  if (!replacement) return c.json({ error: 'replacement_not_found' }, 404);
+
+  const alreadyOn = (await db.select({ id: deploymentWorkers.id }).from(deploymentWorkers)
+    .where(and(eq(deploymentWorkers.deployment_id, id), eq(deploymentWorkers.worker_id, replacementWorkerId))).limit(1))[0];
+  if (alreadyOn) return c.json({ error: 'replacement_already_on_deployment' }, 409);
+
+  const now = new Date();
+  // Preserve the slot's role and rates so margins/costing stay intact.
+  await db.insert(deploymentWorkers).values({
+    deployment_id: id,
+    worker_id: replacementWorkerId,
+    role: original.role,
+    pay_rate: original.pay_rate,
+    charge_rate: original.charge_rate,
+  });
+  await db.delete(deploymentWorkers).where(eq(deploymentWorkers.id, original.id));
+
+  const audit = await db.insert(deploymentReplacements).values({
+    deployment_id: id,
+    original_worker_id: originalWorkerId,
+    replacement_worker_id: replacementWorkerId,
+    reason: str(body.reason),
+    status: 'filled',
+    requested_by: me.userId,
+    filled_at: now.toISOString(),
+  }).returning();
+
+  return c.json({ replacement: audit[0] }, 201);
 });
 
 export default route;
