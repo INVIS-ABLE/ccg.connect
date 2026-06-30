@@ -192,6 +192,19 @@ export interface ConversationSummary {
   unread: number;
 }
 
+export interface ReplyPreview {
+  id: string;
+  sender_user_id: string;
+  body: string;
+  attachment_type: 'image' | 'audio' | 'file' | null;
+}
+
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  mine: boolean;
+}
+
 export interface DirectMessage {
   id: string;
   sender_user_id: string;
@@ -202,6 +215,8 @@ export interface DirectMessage {
   attachment_url?: string | null;
   attachment_type?: 'image' | 'audio' | 'file' | null;
   attachment_name?: string | null;
+  reply_to?: ReplyPreview | null;
+  reactions?: ReactionSummary[];
 }
 
 export interface MatchCandidate {

@@ -11,9 +11,33 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText, Smile, Reply, X } from 'lucide-react';
 import { enqueue } from '@/offline/syncQueue';
 import { useDraft } from '@/offline/drafts';
+import { REACTION_EMOJI } from '@/domain/messaging/reactions';
+
+// A small, dependency-free emoji palette for inserting into the composer.
+const COMPOSER_EMOJI = [
+  '😀', '😂', '😍', '😎', '😅', '🙂', '😉', '😢',
+  '👍', '👎', '🙏', '👏', '💪', '🔥', '✅', '❌',
+  '❤️', '🎉', '👋', '🚀', '⏰', '📍', '📷', '📎',
+];
+
+/** Apply a realtime reaction delta to one message's reaction summary. */
+function applyReactionDelta(reactions, emoji, add, mine) {
+  const list = reactions ? [...reactions] : [];
+  const i = list.findIndex((r) => r.emoji === emoji);
+  if (add) {
+    if (i === -1) list.push({ emoji, count: 1, mine });
+    else list[i] = { ...list[i], count: list[i].count + 1, mine: mine || list[i].mine };
+  } else if (i !== -1) {
+    const count = list[i].count - 1;
+    if (count <= 0) list.splice(i, 1);
+    else list[i] = { ...list[i], count, mine: mine ? false : list[i].mine };
+  }
+  return list;
+}
 
 /**
  * WhatsApp-style 1:1 messaging, backed by /api/messages and synced to the app's
@@ -84,6 +108,8 @@ export default function Messages() {
   // Composer text is persisted as a per-conversation draft (survives refresh/crash).
   const [input, setInput, clearInput] = useDraft(activeId ? `msg:${activeId}` : '', '');
   const [sending, setSending] = useState(false);
+  // The message currently being replied to (quote), or null.
+  const [replyingTo, setReplyingTo] = useState(null);
 
   const [contactsOpen, setContactsOpen] = useState(false);
   const [contacts, setContacts] = useState([]);
@@ -99,13 +125,33 @@ export default function Messages() {
 
   async function sendAttachment(file) {
     if (!file || !activeId) return;
+    const replyToId = replyingTo?.id;
+    setReplyingTo(null);
     try {
-      await api.messages.sendAttachment(activeId, file);
+      await api.messages.sendAttachment(activeId, file, undefined, replyToId);
       await loadMessages(activeId);
       void loadConversations();
     } catch {
       /* surfaced to the user via the empty state staying; keep it simple */
     }
+  }
+
+  // Toggle one of my reactions on a message. Optimistic via the REST response;
+  // the realtime delta for my own user id is ignored to avoid double-counting.
+  async function toggleReaction(message, emoji) {
+    if (!activeId || String(message.id).startsWith('tmp-')) return;
+    try {
+      const r = await api.messages.react(activeId, message.id, emoji);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === r.messageId ? { ...m, reactions: r.reactions } : m)),
+      );
+    } catch {
+      /* non-fatal — a poll/socket update will reconcile */
+    }
+  }
+
+  function insertEmoji(emoji) {
+    setInput((v) => (v ?? '') + emoji);
   }
 
   async function toggleRecord() {
@@ -201,6 +247,16 @@ export default function Messages() {
             prev.some((m) => m.id === msg.id) ? prev : [...prev, { ...msg, mine: msg.sender_user_id === myId }],
           );
           void loadConversations();
+        } else if (data.type === 'reaction' && data.userId !== myId) {
+          // Another participant reacted — apply the delta (my own are applied
+          // optimistically from the REST response, so skip userId === myId).
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === data.messageId
+                ? { ...m, reactions: applyReactionDelta(m.reactions, data.emoji, data.action === 'add', false) }
+                : m,
+            ),
+          );
         } else if (data.type === 'typing' && data.userId && data.userId !== myId) {
           setPeerTyping(true);
           clearTimeout(typingTimerRef.current);
@@ -258,6 +314,7 @@ export default function Messages() {
     setActiveId(convo.id);
     setActiveOther(convo.other);
     setMessages([]);
+    setReplyingTo(null);
     lastCountRef.current = 0;
   }
 
@@ -293,6 +350,8 @@ export default function Messages() {
     setSending(true);
     clearInput();
     const convId = activeId;
+    const replyTo = replyingTo;
+    setReplyingTo(null);
     // Optimistic append.
     const optimistic = {
       id: `tmp-${Date.now()}`,
@@ -302,17 +361,20 @@ export default function Messages() {
       created_at: new Date().toISOString(),
       mine: true,
       pending: true,
+      reply_to: replyTo
+        ? { id: replyTo.id, sender_user_id: replyTo.sender_user_id, body: replyTo.body, attachment_type: replyTo.attachment_type ?? null }
+        : null,
     };
     setMessages((m) => [...m, optimistic]);
     try {
       if (!navigator.onLine) throw new Error('offline');
-      await api.messages.send(convId, text);
+      await api.messages.send(convId, text, replyTo?.id);
       await loadMessages(convId);
       void loadConversations();
     } catch {
       // Offline or send failed → queue for delivery when back online; keep the
       // bubble visible, marked as queued.
-      await enqueue('sendMessage', { conversationId: convId, body: text });
+      await enqueue('sendMessage', { conversationId: convId, body: text, replyToId: replyTo?.id });
       setMessages((m) => m.map((x) => (x.id === optimistic.id ? { ...x, queued: true, pending: false } : x)));
     } finally {
       setSending(false);
@@ -465,15 +527,39 @@ export default function Messages() {
                 </div>
               )}
 
-              {messages.map((m) => (
-                <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
+              {messages.map((m) => {
+                const isTmp = String(m.id).startsWith('tmp-');
+                return (
+                <div key={m.id} className={`group flex flex-col ${m.mine ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex items-center gap-1 max-w-[85%] ${m.mine ? 'flex-row-reverse' : 'flex-row'}`}>
                   <div
-                    className={`max-w-[78%] rounded-2xl px-3.5 py-2 ${
+                    className={`rounded-2xl px-3.5 py-2 ${
                       m.mine
                         ? 'bg-primary text-primary-foreground rounded-br-sm'
                         : 'bg-card border text-foreground rounded-bl-sm'
                     }`}
                   >
+                    {m.reply_to && (
+                      <div
+                        className={`mb-1 rounded-md border-l-2 px-2 py-1 text-xs ${
+                          m.mine
+                            ? 'border-primary-foreground/50 bg-primary-foreground/10'
+                            : 'border-primary/50 bg-muted'
+                        }`}
+                      >
+                        <span className="block font-medium opacity-80">
+                          {m.reply_to.sender_user_id === myId ? 'You' : activeOther?.name || 'Reply'}
+                        </span>
+                        <span className="block truncate opacity-70">
+                          {m.reply_to.body ||
+                            (m.reply_to.attachment_type === 'image'
+                              ? '📷 Photo'
+                              : m.reply_to.attachment_type === 'audio'
+                                ? '🎤 Voice note'
+                                : '📎 File')}
+                        </span>
+                      </div>
+                    )}
                     {m.attachment_url && m.attachment_type === 'image' && (
                       <a href={m.attachment_url} target="_blank" rel="noreferrer">
                         <img
@@ -515,56 +601,174 @@ export default function Messages() {
                         ))}
                     </span>
                   </div>
+
+                  {/* Hover actions: react + reply (hidden for optimistic/unsent) */}
+                  {!isTmp && (
+                    <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            aria-label="React to message"
+                          >
+                            <Smile size={15} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-1" align={m.mine ? 'end' : 'start'}>
+                          <div className="flex gap-0.5">
+                            {REACTION_EMOJI.map((emoji) => {
+                              const active = m.reactions?.some((r) => r.emoji === emoji && r.mine);
+                              return (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => toggleReaction(m, emoji)}
+                                  className={`rounded-full p-1 text-lg leading-none transition-transform hover:scale-125 ${active ? 'bg-primary/15' : ''}`}
+                                  aria-label={`React ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(m)}
+                        className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        aria-label="Reply to message"
+                      >
+                        <Reply size={15} />
+                      </button>
+                    </div>
+                  )}
+                  </div>
+
+                  {/* Reaction chips */}
+                  {m.reactions?.length > 0 && (
+                    <div className={`mt-1 flex flex-wrap gap-1 ${m.mine ? 'justify-end pr-1' : 'pl-1'}`}>
+                      {m.reactions.map((r) => (
+                        <button
+                          key={r.emoji}
+                          type="button"
+                          onClick={() => toggleReaction(m, r.emoji)}
+                          className={`flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-xs leading-none transition-colors ${
+                            r.mine
+                              ? 'border-primary/40 bg-primary/10 text-foreground'
+                              : 'border-border bg-muted text-muted-foreground hover:bg-muted/70'
+                          }`}
+                          aria-label={`${r.emoji} ${r.count}${r.mine ? ' (you reacted)' : ''}`}
+                        >
+                          <span className="text-sm leading-none">{r.emoji}</span>
+                          {r.count > 1 && <span>{r.count}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
               <div ref={endRef} />
             </div>
 
             {/* Composer */}
-            <form onSubmit={sendMessage} className="flex items-center gap-1.5 border-t p-3">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf,audio/*"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = '';
-                  if (f) void sendAttachment(f);
-                }}
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => fileRef.current?.click()}
-                aria-label="Attach file"
-              >
-                <Paperclip size={18} />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant={recording ? 'destructive' : 'ghost'}
-                onClick={toggleRecord}
-                aria-label={recording ? 'Stop recording' : 'Record voice note'}
-              >
-                {recording ? <Square size={16} /> : <Mic size={18} />}
-              </Button>
-              <Input
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  notifyTyping();
-                }}
-                placeholder={recording ? 'Recording…' : 'Type a message…'}
-                className="flex-1"
-                disabled={recording}
-              />
-              <Button type="submit" size="icon" disabled={!input.trim() || sending} aria-label="Send">
-                <Send size={16} />
-              </Button>
-            </form>
+            <div className="border-t">
+              {/* Reply context bar */}
+              {replyingTo && (
+                <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                  <Reply size={15} className="shrink-0 text-primary" />
+                  <div className="min-w-0 flex-1 border-l-2 border-primary/50 pl-2">
+                    <p className="text-xs font-medium">
+                      Replying to {replyingTo.sender_user_id === myId ? 'yourself' : activeOther?.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {replyingTo.body ||
+                        (replyingTo.attachment_type === 'image'
+                          ? '📷 Photo'
+                          : replyingTo.attachment_type === 'audio'
+                            ? '🎤 Voice note'
+                            : '📎 File')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setReplyingTo(null)}
+                    className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-muted"
+                    aria-label="Cancel reply"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+              )}
+              <form onSubmit={sendMessage} className="flex items-center gap-1.5 p-3">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*,application/pdf,audio/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) void sendAttachment(f);
+                  }}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => fileRef.current?.click()}
+                  aria-label="Attach file"
+                >
+                  <Paperclip size={18} />
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" size="icon" variant="ghost" aria-label="Insert emoji" disabled={recording}>
+                      <Smile size={18} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-2" align="start">
+                    <div className="grid grid-cols-8 gap-0.5">
+                      {COMPOSER_EMOJI.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => insertEmoji(emoji)}
+                          className="rounded p-1 text-lg leading-none hover:bg-muted"
+                          aria-label={`Insert ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant={recording ? 'destructive' : 'ghost'}
+                  onClick={toggleRecord}
+                  aria-label={recording ? 'Stop recording' : 'Record voice note'}
+                >
+                  {recording ? <Square size={16} /> : <Mic size={18} />}
+                </Button>
+                <Input
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    notifyTyping();
+                  }}
+                  placeholder={recording ? 'Recording…' : 'Type a message…'}
+                  className="flex-1"
+                  disabled={recording}
+                />
+                <Button type="submit" size="icon" disabled={!input.trim() || sending} aria-label="Send">
+                  <Send size={16} />
+                </Button>
+              </form>
+            </div>
           </div>
         ) : (
           <div className="hidden sm:flex flex-1 items-center justify-center border rounded-xl border-dashed">
