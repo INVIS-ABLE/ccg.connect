@@ -558,6 +558,34 @@ export interface DeploymentReplacement {
   created_at: string;
 }
 
+export interface MonthBucket {
+  month: string;
+  label: string;
+  value: number;
+}
+
+export interface CommercialDashboard {
+  months: number;
+  kpis: {
+    activeDeployments: number;
+    workersDeployed: number;
+    openRequests: number;
+    revenue: number;
+    outstanding: number;
+    margin: number;
+    marginPct: number;
+    attendanceRate: number;
+    openIncidents: number;
+  };
+  margin: { workerPay: number; employerCost: number; clientCharge: number; margin: number; marginPct: number };
+  attendance: { total: number; present: number; absent: number; rate: number };
+  revenueTrend: MonthBucket[];
+  marginTrend: MonthBucket[];
+  revenueByAccount: { key: string; value: number; label: string }[];
+  deploymentsByStatus: Record<string, number>;
+  incidentsBySeverity: Record<string, number>;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

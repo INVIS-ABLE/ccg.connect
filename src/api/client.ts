@@ -31,6 +31,7 @@ import type {
   CommercialTimesheet,
   CommercialInvoice,
   Incident,
+  CommercialDashboard,
   SiteDiaryEntry,
   ReplacementCandidate,
   DeploymentReplacement,
@@ -438,6 +439,10 @@ export const api = {
       request<{ incident: Incident }>('/api/incidents', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Incident>) =>
       request<{ incident: Incident }>(`/api/incidents/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  dashboard: {
+    commercial: (months?: number) =>
+      request<CommercialDashboard>(`/api/dashboard/commercial${months ? `?months=${encodeURIComponent(months)}` : ''}`),
   },
   commercialTimesheets: {
     list: (deploymentId?: string) =>
