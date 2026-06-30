@@ -43,6 +43,35 @@ export { ConversationRoom } from './chat/ConversationRoom';
  */
 const app = new Hono<AppEnv>();
 
+/**
+ * Baseline security headers applied to every response (clickjacking, MIME
+ * sniffing, referrer leakage, transport security). Permissions-Policy scopes the
+ * sensitive device features the app actually uses (geolocation for site
+ * check-in, camera for site photos, microphone for voice notes) to same-origin.
+ * No Content-Security-Policy yet — a strict CSP needs tuning against MapLibre
+ * workers, the PWA service worker and inline styles, so it's a deliberate
+ * follow-up rather than a half-measure that breaks the app.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(self), camera=(self), microphone=(self)',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+};
+
+app.use('*', async (c, next) => {
+  await next();
+  // WebSocket upgrades (101) carry an immutable, special response — leave it be.
+  if (c.req.header('upgrade')?.toLowerCase() === 'websocket') return;
+  // Rebuild with a mutable header copy so responses with immutable headers
+  // (e.g. static assets served via the ASSETS binding) don't throw on set.
+  const res = c.res;
+  const headers = new Headers(res.headers);
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
+  c.res = new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+});
+
 app.get('/api/health', (c) => c.json({ ok: true, service: 'ccg-connect-api' }));
 
 // Bot protection (optional): when TURNSTILE_SECRET_KEY is set, sign-up and
