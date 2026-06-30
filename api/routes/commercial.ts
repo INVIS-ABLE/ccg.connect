@@ -1,11 +1,13 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import {
   corporateAccounts,
   corporateContacts,
   commercialProjects,
   commercialSites,
+  corporateAccountUsers,
+  userProfiles,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
@@ -194,6 +196,49 @@ route.patch('/sites/:id', async (c) => {
   const updated = await db.update(commercialSites).set({ ...patch, updated_at: new Date() }).where(eq(commercialSites.id, c.req.param('id'))).returning();
   if (!updated[0]) return c.json({ error: 'not_found' }, 404);
   return c.json({ site: updated[0] });
+});
+
+// ── Portal access: link client logins to a corporate account ─────────────────
+// Granting/revoking portal visibility is an admin action (invariants 2 & 5).
+route.get('/accounts/:id/users', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const links = await db.select().from(corporateAccountUsers).where(eq(corporateAccountUsers.account_id, c.req.param('id'))).all();
+  return c.json({ users: links });
+});
+
+route.post('/accounts/:id/users', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const accountId = c.req.param('id');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const userId = str(body.user_id);
+  if (!userId) return c.json({ error: 'user_id_required' }, 400);
+
+  const account = (await db.select({ id: corporateAccounts.id }).from(corporateAccounts).where(eq(corporateAccounts.id, accountId)).limit(1))[0];
+  if (!account) return c.json({ error: 'account_not_found' }, 404);
+
+  // Only an existing client-role login may be granted portal access — never a
+  // staff/contractor account, and granting never changes the user's role.
+  const profile = (await db.select({ role: userProfiles.role }).from(userProfiles).where(eq(userProfiles.user_id, userId)).limit(1))[0];
+  if (!profile) return c.json({ error: 'user_not_found' }, 404);
+  if (profile.role !== 'client') return c.json({ error: 'not_a_client_user' }, 400);
+
+  const existing = (await db.select({ id: corporateAccountUsers.id }).from(corporateAccountUsers)
+    .where(and(eq(corporateAccountUsers.account_id, accountId), eq(corporateAccountUsers.user_id, userId))).limit(1))[0];
+  if (existing) return c.json({ link: existing }, 200);
+
+  const inserted = await db.insert(corporateAccountUsers).values({ account_id: accountId, user_id: userId, granted_by: me.userId }).returning();
+  return c.json({ link: inserted[0] }, 201);
+});
+
+route.delete('/accounts/:id/users/:userId', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  await db.delete(corporateAccountUsers)
+    .where(and(eq(corporateAccountUsers.account_id, c.req.param('id')), eq(corporateAccountUsers.user_id, c.req.param('userId'))));
+  return c.json({ ok: true });
 });
 
 export default route;

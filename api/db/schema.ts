@@ -919,6 +919,26 @@ export const corporateContacts = sqliteTable(
   (t) => ({ byAccount: index('ix_corpcontact_account').on(t.account_id) }),
 );
 
+// Links a client *login* (user_profiles user_id) to the corporate account(s) it
+// may view in the commercial portal. Granting portal access is an admin action;
+// a client can only ever see accounts they are explicitly linked to here. A
+// join table (not a single column) so an account can have several portal users
+// and a user can hold several accounts.
+export const corporateAccountUsers = sqliteTable(
+  'corporate_account_users',
+  {
+    id: pk(),
+    account_id: text('account_id').notNull(),
+    user_id: text('user_id').notNull(),
+    granted_by: text('granted_by'),
+    created_at: createdAt(),
+  },
+  (t) => ({
+    byUser: index('ix_cau_user').on(t.user_id),
+    uniqLink: uniqueIndex('ux_cau_account_user').on(t.account_id, t.user_id),
+  }),
+);
+
 export const commercialProjects = sqliteTable(
   'commercial_projects',
   {

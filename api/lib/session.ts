@@ -2,7 +2,7 @@ import { createMiddleware } from 'hono/factory';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
 import { createAuth } from '../auth';
-import { userProfiles, contractorProfiles } from '../db/schema';
+import { userProfiles, contractorProfiles, corporateAccountUsers } from '../db/schema';
 import { isAppRole } from '../../src/domain/auth/roles';
 import type { Principal } from '../../src/domain/permissions/permissions';
 import type { AppEnv } from '../env';
@@ -48,7 +48,19 @@ export async function resolvePrincipal(
   // (set by an admin); this scopes everything they can see.
   const clientId = role === 'client' ? (profileRows[0]?.client_id ?? null) : null;
 
-  return { userId, role, contractorId, clientId };
+  // Commercial portal scope: the corporate accounts an admin has explicitly
+  // linked this client login to. Empty for non-clients.
+  let corporateAccountIds: string[] = [];
+  if (role === 'client') {
+    const links = await db
+      .select({ account_id: corporateAccountUsers.account_id })
+      .from(corporateAccountUsers)
+      .where(eq(corporateAccountUsers.user_id, userId))
+      .all();
+    corporateAccountIds = links.map((l) => l.account_id);
+  }
+
+  return { userId, role, contractorId, clientId, corporateAccountIds };
 }
 
 /** Hono middleware: require a valid session, attach the Principal, else 401. */
