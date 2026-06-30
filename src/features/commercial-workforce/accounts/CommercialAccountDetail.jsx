@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Plus, ChevronRight, FolderKanban, UserRound, KeyRound, X } from 'lucide-react';
+import { RateCardsSection } from './RateCardsSection';
 
 const CONTACT_ROLES = ['commercial', 'procurement', 'accounts', 'site', 'other'];
 
@@ -187,6 +188,9 @@ export default function CommercialAccountDetail() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Agreed rate cards (internal pay/charge/margin) */}
+      <RateCardsSection accountId={id} />
 
       {/* Portal access — which client logins may see this account's site work */}
       <Card>

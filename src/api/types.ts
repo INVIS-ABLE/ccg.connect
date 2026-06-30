@@ -272,6 +272,19 @@ export interface CorporateAccount {
   notes: string | null;
 }
 
+export interface RateCard {
+  id: string;
+  account_id: string;
+  trade: string;
+  role: string | null;
+  unit: 'hour' | 'day' | 'shift';
+  pay_rate: number | null;
+  charge_rate: number | null;
+  overtime_rate: number | null;
+  notes: string | null;
+  status: 'active' | 'archived';
+}
+
 export interface CorporateContact {
   id: string;
   account_id: string;
