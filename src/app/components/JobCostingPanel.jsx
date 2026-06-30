@@ -3,7 +3,7 @@ import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Save } from 'lucide-react';
-import { jobCostBreakdown, parseMaterials } from '@/domain/jobs/costing';
+import { jobCostBreakdown, parseMaterials, applyVat } from '@/domain/jobs/costing';
 
 function gbp(n) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
@@ -25,6 +25,7 @@ export function JobCostingPanel({ job, onSaved }) {
   const [savedMsg, setSavedMsg] = useState(null);
 
   const { materialsCost, labourCost, total } = jobCostBreakdown(lines, labour);
+  const { vat, totalIncVat } = applyVat(total, 0.2);
 
   function setLine(i, patch) {
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -143,7 +144,9 @@ export function JobCostingPanel({ job, onSaved }) {
       <div className="rounded-lg border bg-muted/40 p-3 text-sm">
         <div className="flex justify-between"><span className="text-muted-foreground">Materials</span><span className="tabular-nums">{gbp(materialsCost)}</span></div>
         <div className="flex justify-between"><span className="text-muted-foreground">Labour</span><span className="tabular-nums">{gbp(labourCost)}</span></div>
-        <div className="mt-1 flex justify-between border-t pt-1 font-semibold"><span>Total</span><span className="tabular-nums">{gbp(total)}</span></div>
+        <div className="mt-1 flex justify-between border-t pt-1"><span className="text-muted-foreground">Net total</span><span className="tabular-nums">{gbp(total)}</span></div>
+        <div className="flex justify-between"><span className="text-muted-foreground">VAT (20%)</span><span className="tabular-nums">{gbp(vat)}</span></div>
+        <div className="mt-1 flex justify-between border-t pt-1 font-semibold"><span>Total inc. VAT</span><span className="tabular-nums">{gbp(totalIncVat)}</span></div>
       </div>
 
       <div className="flex items-center gap-2">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { lineTotal, jobCostBreakdown, parseMaterials } from './costing';
+import { lineTotal, jobCostBreakdown, parseMaterials, applyVat } from './costing';
 
 describe('lineTotal', () => {
   it('multiplies qty by unit cost', () => {
@@ -31,6 +31,19 @@ describe('jobCostBreakdown', () => {
   });
   it('ignores invalid labour', () => {
     expect(jobCostBreakdown([{ qty: 1, unit_cost: 10 }], 'abc').total).toBe(10);
+  });
+});
+
+describe('applyVat', () => {
+  it('adds 20% VAT by default', () => {
+    expect(applyVat(100)).toEqual({ vat: 20, totalIncVat: 120 });
+  });
+  it('honours a custom rate', () => {
+    expect(applyVat(200, 0.05)).toEqual({ vat: 10, totalIncVat: 210 });
+  });
+  it('treats a zero/invalid rate or net as no VAT', () => {
+    expect(applyVat(100, 0)).toEqual({ vat: 0, totalIncVat: 100 });
+    expect(applyVat(NaN)).toEqual({ vat: 0, totalIncVat: 0 });
   });
 });
 
