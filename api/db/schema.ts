@@ -790,15 +790,17 @@ export const conversations = sqliteTable('conversations', {
   id: pk(),
   // 'direct' = 1:1 between a_user_id/b_user_id. 'job' = a job delivery-team room
   // (ops + the contractors assigned to job_id); membership is derived, not stored.
-  kind: text('kind', { enum: ['direct', 'job'] }).notNull().default('direct'),
+  kind: text('kind', { enum: ['direct', 'job', 'site'] }).notNull().default('direct'),
   // For direct chats: canonical sorted "userA__userB". For job chats: "job:<id>".
-  // Either way it's the one-row-per-conversation uniqueness key.
+  // For site chats: "deployment:<id>". One-row-per-conversation uniqueness key.
   pair_key: text('pair_key').notNull().unique(),
-  // Populated for direct chats; null for job chats (participants are derived).
+  // Populated for direct chats; null for job/site chats (participants derived).
   a_user_id: text('a_user_id'),
   b_user_id: text('b_user_id'),
   // Job chats only: the job this room belongs to, and a display title.
   job_id: text('job_id'),
+  // Site chats only: the deployment this room belongs to.
+  deployment_id: text('deployment_id'),
   title: text('title'),
   last_message_at: text('last_message_at'),
   last_message_preview: text('last_message_preview'),
@@ -1131,5 +1133,54 @@ export const labourRequests = sqliteTable(
   (t) => ({
     byAccount: index('ix_labreq_account').on(t.account_id),
     bySite: index('ix_labreq_site').on(t.site_id),
+  }),
+);
+
+// ── Deployments ──────────────────────────────────────────────────────────────
+// Connects workers (often a gang) to a labour request + site. On confirmation a
+// compliance snapshot is frozen (evidence of what was checked before start) and
+// a site group chat is auto-created.
+export const deployments = sqliteTable(
+  'deployments',
+  {
+    id: pk(),
+    labour_request_id: text('labour_request_id').notNull(),
+    account_id: text('account_id'),
+    site_id: text('site_id'),
+    gang_id: text('gang_id'),
+    status: text('status', {
+      enum: ['proposed', 'confirmed', 'active', 'completed', 'cancelled'],
+    })
+      .notNull()
+      .default('proposed'),
+    start_date: text('start_date'),
+    finish_date: text('finish_date'),
+    // JSON compliance matrix frozen at confirmation time.
+    compliance_snapshot: text('compliance_snapshot'),
+    confirmed_at: text('confirmed_at'),
+    // The auto-created site group chat (conversations.id), set on confirm.
+    conversation_id: text('conversation_id'),
+    notes: text('notes'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byRequest: index('ix_deploy_request').on(t.labour_request_id) }),
+);
+
+export const deploymentWorkers = sqliteTable(
+  'deployment_workers',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    worker_id: text('worker_id').notNull(),
+    role: text('role'),
+    pay_rate: real('pay_rate'),
+    charge_rate: real('charge_rate'),
+    created_at: createdAt(),
+  },
+  (t) => ({
+    byDeployment: index('ix_depworker_deployment').on(t.deployment_id),
+    uniqMember: uniqueIndex('ux_depworker_deploy_worker').on(t.deployment_id, t.worker_id),
   }),
 );

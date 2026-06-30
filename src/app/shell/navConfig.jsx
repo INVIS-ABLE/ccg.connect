@@ -3,6 +3,7 @@ import {
   Briefcase,
   HardHat,
   ClipboardList,
+  Truck,
   LayoutGrid,
   CalendarDays,
   Sparkles,
@@ -62,6 +63,7 @@ const ADMIN_NAV = [
       { label: 'Workers', to: '/workforce/workers', icon: HardHat },
       { label: 'Gangs', to: '/workforce/gangs', icon: Users },
       { label: 'Requests', to: '/workforce/requests', icon: ClipboardList },
+      { label: 'Deployments', to: '/workforce/deployments', icon: Truck },
     ],
   },
   {

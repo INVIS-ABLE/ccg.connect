@@ -291,7 +291,7 @@ export default function Messages() {
           const msg = data.message;
           // Job rooms are multi-party, so an incoming message needs its sender's
           // name/photo — refetch rather than render an unattributed bubble.
-          if (activeKindRef.current === 'job' && msg.sender_user_id !== myId) {
+          if (activeKindRef.current !== 'direct' && msg.sender_user_id !== myId) {
             void loadMessages(activeId);
           } else {
             setMessages((prev) =>
@@ -629,16 +629,16 @@ export default function Messages() {
                   onClick={() => openConversation(conv)}
                   className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5 text-left"
                 >
-                  {conv.kind === 'job' ? <GroupAvatar /> : <PersonAvatar contact={conv.other} />}
+                  {conv.kind !== 'direct' ? <GroupAvatar /> : <PersonAvatar contact={conv.other} />}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       {conv.pinned && <Pin size={11} className="shrink-0 text-primary" />}
                       <span className="truncate font-medium text-sm">
-                        {conv.kind === 'job' ? conv.title : conv.other?.name}
+                        {conv.kind !== 'direct' ? conv.title : conv.other?.name}
                       </span>
-                      {conv.kind === 'job' ? (
+                      {conv.kind !== 'direct' ? (
                         <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                          Team
+                          {conv.kind === 'site' ? 'Site' : 'Team'}
                         </span>
                       ) : (
                         <RoleBadge role={conv.other?.role} />
@@ -703,7 +703,7 @@ export default function Messages() {
                 <ChevronLeft size={20} />
               </button>
               <div className="relative">
-                {activeKind === 'job' ? (
+                {activeKind !== 'direct' ? (
                   <GroupAvatar size="h-9 w-9" />
                 ) : (
                   <>
@@ -715,16 +715,16 @@ export default function Messages() {
                 )}
               </div>
               <div className="min-w-0">
-                {activeKind === 'job' ? (
+                {activeKind !== 'direct' ? (
                   <>
                     <div className="flex items-center gap-1.5">
                       <p className="font-semibold text-sm truncate">{activeTitle}</p>
                       <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                        Team
+                        {activeKind === 'site' ? 'Site' : 'Team'}
                       </span>
                     </div>
                     <p className="h-4 text-xs text-muted-foreground">
-                      {peerTyping ? 'someone is typing…' : 'Ops team + assigned contractors'}
+                      {peerTyping ? 'someone is typing…' : activeKind === 'site' ? 'Ops team + deployed workers' : 'Ops team + assigned contractors'}
                     </p>
                   </>
                 ) : (
@@ -797,7 +797,7 @@ export default function Messages() {
                         : 'bg-card border text-foreground rounded-bl-sm'
                     }`}
                   >
-                    {activeKind === 'job' && !m.mine && m.sender && (
+                    {activeKind !== 'direct' && !m.mine && m.sender && (
                       <p className="mb-0.5 flex items-center gap-1 text-[11px] font-semibold text-primary">
                         {m.sender.name}
                         {m.sender.role && <RoleBadge role={m.sender.role} />}

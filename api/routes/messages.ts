@@ -9,6 +9,8 @@ import {
   userProfiles,
   jobs,
   jobAssignments,
+  deploymentWorkers,
+  workers,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import {
@@ -185,7 +187,32 @@ route.get('/conversations', async (c) => {
     }
   }
 
-  const rows = [...directRows, ...jobRows];
+  // Site rooms (deployment chats): admins see all; a worker sees rooms for
+  // deployments they're on (matched via their app login).
+  let siteRows: (typeof conversations.$inferSelect)[] = [];
+  if (isAdmin(me)) {
+    siteRows = await db.select().from(conversations).where(eq(conversations.kind, 'site')).all();
+  } else {
+    const myWorker = await db.select({ id: workers.id }).from(workers).where(eq(workers.user_id, me.userId)).all();
+    const myWorkerIds = myWorker.map((w) => w.id);
+    if (myWorkerIds.length) {
+      const dws = await db
+        .select({ deployment_id: deploymentWorkers.deployment_id })
+        .from(deploymentWorkers)
+        .where(inArray(deploymentWorkers.worker_id, myWorkerIds))
+        .all();
+      const depIds = [...new Set(dws.map((d) => d.deployment_id))];
+      if (depIds.length) {
+        siteRows = await db
+          .select()
+          .from(conversations)
+          .where(and(eq(conversations.kind, 'site'), inArray(conversations.deployment_id, depIds)))
+          .all();
+      }
+    }
+  }
+
+  const rows = [...directRows, ...jobRows, ...siteRows];
   if (rows.length === 0) return c.json({ conversations: [] });
   const ids = rows.map((r) => r.id);
 
@@ -234,8 +261,9 @@ route.get('/conversations', async (c) => {
       pinned: pref?.pinned ?? false,
       muted: pref?.muted ?? false,
     };
-    if (r.kind === 'job') {
-      return { ...base, title: r.title ?? 'Job chat', job_id: r.job_id, other: null };
+    if (r.kind === 'job' || r.kind === 'site') {
+      const fallback = r.kind === 'site' ? 'Site chat' : 'Job chat';
+      return { ...base, title: r.title ?? fallback, job_id: r.job_id, other: null };
     }
     const otherId = r.a_user_id === me.userId ? r.b_user_id : r.a_user_id;
     const other = otherId ? profileByUser.get(otherId) : undefined;
@@ -448,7 +476,20 @@ async function assignedContractorIds(db: ReturnType<typeof drizzle>, jobId: stri
   return rows.map((r) => r.contractor_id);
 }
 
-/** Whether the caller may read/post in a conversation (direct or job room). */
+/** The app-login user ids of a deployment's workers (the site-chat membership). */
+async function deploymentMemberUserIds(db: ReturnType<typeof drizzle>, deploymentId: string): Promise<string[]> {
+  const dws = await db
+    .select({ worker_id: deploymentWorkers.worker_id })
+    .from(deploymentWorkers)
+    .where(eq(deploymentWorkers.deployment_id, deploymentId))
+    .all();
+  const ids = dws.map((d) => d.worker_id);
+  if (ids.length === 0) return [];
+  const ws = await db.select({ user_id: workers.user_id }).from(workers).where(inArray(workers.id, ids)).all();
+  return ws.map((w) => w.user_id).filter((x): x is string => !!x);
+}
+
+/** Whether the caller may read/post in a conversation (direct / job / site room). */
 async function mayAccessConversation(
   db: ReturnType<typeof drizzle>,
   me: { userId: string; role: string; contractorId: string | null },
@@ -458,6 +499,13 @@ async function mayAccessConversation(
     if (!convo.job_id) return false;
     const assigned = await assignedContractorIds(db, convo.job_id);
     return canAccessJobChat(me as never, { assignedContractorIds: assigned });
+  }
+  if (convo.kind === 'site') {
+    // Ops team + the deployed workers (who have a login).
+    if (isAdmin(me as never)) return true;
+    if (!convo.deployment_id) return false;
+    const members = await deploymentMemberUserIds(db, convo.deployment_id);
+    return members.includes(me.userId);
   }
   return isConversationParticipant(me as never, convo);
 }
@@ -511,7 +559,7 @@ route.get('/conversations/:id/messages', async (c) => {
   // Job rooms have many participants, so the UI needs each message's sender.
   // (Direct chats don't — it's just me vs the other person.)
   let senderById = new Map<string, ProfileRow>();
-  if (convo.kind === 'job') {
+  if (convo.kind === 'job' || convo.kind === 'site') {
     const senderIds = [...new Set(msgs.map((m) => m.sender_user_id))];
     if (senderIds.length) {
       const sp = await db
@@ -537,7 +585,7 @@ route.get('/conversations/:id/messages', async (c) => {
 
   return c.json({
     messages: msgs.map((m) => {
-      const sp = convo.kind === 'job' ? senderById.get(m.sender_user_id) : undefined;
+      const sp = convo.kind === 'job' || convo.kind === 'site' ? senderById.get(m.sender_user_id) : undefined;
       return {
         ...baseShape(m, {
           reply_to: m.reply_to_id ? replyPreview(byId.get(m.reply_to_id)) : null,

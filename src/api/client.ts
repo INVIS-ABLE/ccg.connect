@@ -24,6 +24,9 @@ import type {
   Gang,
   GangMember,
   LabourRequest,
+  Deployment,
+  DeploymentMember,
+  ComplianceCell,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -386,6 +389,20 @@ export const api = {
       request<{ request: LabourRequest }>('/api/labour-requests', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<LabourRequest>) =>
       request<{ request: LabourRequest }>(`/api/labour-requests/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  deployments: {
+    list: (labourRequestId?: string) =>
+      request<{ deployments: Deployment[] }>(`/api/deployments${labourRequestId ? `?labour_request_id=${encodeURIComponent(labourRequestId)}` : ''}`),
+    get: (id: string) =>
+      request<{ deployment: Deployment; request: LabourRequest | null; requirements: string[]; members: DeploymentMember[]; compliance: ComplianceCell[] }>(
+        `/api/deployments/${encodeURIComponent(id)}`,
+      ),
+    create: (data: { labour_request_id: string; gang_id?: string; worker_ids?: string[]; start_date?: string; finish_date?: string; notes?: string }) =>
+      request<{ deployment: Deployment }>('/api/deployments', { method: 'POST', body: JSON.stringify(data) }),
+    confirm: (id: string) =>
+      request<{ deployment: Deployment; conversation_id: string | null }>(`/api/deployments/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) }),
+    update: (id: string, data: { status?: string; notes?: string }) =>
+      request<{ deployment: Deployment }>(`/api/deployments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   checkins: {
     list: (jobId: string) =>

@@ -414,6 +414,37 @@ export interface LabourRequest {
   notes: string | null;
 }
 
+export interface Deployment {
+  id: string;
+  labour_request_id: string;
+  account_id: string | null;
+  site_id: string | null;
+  gang_id: string | null;
+  status: 'proposed' | 'confirmed' | 'active' | 'completed' | 'cancelled';
+  start_date: string | null;
+  finish_date: string | null;
+  compliance_snapshot: string | null;
+  confirmed_at: string | null;
+  conversation_id: string | null;
+  notes: string | null;
+}
+
+export interface DeploymentMember {
+  id: string;
+  worker_id: string;
+  role: string | null;
+  pay_rate: number | null;
+  charge_rate: number | null;
+  worker: (Worker & { cards: WorkerCard[] }) | null;
+}
+
+export interface ComplianceCell {
+  workerId: string;
+  name: string;
+  cells: Record<string, 'ok' | 'warning' | 'missing'>;
+  deployable: boolean;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;
