@@ -756,10 +756,18 @@ export const quotes = sqliteTable('quotes', {
 
 export const conversations = sqliteTable('conversations', {
   id: pk(),
-  // Canonical sorted "userA__userB" key so each pair has exactly one conversation.
+  // 'direct' = 1:1 between a_user_id/b_user_id. 'job' = a job delivery-team room
+  // (ops + the contractors assigned to job_id); membership is derived, not stored.
+  kind: text('kind', { enum: ['direct', 'job'] }).notNull().default('direct'),
+  // For direct chats: canonical sorted "userA__userB". For job chats: "job:<id>".
+  // Either way it's the one-row-per-conversation uniqueness key.
   pair_key: text('pair_key').notNull().unique(),
-  a_user_id: text('a_user_id').notNull(),
-  b_user_id: text('b_user_id').notNull(),
+  // Populated for direct chats; null for job chats (participants are derived).
+  a_user_id: text('a_user_id'),
+  b_user_id: text('b_user_id'),
+  // Job chats only: the job this room belongs to, and a display title.
+  job_id: text('job_id'),
+  title: text('title'),
   last_message_at: text('last_message_at'),
   last_message_preview: text('last_message_preview'),
   created_at: createdAt(),

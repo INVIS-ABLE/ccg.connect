@@ -186,12 +186,25 @@ export interface MessagingContact {
 
 export interface ConversationSummary {
   id: string;
-  other: MessagingContact;
+  kind: 'direct' | 'job';
+  /** The other person for a direct chat; null for a job room. */
+  other: MessagingContact | null;
+  /** Display title for a job room; null for a direct chat. */
+  title: string | null;
+  job_id: string | null;
   last_message_at: string | null;
   last_message_preview: string | null;
   unread: number;
   pinned: boolean;
   muted: boolean;
+}
+
+export interface JobChatCandidate {
+  job_id: string;
+  title: string;
+  job_reference: string | null;
+  /** The existing job room id, or null if it hasn't been opened yet. */
+  conversation_id: string | null;
 }
 
 export interface ReplyPreview {
@@ -219,6 +232,8 @@ export interface DirectMessage {
   attachment_name?: string | null;
   reply_to?: ReplyPreview | null;
   reactions?: ReactionSummary[];
+  /** Sender contact, present only for job-room messages (multi-party). */
+  sender?: MessagingContact | null;
 }
 
 export interface MatchCandidate {

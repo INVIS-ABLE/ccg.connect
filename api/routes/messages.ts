@@ -7,11 +7,15 @@ import {
   directMessages,
   messageReactions,
   userProfiles,
+  jobs,
+  jobAssignments,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import {
   canStartConversation,
   isConversationParticipant,
+  canAccessJobChat,
+  isAdmin,
 } from '../../src/domain/permissions/permissions';
 import { isAppRole } from '../../src/domain/auth/roles';
 import {
@@ -131,35 +135,74 @@ route.get('/contacts', async (c) => {
   return c.json({ contacts });
 });
 
-// GET /api/messages/conversations — the caller's chats, newest activity first,
-// each with the other participant and an unread count.
+// GET /api/messages/conversations — the caller's chats (direct + job rooms),
+// newest activity first, each with an unread count and pin/mute state.
 route.get('/conversations', async (c) => {
   const me = c.get('principal');
   const db = drizzle(c.env.DB);
 
-  const rows = await db
+  // Direct chats: the caller is one of the two participants.
+  const directRows = await db
     .select()
     .from(conversations)
-    .where(or(eq(conversations.a_user_id, me.userId), eq(conversations.b_user_id, me.userId)))
+    .where(
+      and(
+        eq(conversations.kind, 'direct'),
+        or(eq(conversations.a_user_id, me.userId), eq(conversations.b_user_id, me.userId)),
+      ),
+    )
     .orderBy(desc(conversations.last_message_at))
     .all();
 
-  // My private pin/mute prefs for these conversations (one row per conversation).
-  const prefRows = rows.length
-    ? await db
+  // Job rooms the caller belongs to: admins see all; a contractor sees rooms for
+  // jobs they're actively assigned to; clients are never in job delivery rooms.
+  let jobRows: (typeof conversations.$inferSelect)[] = [];
+  if (isAdmin(me)) {
+    jobRows = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.kind, 'job'))
+      .orderBy(desc(conversations.last_message_at))
+      .all();
+  } else if (me.role === 'contractor' && me.contractorId) {
+    const myJobs = await db
+      .select({ job_id: jobAssignments.job_id })
+      .from(jobAssignments)
+      .where(
+        and(
+          eq(jobAssignments.contractor_id, me.contractorId),
+          eq(jobAssignments.assignment_status, 'active'),
+        ),
+      )
+      .all();
+    const jobIds = [...new Set(myJobs.map((j) => j.job_id))];
+    if (jobIds.length) {
+      jobRows = await db
         .select()
-        .from(conversationPrefs)
-        .where(
-          and(
-            eq(conversationPrefs.user_id, me.userId),
-            inArray(conversationPrefs.conversation_id, rows.map((r) => r.id)),
-          ),
-        )
-        .all()
-    : [];
+        .from(conversations)
+        .where(and(eq(conversations.kind, 'job'), inArray(conversations.job_id, jobIds)))
+        .all();
+    }
+  }
+
+  const rows = [...directRows, ...jobRows];
+  if (rows.length === 0) return c.json({ conversations: [] });
+  const ids = rows.map((r) => r.id);
+
+  // My private pin/mute prefs for these conversations (one row per conversation).
+  const prefRows = await db
+    .select()
+    .from(conversationPrefs)
+    .where(
+      and(eq(conversationPrefs.user_id, me.userId), inArray(conversationPrefs.conversation_id, ids)),
+    )
+    .all();
   const prefByConv = new Map(prefRows.map((p) => [p.conversation_id, p]));
 
-  const otherIds = rows.map((r) => (r.a_user_id === me.userId ? r.b_user_id : r.a_user_id));
+  // Profiles for the "other" participant of each direct chat.
+  const otherIds = directRows
+    .map((r) => (r.a_user_id === me.userId ? r.b_user_id : r.a_user_id))
+    .filter((x): x is string => !!x);
   const profiles = otherIds.length
     ? await db.select().from(userProfiles).where(inArray(userProfiles.user_id, otherIds)).all()
     : [];
@@ -167,43 +210,144 @@ route.get('/conversations', async (c) => {
 
   // One query for all my unread messages, tallied per conversation.
   const unreadByConv = new Map<string, number>();
-  if (rows.length) {
-    const unread = await db
-      .select({ cid: directMessages.conversation_id })
-      .from(directMessages)
-      .where(
-        and(
-          inArray(directMessages.conversation_id, rows.map((r) => r.id)),
-          ne(directMessages.sender_user_id, me.userId),
-          isNull(directMessages.read_at),
-        ),
-      )
-      .all();
-    for (const u of unread) unreadByConv.set(u.cid, (unreadByConv.get(u.cid) ?? 0) + 1);
-  }
+  const unread = await db
+    .select({ cid: directMessages.conversation_id })
+    .from(directMessages)
+    .where(
+      and(
+        inArray(directMessages.conversation_id, ids),
+        ne(directMessages.sender_user_id, me.userId),
+        isNull(directMessages.read_at),
+      ),
+    )
+    .all();
+  for (const u of unread) unreadByConv.set(u.cid, (unreadByConv.get(u.cid) ?? 0) + 1);
 
   const conversationsOut = rows.map((r) => {
-    const otherId = r.a_user_id === me.userId ? r.b_user_id : r.a_user_id;
-    const other = profileByUser.get(otherId);
     const pref = prefByConv.get(r.id);
-    return {
+    const base = {
       id: r.id,
-      other: other
-        ? toContact(other)
-        : { user_id: otherId, name: 'User', role: null, profile_photo_url: null },
+      kind: r.kind,
       last_message_at: r.last_message_at,
       last_message_preview: r.last_message_preview,
       unread: unreadByConv.get(r.id) ?? 0,
       pinned: pref?.pinned ?? false,
       muted: pref?.muted ?? false,
     };
+    if (r.kind === 'job') {
+      return { ...base, title: r.title ?? 'Job chat', job_id: r.job_id, other: null };
+    }
+    const otherId = r.a_user_id === me.userId ? r.b_user_id : r.a_user_id;
+    const other = otherId ? profileByUser.get(otherId) : undefined;
+    return {
+      ...base,
+      title: null,
+      job_id: null,
+      other: other
+        ? toContact(other)
+        : { user_id: otherId ?? '', name: 'User', role: null, profile_photo_url: null },
+    };
   });
 
-  // Pinned conversations float to the top; within each group, newest activity
-  // first (the query already ordered by last_message_at desc).
-  conversationsOut.sort((a, b) => Number(b.pinned) - Number(a.pinned));
+  // Pinned first, then newest activity within each group.
+  conversationsOut.sort((a, b) => {
+    if (Number(b.pinned) !== Number(a.pinned)) return Number(b.pinned) - Number(a.pinned);
+    return (b.last_message_at || '').localeCompare(a.last_message_at || '');
+  });
 
   return c.json({ conversations: conversationsOut });
+});
+
+/** Build a job room's display title from the job. */
+function jobChatTitle(job: { job_reference: string | null; title: string }): string {
+  return job.job_reference ? `${job.job_reference} · ${job.title}` : job.title;
+}
+
+// GET /api/messages/job-candidates — jobs the caller may open a team chat for
+// (admins: jobs with an active delivery team; contractors: their assigned jobs).
+route.get('/job-candidates', async (c) => {
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+
+  let jobIds: string[];
+  if (isAdmin(me)) {
+    const active = await db
+      .select({ job_id: jobAssignments.job_id })
+      .from(jobAssignments)
+      .where(eq(jobAssignments.assignment_status, 'active'))
+      .all();
+    jobIds = [...new Set(active.map((r) => r.job_id))];
+  } else if (me.role === 'contractor' && me.contractorId) {
+    const mine = await db
+      .select({ job_id: jobAssignments.job_id })
+      .from(jobAssignments)
+      .where(
+        and(
+          eq(jobAssignments.contractor_id, me.contractorId),
+          eq(jobAssignments.assignment_status, 'active'),
+        ),
+      )
+      .all();
+    jobIds = [...new Set(mine.map((r) => r.job_id))];
+  } else {
+    jobIds = [];
+  }
+
+  if (jobIds.length === 0) return c.json({ jobs: [] });
+
+  const jobRows = await db.select().from(jobs).where(inArray(jobs.id, jobIds)).all();
+  const convoRows = await db
+    .select({ id: conversations.id, job_id: conversations.job_id })
+    .from(conversations)
+    .where(and(eq(conversations.kind, 'job'), inArray(conversations.job_id, jobIds)))
+    .all();
+  const convoByJob = new Map(convoRows.map((r) => [r.job_id, r.id]));
+
+  const out = jobRows
+    .map((j) => ({
+      job_id: j.id,
+      title: jobChatTitle(j),
+      job_reference: j.job_reference,
+      conversation_id: convoByJob.get(j.id) ?? null,
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+  return c.json({ jobs: out });
+});
+
+// POST /api/messages/conversations/job/:jobId — get-or-create the job's team room.
+// Membership-checked: only the ops team and assigned contractors may open it.
+route.post('/conversations/job/:jobId', async (c) => {
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const jobId = c.req.param('jobId');
+
+  const job = (await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1))[0];
+  if (!job) return c.json({ error: 'job_not_found' }, 404);
+
+  const assigned = await assignedContractorIds(db, jobId);
+  if (!canAccessJobChat(me, { assignedContractorIds: assigned })) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  const key = `job:${jobId}`;
+  const title = jobChatTitle(job);
+  const existing = (
+    await db.select().from(conversations).where(eq(conversations.pair_key, key)).limit(1)
+  )[0];
+  if (existing) {
+    return c.json({
+      conversation: { id: existing.id, kind: 'job', title: existing.title ?? title, job_id: jobId },
+    });
+  }
+
+  const created = (
+    await db
+      .insert(conversations)
+      .values({ kind: 'job', pair_key: key, job_id: jobId, title })
+      .returning()
+  )[0];
+  if (!created) return c.json({ error: 'create_failed' }, 500);
+  return c.json({ conversation: { id: created.id, kind: 'job', title, job_id: jobId } }, 201);
 });
 
 // PATCH /api/messages/conversations/:id/prefs — set this user's private pin/mute
@@ -294,6 +438,30 @@ route.post('/conversations', async (c) => {
   return c.json({ conversation: { id: created.id, other: toContact(target) } }, 201);
 });
 
+/** Active-assignment contractor ids for a job (the contractor side of a job chat). */
+async function assignedContractorIds(db: ReturnType<typeof drizzle>, jobId: string): Promise<string[]> {
+  const rows = await db
+    .select({ contractor_id: jobAssignments.contractor_id })
+    .from(jobAssignments)
+    .where(and(eq(jobAssignments.job_id, jobId), eq(jobAssignments.assignment_status, 'active')))
+    .all();
+  return rows.map((r) => r.contractor_id);
+}
+
+/** Whether the caller may read/post in a conversation (direct or job room). */
+async function mayAccessConversation(
+  db: ReturnType<typeof drizzle>,
+  me: { userId: string; role: string; contractorId: string | null },
+  convo: typeof conversations.$inferSelect,
+): Promise<boolean> {
+  if (convo.kind === 'job') {
+    if (!convo.job_id) return false;
+    const assigned = await assignedContractorIds(db, convo.job_id);
+    return canAccessJobChat(me as never, { assignedContractorIds: assigned });
+  }
+  return isConversationParticipant(me as never, convo);
+}
+
 // Load a conversation the caller participates in, or return the HTTP error.
 async function loadOwnedConversation(c: Context<AppEnv>) {
   const me = c.get('principal');
@@ -304,7 +472,8 @@ async function loadOwnedConversation(c: Context<AppEnv>) {
     await db.select().from(conversations).where(eq(conversations.id, id)).limit(1)
   )[0];
   if (!convo) return { error: c.json({ error: 'not_found' }, 404) } as const;
-  if (!isConversationParticipant(me, convo)) return { error: c.json({ error: 'forbidden' }, 403) } as const;
+  if (!(await mayAccessConversation(db, me, convo)))
+    return { error: c.json({ error: 'forbidden' }, 403) } as const;
   return { convo, db, me } as const;
 }
 
@@ -339,6 +508,21 @@ route.get('/conversations/:id/messages', async (c) => {
     reactionsByMsg.set(r.message_id, arr);
   }
 
+  // Job rooms have many participants, so the UI needs each message's sender.
+  // (Direct chats don't — it's just me vs the other person.)
+  let senderById = new Map<string, ProfileRow>();
+  if (convo.kind === 'job') {
+    const senderIds = [...new Set(msgs.map((m) => m.sender_user_id))];
+    if (senderIds.length) {
+      const sp = await db
+        .select()
+        .from(userProfiles)
+        .where(inArray(userProfiles.user_id, senderIds))
+        .all();
+      senderById = new Map(sp.map((p) => [p.user_id, p]));
+    }
+  }
+
   // Mark incoming messages read (drives unread badges for the other endpoints).
   await db
     .update(directMessages)
@@ -352,13 +536,17 @@ route.get('/conversations/:id/messages', async (c) => {
     );
 
   return c.json({
-    messages: msgs.map((m) => ({
-      ...baseShape(m, {
-        reply_to: m.reply_to_id ? replyPreview(byId.get(m.reply_to_id)) : null,
-        reactions: summariseReactions(reactionsByMsg.get(m.id) ?? [], me.userId),
-      }),
-      mine: m.sender_user_id === me.userId,
-    })),
+    messages: msgs.map((m) => {
+      const sp = convo.kind === 'job' ? senderById.get(m.sender_user_id) : undefined;
+      return {
+        ...baseShape(m, {
+          reply_to: m.reply_to_id ? replyPreview(byId.get(m.reply_to_id)) : null,
+          reactions: summariseReactions(reactionsByMsg.get(m.id) ?? [], me.userId),
+        }),
+        mine: m.sender_user_id === me.userId,
+        sender: sp ? toContact(sp) : null,
+      };
+    }),
   });
 });
 

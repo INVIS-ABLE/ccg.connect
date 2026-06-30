@@ -18,6 +18,7 @@ import type {
   ConversationSummary,
   DirectMessage,
   ReactionSummary,
+  JobChatCandidate,
 } from './types';
 
 /** Thrown on any non-2xx API response; carries the status and parsed body. */
@@ -250,6 +251,12 @@ export const api = {
       request<{ id: string; pinned: boolean; muted: boolean }>(
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/prefs`,
         { method: 'PATCH', body: JSON.stringify(prefs) },
+      ),
+    jobCandidates: () => request<{ jobs: JobChatCandidate[] }>('/api/messages/job-candidates'),
+    openJobConversation: (jobId: string) =>
+      request<{ conversation: { id: string; kind: 'job'; title: string; job_id: string } }>(
+        `/api/messages/conversations/job/${encodeURIComponent(jobId)}`,
+        { method: 'POST', body: JSON.stringify({}) },
       ),
     listMessages: (conversationId: string) =>
       request<{ messages: DirectMessage[] }>(
