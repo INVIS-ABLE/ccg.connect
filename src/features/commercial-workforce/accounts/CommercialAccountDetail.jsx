@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, ChevronRight, FolderKanban, UserRound } from 'lucide-react';
+import { ArrowLeft, Plus, ChevronRight, FolderKanban, UserRound, KeyRound, X } from 'lucide-react';
 
 const CONTACT_ROLES = ['commercial', 'procurement', 'accounts', 'site', 'other'];
+
+const userLabel = (u) => u.display_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || u.email || u.user_id;
 
 export default function CommercialAccountDetail() {
   const { id } = useParams();
@@ -18,17 +20,24 @@ export default function CommercialAccountDetail() {
   const [projects, setProjects] = useState([]);
   const [contactForm, setContactForm] = useState({ name: '', role: 'commercial', email: '', phone: '' });
   const [projectName, setProjectName] = useState('');
+  const [portalUsers, setPortalUsers] = useState([]);
+  const [clientUsers, setClientUsers] = useState([]);
+  const [linkUserId, setLinkUserId] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [a, ct, pr] = await Promise.all([
+    const [a, ct, pr, pu, allUsers] = await Promise.all([
       api.commercial.accounts.get(id).catch(() => null),
       api.commercial.contacts.list(id).catch(() => ({ contacts: [] })),
       api.commercial.projects.list(id).catch(() => ({ projects: [] })),
+      api.commercial.accountUsers.list(id).catch(() => ({ users: [] })),
+      api.admin.users().catch(() => []),
     ]);
     if (a) setAccount(a.account);
     setContacts(ct.contacts ?? []);
     setProjects(pr.projects ?? []);
+    setPortalUsers(pu.users ?? []);
+    setClientUsers((Array.isArray(allUsers) ? allUsers : []).filter((u) => u.role === 'client'));
   }, [id]);
   useEffect(() => {
     void load();
@@ -60,7 +69,34 @@ export default function CommercialAccountDetail() {
     }
   }
 
+  async function linkUser(e) {
+    e.preventDefault();
+    if (!linkUserId) return;
+    setBusy(true);
+    try {
+      await api.commercial.accountUsers.link(id, linkUserId);
+      setLinkUserId('');
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unlinkUser(userId) {
+    setBusy(true);
+    try {
+      await api.commercial.accountUsers.unlink(id, userId);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!account) return <p className="text-sm text-muted-foreground">Loading…</p>;
+
+  const linkedIds = new Set(portalUsers.map((p) => p.user_id));
+  const userById = new Map(clientUsers.map((u) => [u.user_id, u]));
+  const linkable = clientUsers.filter((u) => !linkedIds.has(u.user_id));
 
   const facts = [
     ['Reg. number', account.registration_number],
@@ -148,6 +184,48 @@ export default function CommercialAccountDetail() {
           <form onSubmit={addProject} className="flex gap-2 pt-1">
             <Input placeholder="New project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
             <Button type="submit" size="sm" disabled={busy} className="gap-1.5 shrink-0"><Plus size={14} /> Add project</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Portal access — which client logins may see this account's site work */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm"><KeyRound size={15} /> Portal access</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Client logins linked here can view this account&rsquo;s deployments and invoices in their portal — fill status, dates and
+            their own invoices only. No rates, margins or worker details are ever shown.
+          </p>
+          {portalUsers.length === 0 && <p className="text-xs text-muted-foreground">No client logins have portal access yet.</p>}
+          {portalUsers.map((pu) => {
+            const u = userById.get(pu.user_id);
+            return (
+              <div key={pu.id} className="flex items-center gap-3 rounded-md border p-2.5 text-sm">
+                <UserRound size={15} className="text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{u ? userLabel(u) : pu.user_id}</p>
+                  {u?.email && <p className="truncate text-xs text-muted-foreground">{u.email}</p>}
+                </div>
+                <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs text-red-600" disabled={busy} onClick={() => unlinkUser(pu.user_id)}>
+                  <X size={13} /> Revoke
+                </Button>
+              </div>
+            );
+          })}
+          <form onSubmit={linkUser} className="flex gap-2 pt-1">
+            <select
+              className="h-10 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+              value={linkUserId}
+              onChange={(e) => setLinkUserId(e.target.value)}
+            >
+              <option value="">{linkable.length ? 'Select a client login…' : 'No unlinked client logins'}</option>
+              {linkable.map((u) => (
+                <option key={u.user_id} value={u.user_id}>{userLabel(u)}{u.email ? ` (${u.email})` : ''}</option>
+              ))}
+            </select>
+            <Button type="submit" size="sm" disabled={busy || !linkUserId} className="gap-1.5 shrink-0"><Plus size={14} /> Grant access</Button>
           </form>
         </CardContent>
       </Card>

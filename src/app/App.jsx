@@ -42,6 +42,7 @@ import ContractorProfile from '@/app/pages/contractor/ContractorProfile';
 // Client pages
 import ClientProjects from '@/app/pages/client/ClientProjects';
 import ClientJobSubmit from '@/app/pages/client/ClientJobSubmit';
+import ClientSiteWork from '@/app/pages/client/ClientSiteWork';
 import ClientSignup from '@/app/pages/ClientSignup';
 
 // Admin — standalone match engine
@@ -216,6 +217,7 @@ export default function App() {
 
             {/* Client */}
             <Route path="/client/projects" element={clientShell(<ClientProjects />)} />
+            <Route path="/client/site-work" element={clientShell(<ClientSiteWork />)} />
             <Route path="/client/submit-job" element={clientShell(<ClientJobSubmit />)} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
