@@ -4,7 +4,8 @@ import { api, ApiError } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { MapPin, LogIn, LogOut, Clock, CheckCircle2, AlertTriangle, HardHat, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { MapPin, LogIn, LogOut, Clock, CheckCircle2, AlertTriangle, HardHat, ShieldCheck, ShieldAlert, FileBadge } from 'lucide-react';
+import { WorkerKidDialog } from './WorkerKidDialog';
 
 /** Best-effort browser geolocation — resolves to null if denied/unavailable so a
  *  check-in never blocks on location. Location is evidence, not a gate. */
@@ -50,6 +51,7 @@ export default function DeploymentCheckIn() {
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [busy, setBusy] = useState(null); // `${workerId}:${type}`
+  const [kidOpen, setKidOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -128,7 +130,7 @@ export default function DeploymentCheckIn() {
     );
   }
 
-  const { deployment, is_admin: isAdmin, roster, me_worker: meWorker } = ctx;
+  const { deployment, is_admin: isAdmin, roster, me_worker: meWorker, my_kid: myKid } = ctx;
 
   return (
     <div className="mx-auto max-w-md space-y-4 p-4">
@@ -174,6 +176,27 @@ export default function DeploymentCheckIn() {
         </Card>
       )}
 
+      {/* Worker's Key Information Document for this assignment */}
+      {!isAdmin && myKid && (
+        myKid.status === 'acknowledged' ? (
+          <p className="flex items-center justify-center gap-1.5 text-xs text-green-600">
+            <CheckCircle2 size={13} /> Key Information Document acknowledged
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setKidOpen(true)}
+            className="flex w-full items-center gap-3 rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-left dark:bg-amber-950/30"
+          >
+            <FileBadge size={18} className="shrink-0 text-amber-600" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-amber-800 dark:text-amber-300">Review your Key Information Document</span>
+              <span className="block text-xs text-amber-700/80 dark:text-amber-400/80">Tap to read your assignment terms and acknowledge.</span>
+            </span>
+          </button>
+        )
+      )}
+
       {/* Admin / gang-leader roster (kiosk roll-call) */}
       {isAdmin && (
         <Card>
@@ -209,6 +232,8 @@ export default function DeploymentCheckIn() {
           </CardContent>
         </Card>
       )}
+
+      <WorkerKidDialog kid={myKid} open={kidOpen} onClose={() => setKidOpen(false)} onAcknowledged={load} />
     </div>
   );
 }

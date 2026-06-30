@@ -13,6 +13,7 @@ import {
   workerCards,
   conversations,
   commercialSites,
+  kidDocuments,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
@@ -329,6 +330,11 @@ route.get('/:id/checkin', async (c) => {
 
   const meWorker = (await db.select({ full_name: workers.full_name }).from(workers).where(eq(workers.id, myWorkerId!)).limit(1))[0];
   const r = recordOf(myWorkerId!);
+  // Surface the worker's own Key Information Document for this deployment so they
+  // can review and acknowledge it — drafts stay hidden (not yet issued).
+  const kidRow = (await db.select().from(kidDocuments)
+    .where(and(eq(kidDocuments.deployment_id, id), eq(kidDocuments.worker_id, myWorkerId!)))
+    .orderBy(desc(kidDocuments.created_at)).limit(1))[0];
   return c.json({
     ...base,
     me_worker: {
@@ -336,6 +342,7 @@ route.get('/:id/checkin', async (c) => {
       status: r?.status ?? null, check_in_time: r?.check_in_time ?? null, check_out_time: r?.check_out_time ?? null,
       geofence_ok: r?.geofence_ok ?? null, geofence_distance_m: r?.geofence_distance_m ?? null,
     },
+    my_kid: kidRow && kidRow.status !== 'draft' ? kidRow : null,
   });
 });
 
