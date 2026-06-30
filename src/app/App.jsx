@@ -7,6 +7,7 @@ import { isAdminRole } from '@/domain/auth/roles';
 import { AuthProvider, useAuth } from '@/app/auth/AuthProvider';
 import { ProtectedRoute } from '@/app/auth/ProtectedRoute';
 import { AppShell } from '@/app/AppShell';
+import { ErrorBoundary } from '@/app/ErrorBoundary';
 import { OfflineSync } from '@/offline/OfflineSync';
 
 // Auth pages
@@ -110,6 +111,7 @@ export default function App() {
     <QueryClientProvider client={queryClientInstance}>
       <OfflineSync />
       <BrowserRouter>
+        <ErrorBoundary>
         <AuthProvider>
           <Routes>
             {/* Public */}
@@ -191,6 +193,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
+        </ErrorBoundary>
       </BrowserRouter>
       <Toaster />
     </QueryClientProvider>
