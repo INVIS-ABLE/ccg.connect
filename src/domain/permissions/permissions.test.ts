@@ -9,6 +9,7 @@ import {
   canSetRole,
   canAssignRole,
   canCreateStaff,
+  canAccessJobChat,
   canManageContractors,
   canReadContractor,
   canReadLeads,
@@ -163,6 +164,23 @@ describe('canSetRole (invariant 5: no self-promotion)', () => {
   it('non-admins may never set roles', () => {
     expect(canSetRole(contractor, 'u-con2')).toBe(false);
     expect(canSetRole(client, 'u-cli2')).toBe(false);
+  });
+});
+
+describe('canAccessJobChat (delivery-team room: ops + assigned contractors, no clients)', () => {
+  it('admins can always access a job chat', () => {
+    expect(canAccessJobChat(owner, { assignedContractorIds: [] })).toBe(true);
+    expect(canAccessJobChat(ops, { assignedContractorIds: ['c-9'] })).toBe(true);
+  });
+  it('a contractor assigned to the job can access it', () => {
+    expect(canAccessJobChat(contractor, { assignedContractorIds: ['c-1', 'c-2'] })).toBe(true);
+  });
+  it('a contractor NOT assigned to the job cannot access it', () => {
+    expect(canAccessJobChat(contractor, { assignedContractorIds: ['c-2'] })).toBe(false);
+    expect(canAccessJobChat(contractor, { assignedContractorIds: [] })).toBe(false);
+  });
+  it('clients are never in a job delivery chat (hub-and-spoke preserved)', () => {
+    expect(canAccessJobChat(client, { assignedContractorIds: ['c-1'] })).toBe(false);
   });
 });
 

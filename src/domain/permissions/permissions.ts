@@ -60,6 +60,23 @@ export function canReadJob(
   return false;
 }
 
+/**
+ * Job delivery-team chat membership. A job chat contains the ops team and the
+ * contractors assigned to that job — deliberately NOT the client, so the
+ * hub-and-spoke rule (clients never reach contractors directly, invariants 1 & 2)
+ * is preserved. Mirrors {@link canReadJob} minus the client branch.
+ */
+export function canAccessJobChat(
+  p: Principal,
+  ctx: { assignedContractorIds: readonly string[] },
+): boolean {
+  if (isAdmin(p)) return true;
+  if (p.role === 'contractor') {
+    return p.contractorId != null && ctx.assignedContractorIds.includes(p.contractorId);
+  }
+  return false;
+}
+
 // ── Assignments ─────────────────────────────────────────────────────────────
 export function canReadAssignment(p: Principal, a: AssignmentScope): boolean {
   if (isAdmin(p)) return true;
@@ -206,8 +223,8 @@ export function canStartConversation(p: Principal, recipientRole: AppRole): bool
 }
 
 export interface ConversationScope {
-  a_user_id: string;
-  b_user_id: string;
+  a_user_id: string | null;
+  b_user_id: string | null;
 }
 
 /** Only the two participants may read or post in a conversation. */

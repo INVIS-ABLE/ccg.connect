@@ -18,7 +18,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText, Smile, Reply, X, Pin, PinOff, Bell, BellOff, MoreVertical } from 'lucide-react';
+import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText, Smile, Reply, X, Pin, PinOff, Bell, BellOff, MoreVertical, Users, Briefcase } from 'lucide-react';
 import { enqueue } from '@/offline/syncQueue';
 import { useDraft } from '@/offline/drafts';
 import { REACTION_EMOJI } from '@/domain/messaging/reactions';
@@ -101,6 +101,14 @@ function PersonAvatar({ contact, size = 'h-10 w-10' }) {
   );
 }
 
+function GroupAvatar({ size = 'h-10 w-10' }) {
+  return (
+    <span className={`flex ${size} items-center justify-center rounded-full bg-primary/15 text-primary`}>
+      <Briefcase size={16} />
+    </span>
+  );
+}
+
 function RoleBadge({ role }) {
   if (!role) return null;
   return (
@@ -118,6 +126,8 @@ export default function Messages() {
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [activeId, setActiveId] = useState(null);
   const [activeOther, setActiveOther] = useState(null);
+  const [activeKind, setActiveKind] = useState('direct');
+  const [activeTitle, setActiveTitle] = useState(null);
   const [messages, setMessages] = useState([]);
   // Composer text is persisted as a per-conversation draft (survives refresh/crash).
   const [input, setInput, clearInput] = useDraft(activeId ? `msg:${activeId}` : '', '');
@@ -129,6 +139,10 @@ export default function Messages() {
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
+  // "New chat" dialog tab: 1:1 people, or job team rooms.
+  const [newChatTab, setNewChatTab] = useState('people');
+  const [jobChats, setJobChats] = useState([]);
+  const [loadingJobChats, setLoadingJobChats] = useState(false);
   // Search across the conversation list, and within the open chat.
   const [convoSearch, setConvoSearch] = useState('');
   const [chatSearch, setChatSearch] = useState('');
@@ -209,6 +223,10 @@ export default function Messages() {
     }
   }
   const wsRef = useRef(null);
+  const activeKindRef = useRef('direct');
+  useEffect(() => {
+    activeKindRef.current = activeKind;
+  }, [activeKind]);
   const typingTimerRef = useRef(null);
   const lastTypingSentRef = useRef(0);
   const [peerTyping, setPeerTyping] = useState(false);
@@ -271,9 +289,15 @@ export default function Messages() {
         }
         if (data.type === 'message' && data.message?.conversation_id === activeId) {
           const msg = data.message;
-          setMessages((prev) =>
-            prev.some((m) => m.id === msg.id) ? prev : [...prev, { ...msg, mine: msg.sender_user_id === myId }],
-          );
+          // Job rooms are multi-party, so an incoming message needs its sender's
+          // name/photo — refetch rather than render an unattributed bubble.
+          if (activeKindRef.current === 'job' && msg.sender_user_id !== myId) {
+            void loadMessages(activeId);
+          } else {
+            setMessages((prev) =>
+              prev.some((m) => m.id === msg.id) ? prev : [...prev, { ...msg, mine: msg.sender_user_id === myId }],
+            );
+          }
           void loadConversations();
         } else if (data.type === 'reaction' && data.userId !== myId) {
           // Another participant reacted — apply the delta (my own are applied
@@ -340,7 +364,9 @@ export default function Messages() {
 
   function openConversation(convo) {
     setActiveId(convo.id);
-    setActiveOther(convo.other);
+    setActiveOther(convo.other ?? null);
+    setActiveKind(convo.kind ?? 'direct');
+    setActiveTitle(convo.title ?? null);
     setMessages([]);
     setReplyingTo(null);
     setChatSearch('');
@@ -351,6 +377,7 @@ export default function Messages() {
   async function openContacts() {
     setContactsOpen(true);
     setLoadingContacts(true);
+    setLoadingJobChats(true);
     try {
       const r = await api.messages.contacts();
       setContacts(r.contacts ?? []);
@@ -359,6 +386,14 @@ export default function Messages() {
     } finally {
       setLoadingContacts(false);
     }
+    try {
+      const r = await api.messages.jobCandidates();
+      setJobChats(r.jobs ?? []);
+    } catch {
+      setJobChats([]);
+    } finally {
+      setLoadingJobChats(false);
+    }
   }
 
   async function startWith(contact) {
@@ -366,7 +401,19 @@ export default function Messages() {
       const r = await api.messages.startConversation(contact.user_id);
       setContactsOpen(false);
       setContactSearch('');
-      openConversation({ id: r.conversation.id, other: r.conversation.other });
+      openConversation({ id: r.conversation.id, kind: 'direct', other: r.conversation.other });
+      void loadConversations();
+    } catch {
+      /* ignore — most likely a permission/network error */
+    }
+  }
+
+  async function startJobChat(candidate) {
+    try {
+      const r = await api.messages.openJobConversation(candidate.job_id);
+      setContactsOpen(false);
+      setContactSearch('');
+      openConversation({ id: r.conversation.id, kind: 'job', title: r.conversation.title, other: null });
       void loadConversations();
     } catch {
       /* ignore — most likely a permission/network error */
@@ -420,7 +467,7 @@ export default function Messages() {
     convoQuery
       ? conversations.filter(
           (c) =>
-            (c.other?.name || '').toLowerCase().includes(convoQuery) ||
+            (c.other?.name || c.title || '').toLowerCase().includes(convoQuery) ||
             (c.last_message_preview || '').toLowerCase().includes(convoQuery),
         )
       : conversations,
@@ -450,37 +497,89 @@ export default function Messages() {
             <DialogHeader>
               <DialogTitle>Start a conversation</DialogTitle>
             </DialogHeader>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                autoFocus
-                value={contactSearch}
-                onChange={(e) => setContactSearch(e.target.value)}
-                placeholder="Search people…"
-                className="pl-9"
-              />
+
+            {/* People vs job-team-room tabs */}
+            <div className="flex gap-1 rounded-lg bg-muted p-1">
+              <button
+                type="button"
+                onClick={() => setNewChatTab('people')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                  newChatTab === 'people' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MessageSquare size={14} /> People
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewChatTab('jobs')}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                  newChatTab === 'jobs' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Briefcase size={14} /> Job chats
+              </button>
             </div>
-            <div className="max-h-80 overflow-y-auto -mx-2">
-              {loadingContacts && <p className="px-4 py-6 text-sm text-muted-foreground text-center">Loading…</p>}
-              {!loadingContacts && filteredContacts.length === 0 && (
-                <p className="px-4 py-6 text-sm text-muted-foreground text-center">No one to message.</p>
-              )}
-              {filteredContacts.map((c) => (
-                <button
-                  key={c.user_id}
-                  onClick={() => startWith(c)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
-                >
-                  <PersonAvatar contact={c} />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5">
-                      <span className="truncate font-medium text-sm">{c.name}</span>
-                      <RoleBadge role={c.role} />
+
+            {newChatTab === 'people' ? (
+              <>
+                <div className="relative">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    autoFocus
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    placeholder="Search people…"
+                    className="pl-9"
+                  />
+                </div>
+                <div className="max-h-80 overflow-y-auto -mx-2">
+                  {loadingContacts && <p className="px-4 py-6 text-sm text-muted-foreground text-center">Loading…</p>}
+                  {!loadingContacts && filteredContacts.length === 0 && (
+                    <p className="px-4 py-6 text-sm text-muted-foreground text-center">No one to message.</p>
+                  )}
+                  {filteredContacts.map((c) => (
+                    <button
+                      key={c.user_id}
+                      onClick={() => startWith(c)}
+                      className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
+                    >
+                      <PersonAvatar contact={c} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate font-medium text-sm">{c.name}</span>
+                          <RoleBadge role={c.role} />
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="max-h-80 overflow-y-auto -mx-2">
+                {loadingJobChats && <p className="px-4 py-6 text-sm text-muted-foreground text-center">Loading…</p>}
+                {!loadingJobChats && jobChats.length === 0 && (
+                  <p className="px-4 py-6 text-sm text-muted-foreground text-center">
+                    No job team chats available. A job needs an assigned contractor first.
+                  </p>
+                )}
+                {jobChats.map((j) => (
+                  <button
+                    key={j.job_id}
+                    onClick={() => startJobChat(j)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"
+                  >
+                    <GroupAvatar />
+                    <span className="min-w-0 flex-1">
+                      <span className="truncate block font-medium text-sm">{j.title}</span>
+                      <span className="truncate block text-xs text-muted-foreground">
+                        {j.conversation_id ? 'Open team chat' : 'Start team chat'}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              ))}
-            </div>
+                    <Users size={15} className="shrink-0 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
@@ -530,12 +629,20 @@ export default function Messages() {
                   onClick={() => openConversation(conv)}
                   className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5 text-left"
                 >
-                  <PersonAvatar contact={conv.other} />
+                  {conv.kind === 'job' ? <GroupAvatar /> : <PersonAvatar contact={conv.other} />}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">
                       {conv.pinned && <Pin size={11} className="shrink-0 text-primary" />}
-                      <span className="truncate font-medium text-sm">{conv.other?.name}</span>
-                      <RoleBadge role={conv.other?.role} />
+                      <span className="truncate font-medium text-sm">
+                        {conv.kind === 'job' ? conv.title : conv.other?.name}
+                      </span>
+                      {conv.kind === 'job' ? (
+                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          Team
+                        </span>
+                      ) : (
+                        <RoleBadge role={conv.other?.role} />
+                      )}
                       <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
                         {conv.muted && <BellOff size={11} />}
                         {fmtWhen(conv.last_message_at)}
@@ -596,23 +703,45 @@ export default function Messages() {
                 <ChevronLeft size={20} />
               </button>
               <div className="relative">
-                <PersonAvatar contact={activeOther} size="h-9 w-9" />
-                {activeOther?.user_id && onlineIds.has(activeOther.user_id) && (
-                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
+                {activeKind === 'job' ? (
+                  <GroupAvatar size="h-9 w-9" />
+                ) : (
+                  <>
+                    <PersonAvatar contact={activeOther} size="h-9 w-9" />
+                    {activeOther?.user_id && onlineIds.has(activeOther.user_id) && (
+                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-card" />
+                    )}
+                  </>
                 )}
               </div>
               <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="font-semibold text-sm truncate">{activeOther?.name}</p>
-                  <RoleBadge role={activeOther?.role} />
-                </div>
-                <p className="h-4 text-xs text-primary">
-                  {peerTyping
-                    ? 'typing…'
-                    : activeOther?.user_id && onlineIds.has(activeOther.user_id)
-                      ? 'Online'
-                      : ''}
-                </p>
+                {activeKind === 'job' ? (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-sm truncate">{activeTitle}</p>
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        Team
+                      </span>
+                    </div>
+                    <p className="h-4 text-xs text-muted-foreground">
+                      {peerTyping ? 'someone is typing…' : 'Ops team + assigned contractors'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold text-sm truncate">{activeOther?.name}</p>
+                      <RoleBadge role={activeOther?.role} />
+                    </div>
+                    <p className="h-4 text-xs text-primary">
+                      {peerTyping
+                        ? 'typing…'
+                        : activeOther?.user_id && onlineIds.has(activeOther.user_id)
+                          ? 'Online'
+                          : ''}
+                    </p>
+                  </>
+                )}
               </div>
               <button
                 className="ml-auto rounded-full p-1.5 text-muted-foreground hover:bg-muted"
@@ -668,6 +797,12 @@ export default function Messages() {
                         : 'bg-card border text-foreground rounded-bl-sm'
                     }`}
                   >
+                    {activeKind === 'job' && !m.mine && m.sender && (
+                      <p className="mb-0.5 flex items-center gap-1 text-[11px] font-semibold text-primary">
+                        {m.sender.name}
+                        {m.sender.role && <RoleBadge role={m.sender.role} />}
+                      </p>
+                    )}
                     {m.reply_to && (
                       <div
                         className={`mb-1 rounded-md border-l-2 px-2 py-1 text-xs ${
