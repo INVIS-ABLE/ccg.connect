@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { api, ApiError } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -195,6 +195,12 @@ export default function DeploymentCheckIn() {
             </span>
           </button>
         )
+      )}
+
+      {!isAdmin && meWorker && (
+        <p className="text-center text-xs">
+          <Link to="/my-work" className="text-[#F97316] hover:underline">View all my assignments &amp; cards →</Link>
+        </p>
       )}
 
       {/* Admin / gang-leader roster (kiosk roll-call) */}

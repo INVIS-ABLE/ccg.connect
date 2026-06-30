@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import {
   corporateAccounts,
   commercialSites,
@@ -10,10 +10,14 @@ import {
   deploymentAttendance,
   commercialInvoices,
   incidents,
+  workers,
+  workerCards,
+  kidDocuments,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import { toPortalDeployment, toPortalInvoice, isClientVisibleInvoice } from '../../src/domain/commercial/portal';
+import { cardStatus } from '../../src/domain/workforce/cardStatus';
 import type { AppEnv } from '../env';
 
 /**
@@ -110,6 +114,67 @@ route.get('/commercial', async (c) => {
   };
 
   return c.json({ accounts: portalAccounts, summary, deployments: portalDeployments, invoices: portalInvoices });
+});
+
+/**
+ * Worker self-service. The logged-in user is mapped to their own worker record
+ * (workers.user_id) and sees ONLY their own assignments, credentials and Key
+ * Information Documents — nothing about other workers, and no rates/margins.
+ */
+route.get('/worker', async (c) => {
+  const p = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const w = (await db.select().from(workers).where(eq(workers.user_id, p.userId)).limit(1))[0];
+  if (!w) return c.json({ worker: null, assignments: [], credentials: [], kids: [] });
+
+  // Assignments: deployments this worker is on (excluding cancelled).
+  const dwRows = await db.select({ deployment_id: deploymentWorkers.deployment_id, role: deploymentWorkers.role })
+    .from(deploymentWorkers).where(eq(deploymentWorkers.worker_id, w.id)).all();
+  const depIds = dwRows.map((r) => r.deployment_id);
+  const roleByDep = new Map(dwRows.map((r) => [r.deployment_id, r.role]));
+  const deps = depIds.length ? await db.select().from(deployments).where(inArray(deployments.id, depIds)).all() : [];
+  const siteIds = deps.map((d) => d.site_id).filter((x): x is string => Boolean(x));
+  const sites = siteIds.length
+    ? await db.select({ id: commercialSites.id, name: commercialSites.name, postcode: commercialSites.postcode }).from(commercialSites).where(inArray(commercialSites.id, siteIds)).all()
+    : [];
+  const siteById = new Map(sites.map((s) => [s.id, s]));
+  const assignments = deps
+    .filter((d) => d.status !== 'cancelled')
+    .map((d) => ({
+      deployment_id: d.id,
+      status: d.status,
+      start_date: d.start_date,
+      finish_date: d.finish_date,
+      role: roleByDep.get(d.id) ?? null,
+      site_name: d.site_id ? siteById.get(d.site_id)?.name ?? null : null,
+      site_postcode: d.site_id ? siteById.get(d.site_id)?.postcode ?? null : null,
+    }));
+
+  // Credentials with an expiry status.
+  const now = new Date();
+  const cards = await db.select().from(workerCards).where(eq(workerCards.worker_id, w.id)).all();
+  const credentials = cards.map((card) => ({
+    id: card.id,
+    card_type: card.card_type,
+    reference: card.reference,
+    issuer: card.issuer,
+    expiry_date: card.expiry_date,
+    verification_status: card.verification_status,
+    status: cardStatus(card.expiry_date, now),
+  }));
+
+  // Key Information Documents (issued/acknowledged — drafts stay internal).
+  const kidRows = await db.select().from(kidDocuments).where(eq(kidDocuments.worker_id, w.id)).all();
+  const kids = kidRows
+    .filter((k) => k.status !== 'draft')
+    .map((k) => ({ id: k.id, deployment_id: k.deployment_id, status: k.status, version: k.version }));
+
+  return c.json({
+    worker: { id: w.id, full_name: w.full_name, primary_trade: w.primary_trade, right_to_work_status: w.right_to_work_status, status: w.status },
+    assignments,
+    credentials,
+    kids,
+  });
 });
 
 export default route;

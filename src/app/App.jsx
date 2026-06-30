@@ -64,6 +64,7 @@ import LabourRequestDetail from '@/features/commercial-workforce/labour-requests
 import Deployments from '@/features/commercial-workforce/deployments/Deployments';
 import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
 import DeploymentCheckIn from '@/features/commercial-workforce/deployments/DeploymentCheckIn';
+import MyWork from '@/app/pages/MyWork';
 import Incidents from '@/features/commercial-workforce/incidents/Incidents';
 import CommercialDashboard from '@/app/pages/admin/CommercialDashboard';
 import Forms from '@/features/forms/Forms';
@@ -168,6 +169,16 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <DeploymentCheckIn />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Worker self-service hub — assignments, credentials, documents */}
+            <Route
+              path="/my-work"
+              element={
+                <ProtectedRoute>
+                  <MyWork />
                 </ProtectedRoute>
               }
             />

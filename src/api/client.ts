@@ -20,6 +20,7 @@ import type {
   RateCard,
   CorporateAccountUser,
   PortalCommercial,
+  WorkerPortal,
   FormType,
   FormTemplate,
   FormDocument,
@@ -390,6 +391,7 @@ export const api = {
   portal: {
     commercial: (accountId?: string) =>
       request<PortalCommercial>(`/api/portal/commercial${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
+    worker: () => request<WorkerPortal>('/api/portal/worker'),
   },
   forms: {
     templates: {
