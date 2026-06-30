@@ -35,6 +35,7 @@ import type {
   ComplianceCell,
   AttendanceRecord,
   CheckinContext,
+  KidDocument,
   CommercialTimesheet,
   CommercialInvoice,
   Incident,
@@ -488,6 +489,17 @@ export const api = {
       request<{ incident: Incident }>('/api/incidents', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Incident>) =>
       request<{ incident: Incident }>(`/api/incidents/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  kids: {
+    list: (deploymentId: string) =>
+      request<{ kids: KidDocument[] }>(`/api/kids?deployment_id=${encodeURIComponent(deploymentId)}`),
+    get: (id: string) => request<{ kid: KidDocument }>(`/api/kids/${encodeURIComponent(id)}`),
+    create: (data: { deployment_id: string; worker_id: string }) =>
+      request<{ kid: KidDocument }>('/api/kids', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<KidDocument>) =>
+      request<{ kid: KidDocument }>(`/api/kids/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    acknowledge: (id: string, signature: string) =>
+      request<{ kid: KidDocument }>(`/api/kids/${encodeURIComponent(id)}/acknowledge`, { method: 'POST', body: JSON.stringify({ signature }) }),
   },
   dashboard: {
     commercial: (months?: number) =>

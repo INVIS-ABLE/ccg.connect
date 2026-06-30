@@ -1375,6 +1375,45 @@ export const deploymentReplacements = sqliteTable(
   (t) => ({ byDeployment: index('ix_repl_deployment').on(t.deployment_id) }),
 );
 
+// ── Key Information Documents (agency workers) ───────────────────────────────
+// When CCG acts as an employment business, each worker on an assignment is owed
+// a Key Information Document. One row per worker per deployment, versioned.
+// IMPORTANT: this captures facts for the record and for professional review — it
+// does NOT determine tax/employment status. The template wording must be signed
+// off by an employment-law specialist before use (see src/domain/commercial/kid.ts).
+export const kidDocuments = sqliteTable(
+  'kid_documents',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    worker_id: text('worker_id').notNull(),
+    version: integer('version').notNull().default(1),
+    status: text('status', { enum: ['draft', 'issued', 'acknowledged', 'superseded'] }).notNull().default('draft'),
+    employment_business: text('employment_business'),
+    contract_type: text('contract_type'),
+    payment_model: text('payment_model'),
+    pay_rate: real('pay_rate'),
+    pay_frequency: text('pay_frequency'),
+    paid_by: text('paid_by'),
+    deductions: text('deductions'),
+    holiday_entitlement: text('holiday_entitlement'),
+    holiday_pay: text('holiday_pay'),
+    other_fees: text('other_fees'),
+    example_calculation: text('example_calculation'),
+    notes: text('notes'),
+    issued_at: text('issued_at'),
+    acknowledged_at: text('acknowledged_at'),
+    acknowledged_signature: text('acknowledged_signature'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    byDeployment: index('ix_kid_deployment').on(t.deployment_id),
+    byWorker: index('ix_kid_worker').on(t.worker_id),
+  }),
+);
+
 // ── Forms: RAMS & Method Statements ──────────────────────────────────────────
 // Reusable templates authored by ops; `content` is the JSON RamsContent shape
 // (sections + hazard table) from src/domain/forms/rams.ts.

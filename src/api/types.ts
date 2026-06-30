@@ -537,6 +537,29 @@ export interface CheckinContext {
   me_worker?: CheckinStatus;
 }
 
+export interface KidDocument {
+  id: string;
+  deployment_id: string;
+  worker_id: string;
+  version: number;
+  status: 'draft' | 'issued' | 'acknowledged' | 'superseded';
+  employment_business: string | null;
+  contract_type: string | null;
+  payment_model: string | null;
+  pay_rate: number | null;
+  pay_frequency: string | null;
+  paid_by: string | null;
+  deductions: string | null;
+  holiday_entitlement: string | null;
+  holiday_pay: string | null;
+  other_fees: string | null;
+  example_calculation: string | null;
+  notes: string | null;
+  issued_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_signature: string | null;
+}
+
 export interface Incident {
   id: string;
   type: string;
