@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, inArray, desc } from 'drizzle-orm';
-import { jobs as jobsTable, jobAssignments } from '../db/schema';
+import { and, eq, inArray, desc } from 'drizzle-orm';
+import { jobs as jobsTable, jobAssignments, contractorProfiles } from '../db/schema';
 import { requireAuth } from '../lib/session';
+import { notify } from '../lib/notify';
+import { jobStatusChanged } from '../../src/domain/notifications/templates';
 import {
   isAdmin,
   canManageJobs,
@@ -120,13 +122,51 @@ route.patch('/:id', async (c) => {
   if (!body) return c.json({ error: 'invalid_body' }, 400);
 
   const db = drizzle(c.env.DB);
+  const before = (await db.select().from(jobsTable).where(eq(jobsTable.id, id)).limit(1))[0];
+  if (!before) return c.json({ error: 'not_found' }, 404);
+
   const updated = await db
     .update(jobsTable)
     .set(pickWritable(body))
     .where(eq(jobsTable.id, id))
     .returning();
   if (!updated[0]) return c.json({ error: 'not_found' }, 404);
-  return c.json({ job: updated[0] });
+  const job = updated[0];
+
+  // On a real status change, notify the job's active contractors (best-effort).
+  if (typeof body.status === 'string' && body.status !== before.status) {
+    const newStatus = job.status;
+    c.executionCtx.waitUntil(
+      (async () => {
+        const assigns = await db
+          .select({ contractor_id: jobAssignments.contractor_id })
+          .from(jobAssignments)
+          .where(and(eq(jobAssignments.job_id, id), eq(jobAssignments.assignment_status, 'active')))
+          .all();
+        const contractorIds = [...new Set(assigns.map((a) => a.contractor_id))];
+        if (contractorIds.length === 0) return;
+        const cps = await db
+          .select({ user_id: contractorProfiles.user_id })
+          .from(contractorProfiles)
+          .where(inArray(contractorProfiles.id, contractorIds))
+          .all();
+        const t = jobStatusChanged(job.title, newStatus);
+        for (const cp of cps) {
+          if (!cp.user_id) continue;
+          await notify(c.env, {
+            userId: cp.user_id,
+            jobId: id,
+            notification_type: t.notification_type,
+            title: t.title,
+            body: t.body,
+            deep_link: t.deep_link,
+          });
+        }
+      })(),
+    );
+  }
+
+  return c.json({ job });
 });
 
 export default route;
