@@ -321,6 +321,49 @@ export interface CommercialSite {
   status: 'active' | 'completed' | 'suspended';
 }
 
+// ── Workforce ────────────────────────────────────────────────────────────────
+export interface Worker {
+  id: string;
+  full_name: string;
+  photo_url: string | null;
+  mobile: string | null;
+  email: string | null;
+  home_address: string | null;
+  base_postcode: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  right_to_work_status: 'unchecked' | 'checked' | 'expired' | 'restricted';
+  rtw_check_date: string | null;
+  rtw_checked_by: string | null;
+  rtw_expiry: string | null;
+  payment_model: 'paye' | 'cis' | 'umbrella' | 'limited' | null;
+  primary_trade: string | null;
+  additional_skills: string | null;
+  experience_years: number | null;
+  driving_licence: string | null;
+  plant_tickets: string | null;
+  preferred_travel_miles: number | null;
+  day_rate: number | null;
+  hourly_rate: number | null;
+  contractor_id: string | null;
+  user_id: string | null;
+  status: 'active' | 'inactive' | 'archived';
+  notes: string | null;
+}
+
+export interface WorkerCard {
+  id: string;
+  worker_id: string;
+  card_type: string;
+  reference: string | null;
+  issuer: string | null;
+  issue_date: string | null;
+  expiry_date: string | null;
+  verification_status: 'unverified' | 'verified' | 'rejected' | 'expired';
+  file_url: string | null;
+  notes: string | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;
