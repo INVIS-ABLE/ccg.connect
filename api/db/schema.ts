@@ -1184,3 +1184,36 @@ export const deploymentWorkers = sqliteTable(
     uniqMember: uniqueIndex('ux_depworker_deploy_worker').on(t.deployment_id, t.worker_id),
   }),
 );
+
+// Commercial timesheets — weekly hours per worker on a deployment, with the
+// rates snapshotted so historical pay/charge/margin stay stable.
+export const commercialTimesheets = sqliteTable(
+  'commercial_timesheets',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    worker_id: text('worker_id').notNull(),
+    week_start: text('week_start').notNull(),
+    basic_hours: real('basic_hours').notNull().default(0),
+    overtime_hours: real('overtime_hours').notNull().default(0),
+    pay_rate: real('pay_rate'),
+    charge_rate: real('charge_rate'),
+    oncost_rate: real('oncost_rate'),
+    overtime_multiplier: real('overtime_multiplier'),
+    travel: real('travel'),
+    lodge: real('lodge'),
+    expenses: real('expenses'),
+    deductions: real('deductions'),
+    status: text('status', {
+      enum: ['draft', 'submitted', 'site_confirmed', 'ops_approved', 'locked', 'invoiced', 'rejected'],
+    })
+      .notNull()
+      .default('draft'),
+    rejection_reason: text('rejection_reason'),
+    notes: text('notes'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byDeployment: index('ix_ts_deployment').on(t.deployment_id) }),
+);

@@ -445,6 +445,37 @@ export interface ComplianceCell {
   deployable: boolean;
 }
 
+export interface PayTotals {
+  totalHours: number;
+  payBasic: number;
+  payOvertime: number;
+  workerPay: number;
+  employerCost: number;
+  clientCharge: number;
+  margin: number;
+}
+
+export interface CommercialTimesheet {
+  id: string;
+  deployment_id: string;
+  worker_id: string;
+  week_start: string;
+  basic_hours: number;
+  overtime_hours: number;
+  pay_rate: number | null;
+  charge_rate: number | null;
+  oncost_rate: number | null;
+  overtime_multiplier: number | null;
+  travel: number | null;
+  lodge: number | null;
+  expenses: number | null;
+  deductions: number | null;
+  status: 'draft' | 'submitted' | 'site_confirmed' | 'ops_approved' | 'locked' | 'invoiced' | 'rejected';
+  rejection_reason: string | null;
+  notes: string | null;
+  totals: PayTotals;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

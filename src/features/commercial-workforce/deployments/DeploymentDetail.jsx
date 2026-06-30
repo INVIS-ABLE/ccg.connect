@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { DeploymentTimesheets } from './DeploymentTimesheets';
 
 const CELL = {
   ok: <Check size={14} className="text-green-600" />,
@@ -142,6 +143,14 @@ export default function DeploymentDetail() {
               )}
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Time & pay */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Time &amp; pay</CardTitle></CardHeader>
+        <CardContent>
+          <DeploymentTimesheets deploymentId={d.id} members={members} />
         </CardContent>
       </Card>
     </div>

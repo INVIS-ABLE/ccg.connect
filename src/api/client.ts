@@ -27,6 +27,7 @@ import type {
   Deployment,
   DeploymentMember,
   ComplianceCell,
+  CommercialTimesheet,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -403,6 +404,14 @@ export const api = {
       request<{ deployment: Deployment; conversation_id: string | null }>(`/api/deployments/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) }),
     update: (id: string, data: { status?: string; notes?: string }) =>
       request<{ deployment: Deployment }>(`/api/deployments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  commercialTimesheets: {
+    list: (deploymentId?: string) =>
+      request<{ timesheets: CommercialTimesheet[] }>(`/api/commercial-timesheets${deploymentId ? `?deployment_id=${encodeURIComponent(deploymentId)}` : ''}`),
+    create: (data: { deployment_id: string; worker_id: string; week_start: string; basic_hours?: number; overtime_hours?: number; pay_rate?: number; charge_rate?: number; oncost_rate?: number; travel?: number; lodge?: number; expenses?: number; deductions?: number }) =>
+      request<{ timesheet: CommercialTimesheet }>('/api/commercial-timesheets', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Record<string, unknown>) =>
+      request<{ timesheet: CommercialTimesheet }>(`/api/commercial-timesheets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   checkins: {
     list: (jobId: string) =>
