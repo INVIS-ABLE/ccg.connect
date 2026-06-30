@@ -1084,3 +1084,52 @@ export const gangMembers = sqliteTable(
     uniqMember: uniqueIndex('ux_gangmember_gang_worker').on(t.gang_id, t.worker_id),
   }),
 );
+
+// ── Labour requests (commercial orders) ──────────────────────────────────────
+// A corporate client's structured request for workers, against a project/site.
+// employment_model is captured for CIS/PAYE/VAT review (never auto-decided).
+export const labourRequests = sqliteTable(
+  'labour_requests',
+  {
+    id: pk(),
+    account_id: text('account_id').notNull(),
+    project_id: text('project_id'),
+    site_id: text('site_id'),
+    title: text('title').notNull(),
+    work_package: text('work_package'),
+    trade: text('trade'),
+    number_required: integer('number_required').notNull().default(1),
+    gang_composition: text('gang_composition'),
+    start_date: text('start_date'),
+    finish_date: text('finish_date'),
+    shift_pattern: text('shift_pattern'),
+    minimum_qualifications: text('minimum_qualifications'),
+    experience_required: text('experience_required'),
+    employment_model: text('employment_model', {
+      enum: ['labour_supply', 'managed_workforce', 'subcontract_work_package'],
+    }),
+    rate_offered: real('rate_offered'),
+    charge_rate: real('charge_rate'),
+    overtime_rate: real('overtime_rate'),
+    travel_lodge_allowance: text('travel_lodge_allowance'),
+    po_number: text('po_number'),
+    urgency: text('urgency', { enum: ['low', 'medium', 'high', 'emergency'] }).notNull().default('medium'),
+    replacement_sla: text('replacement_sla'),
+    status: text('status', {
+      enum: [
+        'draft', 'awaiting_approval', 'open', 'sourcing', 'partially_filled',
+        'fully_filled', 'confirmed', 'active', 'completed', 'cancelled',
+      ],
+    })
+      .notNull()
+      .default('draft'),
+    notes: text('notes'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    byAccount: index('ix_labreq_account').on(t.account_id),
+    bySite: index('ix_labreq_site').on(t.site_id),
+  }),
+);

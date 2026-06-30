@@ -385,6 +385,35 @@ export interface GangMember {
   worker: (Worker & { cards: WorkerCard[] }) | null;
 }
 
+export interface LabourRequest {
+  id: string;
+  account_id: string;
+  project_id: string | null;
+  site_id: string | null;
+  title: string;
+  work_package: string | null;
+  trade: string | null;
+  number_required: number;
+  gang_composition: string | null;
+  start_date: string | null;
+  finish_date: string | null;
+  shift_pattern: string | null;
+  minimum_qualifications: string | null;
+  experience_required: string | null;
+  employment_model: 'labour_supply' | 'managed_workforce' | 'subcontract_work_package' | null;
+  rate_offered: number | null;
+  charge_rate: number | null;
+  overtime_rate: number | null;
+  travel_lodge_allowance: string | null;
+  po_number: string | null;
+  urgency: 'low' | 'medium' | 'high' | 'emergency';
+  replacement_sla: string | null;
+  status:
+    | 'draft' | 'awaiting_approval' | 'open' | 'sourcing' | 'partially_filled'
+    | 'fully_filled' | 'confirmed' | 'active' | 'completed' | 'cancelled';
+  notes: string | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;
