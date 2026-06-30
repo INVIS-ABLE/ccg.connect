@@ -8,6 +8,7 @@ import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCi
 import { DeploymentTimesheets } from './DeploymentTimesheets';
 import { DeploymentRollCall } from './DeploymentRollCall';
 import { DeploymentDiary } from './DeploymentDiary';
+import { DeploymentDocuments } from './DeploymentDocuments';
 import { ReplacementDialog } from './ReplacementDialog';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
@@ -189,6 +190,14 @@ export default function DeploymentDetail() {
         <CardHeader className="pb-2"><CardTitle className="text-sm">Site diary</CardTitle></CardHeader>
         <CardContent>
           <DeploymentDiary deploymentId={d.id} />
+        </CardContent>
+      </Card>
+
+      {/* RAMS / Method statements */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">RAMS &amp; method statements</CardTitle></CardHeader>
+        <CardContent>
+          <DeploymentDocuments deploymentId={d.id} siteName={request?.title ?? ''} />
         </CardContent>
       </Card>
 

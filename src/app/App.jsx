@@ -66,6 +66,7 @@ import Incidents from '@/features/commercial-workforce/incidents/Incidents';
 import CommercialDashboard from '@/app/pages/admin/CommercialDashboard';
 import Forms from '@/features/forms/Forms';
 import FormTemplateEditor from '@/features/forms/FormTemplateEditor';
+import FormDocumentEditor from '@/features/forms/FormDocumentEditor';
 
 // Shared
 import Messages from '@/app/pages/Messages';
@@ -196,6 +197,7 @@ export default function App() {
             <Route path="/workforce/incidents" element={adminShell(<Incidents />)} />
             <Route path="/forms" element={adminShell(<Forms />)} />
             <Route path="/forms/templates/:id" element={adminShell(<FormTemplateEditor />)} />
+            <Route path="/forms/documents/:id" element={adminShell(<FormDocumentEditor />)} />
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
             <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
             <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />
