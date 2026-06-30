@@ -1241,3 +1241,29 @@ export const commercialInvoices = sqliteTable(
   },
   (t) => ({ byAccount: index('ix_cinv_account').on(t.account_id) }),
 );
+
+// Daily site attendance / roll-call per deployment worker. GPS is never the sole
+// truth — an authorised confirmer can always set the status.
+export const deploymentAttendance = sqliteTable(
+  'deployment_attendance',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    worker_id: text('worker_id').notNull(),
+    date: text('date').notNull(),
+    status: text('status', { enum: ['present', 'late', 'absent', 'no_show'] }).notNull().default('present'),
+    check_in_time: text('check_in_time'),
+    check_out_time: text('check_out_time'),
+    method: text('method', { enum: ['qr', 'geofence', 'roll_call', 'supervisor', 'manual'] }),
+    confirmed_by: text('confirmed_by'),
+    reason: text('reason'),
+    replacement_needed: integer('replacement_needed', { mode: 'boolean' }).notNull().default(false),
+    notes: text('notes'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    byDeploymentDate: index('ix_att_deploy_date').on(t.deployment_id, t.date),
+    uniqPerDay: uniqueIndex('ux_att_deploy_worker_date').on(t.deployment_id, t.worker_id, t.date),
+  }),
+);

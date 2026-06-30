@@ -492,6 +492,20 @@ export interface CommercialInvoice {
   notes: string | null;
 }
 
+export interface AttendanceRecord {
+  id: string;
+  deployment_id: string;
+  worker_id: string;
+  date: string;
+  status: 'present' | 'late' | 'absent' | 'no_show';
+  check_in_time: string | null;
+  check_out_time: string | null;
+  method: 'qr' | 'geofence' | 'roll_call' | 'supervisor' | 'manual' | null;
+  reason: string | null;
+  replacement_needed: boolean;
+  notes: string | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;
