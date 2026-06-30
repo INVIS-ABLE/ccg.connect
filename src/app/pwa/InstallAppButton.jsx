@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, Share, Check, Smartphone, MoreVertical, Loader2 } from 'lucide-react';
+import { Download, Share, Check, Smartphone, MoreVertical, Loader2, Compass, Copy, PlusSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { usePwaInstall } from '@/app/pwa/usePwaInstall';
+import { usePwaInstall, getIosBrowser, isIpad } from '@/app/pwa/usePwaInstall';
 
 const isAndroid = () =>
   typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
@@ -97,7 +97,7 @@ export function InstallAppButton({ autoOpen = false, className }) {
               </p>
             </div>
           ) : isIosDevice ? (
-            <IosSteps />
+            getIosBrowser() === 'safari' ? <IosSteps ipad={isIpad()} /> : <OpenInSafari browser={getIosBrowser()} />
           ) : !waitedForPrompt && isAndroid() ? (
             <Waiting />
           ) : isAndroid() ? (
@@ -153,20 +153,88 @@ function AndroidSteps() {
   );
 }
 
-function IosSteps() {
+function IosSteps({ ipad = false }) {
+  // The Share button sits in the bottom toolbar on iPhone, but at the top-right
+  // (next to the address bar) on iPad — point the user to the right place.
+  const where = ipad ? 'at the top-right, next to the address bar' : 'in the bar at the bottom of the screen';
   return (
-    <ol className="space-y-3">
-      <Step n={1}>
-        Tap the <Share size={13} className="mx-0.5 inline align-text-bottom" /> <strong>Share</strong> button
-        in Safari&apos;s toolbar.
-      </Step>
-      <Step n={2}>
-        Scroll down and choose <strong>Add to Home Screen</strong>.
-      </Step>
-      <Step n={3}>
-        Tap <strong>Add</strong> — CCG Connect now lives on your home screen like any other app.
-      </Step>
-    </ol>
+    <div className="space-y-4">
+      <div className="flex items-center justify-center gap-2 rounded-lg bg-[#F97316]/10 p-3 text-sm text-[#F97316]">
+        <Share size={18} /> Look for this <strong>Share</strong> icon {where}
+      </div>
+      <ol className="space-y-3">
+        <Step n={1}>
+          Tap the <Share size={13} className="mx-0.5 inline align-text-bottom" /> <strong>Share</strong> button {where}.
+        </Step>
+        <Step n={2}>
+          Scroll down the list and tap{' '}
+          <span className="whitespace-nowrap">
+            <PlusSquare size={13} className="mx-0.5 inline align-text-bottom" /> <strong>Add to Home Screen</strong>
+          </span>.
+        </Step>
+        <Step n={3}>
+          Tap <strong>Add</strong> (top-right) — CCG Connect now lives on your home screen like any other app.
+        </Step>
+      </ol>
+    </div>
+  );
+}
+
+const IOS_BROWSER_LABEL = {
+  chrome: 'Chrome',
+  firefox: 'Firefox',
+  edge: 'Edge',
+  opera: 'Opera',
+  inapp: 'this app',
+};
+
+function OpenInSafari({ browser }) {
+  const [copied, setCopied] = useState(false);
+  const label = IOS_BROWSER_LABEL[browser] ?? 'this browser';
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.origin);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+        <Compass size={18} className="mt-0.5 shrink-0" />
+        <span>
+          On iPhone &amp; iPad, apps can only be installed from <strong>Safari</strong> — not from {label}.
+          Open this page in Safari first, then add it to your home screen.
+        </span>
+      </div>
+
+      <ol className="space-y-3">
+        {browser === 'inapp' ? (
+          <Step n={1}>
+            Tap the menu (<MoreVertical size={13} className="mx-0.5 inline align-text-bottom" /> or{' '}
+            <Share size={13} className="mx-0.5 inline align-text-bottom" />) and choose{' '}
+            <strong>Open in Safari</strong> / <strong>Open in browser</strong>.
+          </Step>
+        ) : (
+          <Step n={1}>
+            Copy the link below, open the <strong>Safari</strong> app, and paste it into the address bar.
+          </Step>
+        )}
+        <Step n={2}>
+          In Safari, tap <Share size={13} className="mx-0.5 inline align-text-bottom" /> <strong>Share</strong> →{' '}
+          <strong>Add to Home Screen</strong>.
+        </Step>
+      </ol>
+
+      <Button onClick={copyLink} variant="outline" className="w-full gap-2">
+        {copied ? <Check size={16} className="text-[#F97316]" /> : <Copy size={16} />}
+        {copied ? 'Link copied' : 'Copy portal link'}
+      </Button>
+    </div>
   );
 }
 

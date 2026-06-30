@@ -32,8 +32,43 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export const isIos = () =>
-  typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
+export const isIos = () => {
+  if (typeof navigator === 'undefined') return false;
+  // iPadOS 13+ reports as "MacIntel" but is a touch device — catch it too.
+  return (
+    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+};
+
+export const isIpad = () => {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /ipad/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+};
+
+/**
+ * Which browser the iOS user is in. "Add to Home Screen" only works in Safari,
+ * so we must steer users out of Chrome/Firefox/Edge for iOS and (especially)
+ * the in-app webviews used by Instagram/Facebook/etc. Returns one of:
+ * 'safari' | 'chrome' | 'firefox' | 'edge' | 'opera' | 'inapp' | null(non-iOS).
+ */
+export const getIosBrowser = () => {
+  if (!isIos()) return null;
+  const ua = navigator.userAgent;
+  if (/CriOS/i.test(ua)) return 'chrome';
+  if (/FxiOS/i.test(ua)) return 'firefox';
+  if (/EdgiOS/i.test(ua)) return 'edge';
+  if (/OPiOS|OPT\//i.test(ua)) return 'opera';
+  if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|Twitter|WhatsApp|Snapchat|Pinterest|MicroMessenger/i.test(ua))
+    return 'inapp';
+  // Real Safari carries both the "Safari" and "Version/" tokens; bare WKWebView
+  // (in-app) usually lacks "Safari".
+  if (/Safari/i.test(ua) && /Version\//i.test(ua)) return 'safari';
+  return 'inapp';
+};
 
 export const isStandalone = () =>
   typeof window !== 'undefined' &&
