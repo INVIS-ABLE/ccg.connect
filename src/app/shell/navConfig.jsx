@@ -1,6 +1,7 @@
 import {
   Home,
   Briefcase,
+  HardHat,
   LayoutGrid,
   CalendarDays,
   Sparkles,
@@ -52,7 +53,14 @@ const ADMIN_NAV = [
       { label: 'Users', to: '/users', icon: UserCog },
     ],
   },
-  { label: 'Commercial', to: '/commercial', icon: Building2 },
+  {
+    label: 'Commercial',
+    icon: Building2,
+    items: [
+      { label: 'Accounts', to: '/commercial', icon: Building2 },
+      { label: 'Workers', to: '/workforce/workers', icon: HardHat },
+    ],
+  },
   {
     label: 'Money',
     icon: FileText,

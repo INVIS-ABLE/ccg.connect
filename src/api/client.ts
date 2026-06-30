@@ -19,6 +19,8 @@ import type {
   CorporateContact,
   CommercialProject,
   CommercialSite,
+  Worker,
+  WorkerCard,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -342,6 +344,23 @@ export const api = {
         request<{ site: CommercialSite }>('/api/commercial/sites', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: Partial<CommercialSite>) =>
         request<{ site: CommercialSite }>(`/api/commercial/sites/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    },
+  },
+  workers: {
+    list: (contractorId?: string) =>
+      request<{ workers: Worker[] }>(`/api/workers${contractorId ? `?contractor_id=${encodeURIComponent(contractorId)}` : ''}`),
+    get: (id: string) => request<{ worker: Worker }>(`/api/workers/${encodeURIComponent(id)}`),
+    create: (data: Partial<Worker> & { full_name: string }) =>
+      request<{ worker: Worker }>('/api/workers', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Worker>) =>
+      request<{ worker: Worker }>(`/api/workers/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    cards: {
+      list: (workerId: string) =>
+        request<{ cards: WorkerCard[] }>(`/api/workers/${encodeURIComponent(workerId)}/cards`),
+      create: (workerId: string, data: Partial<WorkerCard> & { card_type: string }) =>
+        request<{ card: WorkerCard }>(`/api/workers/${encodeURIComponent(workerId)}/cards`, { method: 'POST', body: JSON.stringify(data) }),
+      update: (workerId: string, cardId: string, data: Partial<WorkerCard>) =>
+        request<{ card: WorkerCard }>(`/api/workers/${encodeURIComponent(workerId)}/cards/${encodeURIComponent(cardId)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     },
   },
   checkins: {

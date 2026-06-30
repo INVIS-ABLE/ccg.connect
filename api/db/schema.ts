@@ -976,3 +976,79 @@ export const commercialSites = sqliteTable(
     byAccount: index('ix_site_account').on(t.account_id),
   }),
 );
+
+// ── Workforce (individual operatives) ────────────────────────────────────────
+// A worker is an individual operative, distinct from a contractor *company*: a
+// supplier may provide many workers, while a sole trader is both. Sensitive
+// payroll/identity data (NI, UTR, bank) is deliberately NOT stored here yet — it
+// must live behind separate, stricter access control (a later slice).
+
+export const workers = sqliteTable(
+  'workers',
+  {
+    id: pk(),
+    full_name: text('full_name').notNull(),
+    photo_url: text('photo_url'),
+    mobile: text('mobile'),
+    email: text('email'),
+    home_address: text('home_address'),
+    base_postcode: text('base_postcode'),
+    latitude: real('latitude'),
+    longitude: real('longitude'),
+    emergency_contact_name: text('emergency_contact_name'),
+    emergency_contact_phone: text('emergency_contact_phone'),
+    right_to_work_status: text('right_to_work_status', {
+      enum: ['unchecked', 'checked', 'expired', 'restricted'],
+    })
+      .notNull()
+      .default('unchecked'),
+    rtw_check_date: text('rtw_check_date'),
+    rtw_checked_by: text('rtw_checked_by'),
+    rtw_expiry: text('rtw_expiry'),
+    // Payment model — captured for payroll/tax review, never auto-determined.
+    payment_model: text('payment_model', { enum: ['paye', 'cis', 'umbrella', 'limited'] }),
+    primary_trade: text('primary_trade'),
+    additional_skills: text('additional_skills'),
+    experience_years: real('experience_years'),
+    driving_licence: text('driving_licence'),
+    plant_tickets: text('plant_tickets'),
+    preferred_travel_miles: real('preferred_travel_miles'),
+    day_rate: real('day_rate'),
+    hourly_rate: real('hourly_rate'),
+    // The contractor company that supplies this worker (null for direct/sole trader).
+    contractor_id: text('contractor_id'),
+    // App login, if the worker has one.
+    user_id: text('user_id'),
+    status: text('status', { enum: ['active', 'inactive', 'archived'] }).notNull().default('active'),
+    notes: text('notes'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byContractor: index('ix_worker_contractor').on(t.contractor_id) }),
+);
+
+// Cards / qualifications / tickets / medicals held by a worker. Drives the
+// compliance matrix (each requires individual verification — a gang grouping
+// never substitutes for per-operative checks).
+export const workerCards = sqliteTable(
+  'worker_cards',
+  {
+    id: pk(),
+    worker_id: text('worker_id').notNull(),
+    card_type: text('card_type').notNull(),
+    reference: text('reference'),
+    issuer: text('issuer'),
+    issue_date: text('issue_date'),
+    expiry_date: text('expiry_date'),
+    verification_status: text('verification_status', {
+      enum: ['unverified', 'verified', 'rejected', 'expired'],
+    })
+      .notNull()
+      .default('unverified'),
+    file_url: text('file_url'),
+    notes: text('notes'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byWorker: index('ix_card_worker').on(t.worker_id) }),
+);
