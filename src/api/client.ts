@@ -246,6 +246,11 @@ export const api = {
         '/api/messages/conversations',
         { method: 'POST', body: JSON.stringify({ user_id: userId }) },
       ),
+    setPrefs: (conversationId: string, prefs: { pinned?: boolean; muted?: boolean }) =>
+      request<{ id: string; pinned: boolean; muted: boolean }>(
+        `/api/messages/conversations/${encodeURIComponent(conversationId)}/prefs`,
+        { method: 'PATCH', body: JSON.stringify(prefs) },
+      ),
     listMessages: (conversationId: string) =>
       request<{ messages: DirectMessage[] }>(
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,

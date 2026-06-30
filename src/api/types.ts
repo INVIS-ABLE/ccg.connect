@@ -190,6 +190,8 @@ export interface ConversationSummary {
   last_message_at: string | null;
   last_message_preview: string | null;
   unread: number;
+  pinned: boolean;
+  muted: boolean;
 }
 
 export interface ReplyPreview {

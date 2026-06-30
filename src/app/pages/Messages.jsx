@@ -12,7 +12,13 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText, Smile, Reply, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText, Smile, Reply, X, Pin, PinOff, Bell, BellOff, MoreVertical } from 'lucide-react';
 import { enqueue } from '@/offline/syncQueue';
 import { useDraft } from '@/offline/drafts';
 import { REACTION_EMOJI } from '@/domain/messaging/reactions';
@@ -23,6 +29,14 @@ const COMPOSER_EMOJI = [
   '👍', '👎', '🙏', '👏', '💪', '🔥', '✅', '❌',
   '❤️', '🎉', '👋', '🚀', '⏰', '📍', '📷', '📎',
 ];
+
+/** Pinned conversations first, then by most recent activity. Stable + pure. */
+function sortConvos(list) {
+  return [...list].sort((a, b) => {
+    if (Number(b.pinned) !== Number(a.pinned)) return Number(b.pinned) - Number(a.pinned);
+    return (b.last_message_at || '').localeCompare(a.last_message_at || '');
+  });
+}
 
 /** Apply a realtime reaction delta to one message's reaction summary. */
 function applyReactionDelta(reactions, emoji, add, mine) {
@@ -115,6 +129,10 @@ export default function Messages() {
   const [contacts, setContacts] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contactSearch, setContactSearch] = useState('');
+  // Search across the conversation list, and within the open chat.
+  const [convoSearch, setConvoSearch] = useState('');
+  const [chatSearch, setChatSearch] = useState('');
+  const [chatSearchOpen, setChatSearchOpen] = useState(false);
 
   const endRef = useRef(null);
   const lastCountRef = useRef(0);
@@ -152,6 +170,16 @@ export default function Messages() {
 
   function insertEmoji(emoji) {
     setInput((v) => (v ?? '') + emoji);
+  }
+
+  // Toggle a private pin/mute preference for a conversation (optimistic).
+  async function setPref(conv, patch) {
+    setConversations((prev) => sortConvos(prev.map((c) => (c.id === conv.id ? { ...c, ...patch } : c))));
+    try {
+      await api.messages.setPrefs(conv.id, patch);
+    } catch {
+      void loadConversations();
+    }
   }
 
   async function toggleRecord() {
@@ -315,6 +343,8 @@ export default function Messages() {
     setActiveOther(convo.other);
     setMessages([]);
     setReplyingTo(null);
+    setChatSearch('');
+    setChatSearchOpen(false);
     lastCountRef.current = 0;
   }
 
@@ -385,6 +415,22 @@ export default function Messages() {
     c.name.toLowerCase().includes(contactSearch.toLowerCase()),
   );
 
+  const convoQuery = convoSearch.trim().toLowerCase();
+  const visibleConvos = sortConvos(
+    convoQuery
+      ? conversations.filter(
+          (c) =>
+            (c.other?.name || '').toLowerCase().includes(convoQuery) ||
+            (c.last_message_preview || '').toLowerCase().includes(convoQuery),
+        )
+      : conversations,
+  );
+
+  const chatQuery = chatSearch.trim().toLowerCase();
+  const visibleMessages = chatQuery
+    ? messages.filter((m) => (m.body || '').toLowerCase().includes(chatQuery))
+    : messages;
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -444,6 +490,19 @@ export default function Messages() {
         <div className={`w-72 flex-shrink-0 flex-col gap-1 ${activeId ? 'hidden sm:flex' : 'flex w-full sm:w-72'}`}>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-1">Chats</p>
 
+          {/* Search the conversation list */}
+          {conversations.length > 0 && (
+            <div className="relative mb-1 px-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={convoSearch}
+                onChange={(e) => setConvoSearch(e.target.value)}
+                placeholder="Search chats…"
+                className="h-8 pl-8 text-sm"
+              />
+            </div>
+          )}
+
           {loadingConvos && <p className="text-sm text-muted-foreground px-1">Loading…</p>}
 
           {!loadingConvos && conversations.length === 0 && (
@@ -455,36 +514,75 @@ export default function Messages() {
             </div>
           )}
 
+          {!loadingConvos && conversations.length > 0 && visibleConvos.length === 0 && (
+            <p className="px-2 py-3 text-xs text-muted-foreground">No chats match “{convoSearch}”.</p>
+          )}
+
           <div className="flex-1 overflow-y-auto space-y-0.5">
-            {conversations.map((conv) => (
-              <button
+            {visibleConvos.map((conv) => (
+              <div
                 key={conv.id}
-                onClick={() => openConversation(conv)}
-                className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-colors ${
+                className={`group relative flex items-center rounded-lg transition-colors ${
                   conv.id === activeId ? 'bg-primary/10' : 'hover:bg-muted'
                 }`}
               >
-                <PersonAvatar contact={conv.other} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate font-medium text-sm">{conv.other?.name}</span>
-                    <RoleBadge role={conv.other?.role} />
-                    <span className="ml-auto text-[10px] text-muted-foreground shrink-0">
-                      {fmtWhen(conv.last_message_at)}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="truncate text-xs text-muted-foreground">
-                      {conv.last_message_preview || 'No messages yet'}
-                    </span>
-                    {conv.unread > 0 && (
-                      <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground shrink-0">
-                        {conv.unread}
+                <button
+                  onClick={() => openConversation(conv)}
+                  className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5 text-left"
+                >
+                  <PersonAvatar contact={conv.other} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5">
+                      {conv.pinned && <Pin size={11} className="shrink-0 text-primary" />}
+                      <span className="truncate font-medium text-sm">{conv.other?.name}</span>
+                      <RoleBadge role={conv.other?.role} />
+                      <span className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+                        {conv.muted && <BellOff size={11} />}
+                        {fmtWhen(conv.last_message_at)}
                       </span>
-                    )}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="truncate text-xs text-muted-foreground">
+                        {conv.last_message_preview || 'No messages yet'}
+                      </span>
+                      {conv.unread > 0 && (
+                        <span
+                          className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold shrink-0 ${
+                            conv.muted
+                              ? 'bg-muted-foreground/30 text-muted-foreground'
+                              : 'bg-primary text-primary-foreground'
+                          }`}
+                        >
+                          {conv.unread}
+                        </span>
+                      )}
+                    </span>
                   </span>
-                </span>
-              </button>
+                </button>
+
+                {/* Per-conversation actions: pin / mute */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="mr-1 rounded-full p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background group-hover:opacity-100 focus:opacity-100 data-[state=open]:opacity-100"
+                      aria-label="Conversation options"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setPref(conv, { pinned: !conv.pinned })}>
+                      {conv.pinned ? <PinOff size={14} className="mr-2" /> : <Pin size={14} className="mr-2" />}
+                      {conv.pinned ? 'Unpin chat' : 'Pin chat'}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setPref(conv, { muted: !conv.muted })}>
+                      {conv.muted ? <Bell size={14} className="mr-2" /> : <BellOff size={14} className="mr-2" />}
+                      {conv.muted ? 'Unmute' : 'Mute'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ))}
           </div>
         </div>
@@ -516,7 +614,31 @@ export default function Messages() {
                       : ''}
                 </p>
               </div>
+              <button
+                className="ml-auto rounded-full p-1.5 text-muted-foreground hover:bg-muted"
+                onClick={() => {
+                  setChatSearchOpen((o) => !o);
+                  setChatSearch('');
+                }}
+                aria-label="Search in conversation"
+              >
+                {chatSearchOpen ? <X size={18} /> : <Search size={18} />}
+              </button>
             </div>
+
+            {/* In-conversation message search */}
+            {chatSearchOpen && (
+              <div className="relative border-b px-3 py-2">
+                <Search size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  autoFocus
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  placeholder="Search messages…"
+                  className="h-8 pl-7 text-sm"
+                />
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 bg-muted/30">
@@ -527,7 +649,14 @@ export default function Messages() {
                 </div>
               )}
 
-              {messages.map((m) => {
+              {messages.length > 0 && chatQuery && visibleMessages.length === 0 && (
+                <div className="text-center py-12">
+                  <Search size={24} className="mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">No messages match “{chatSearch}”.</p>
+                </div>
+              )}
+
+              {visibleMessages.map((m) => {
                 const isTmp = String(m.id).startsWith('tmp-');
                 return (
                 <div key={m.id} className={`group flex flex-col ${m.mine ? 'items-end' : 'items-start'}`}>
