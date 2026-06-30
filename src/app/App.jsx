@@ -55,6 +55,8 @@ import CommercialAccountDetail from '@/features/commercial-workforce/accounts/Co
 import CommercialProjectDetail from '@/features/commercial-workforce/projects/CommercialProjectDetail';
 import Workers from '@/features/commercial-workforce/workers/Workers';
 import WorkerDetail from '@/features/commercial-workforce/workers/WorkerDetail';
+import Gangs from '@/features/commercial-workforce/gangs/Gangs';
+import GangDetail from '@/features/commercial-workforce/gangs/GangDetail';
 
 // Shared
 import Messages from '@/app/pages/Messages';
@@ -175,6 +177,8 @@ export default function App() {
             <Route path="/commercial/projects/:id" element={adminShell(<CommercialProjectDetail />)} />
             <Route path="/workforce/workers" element={adminShell(<Workers />)} />
             <Route path="/workforce/workers/:id" element={adminShell(<WorkerDetail />)} />
+            <Route path="/workforce/gangs" element={adminShell(<Gangs />)} />
+            <Route path="/workforce/gangs/:id" element={adminShell(<GangDetail />)} />
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
             <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
             <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />
