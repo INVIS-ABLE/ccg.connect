@@ -46,6 +46,10 @@ route.post('/', async (c) => {
   }
 
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  const num = (v: unknown) => {
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) : NaN;
+    return Number.isFinite(n) ? n : null;
+  };
   const now = new Date().toISOString();
   const address = (body.address ?? {}) as Addr;
   const contractor = (body.contractor ?? {}) as Record<string, unknown>;
@@ -85,6 +89,9 @@ route.post('/', async (c) => {
       primary_trade: str(contractor.primary_trade),
       base_postcode: str(contractor.base_postcode) ?? str(address.postcode),
       biography: str(contractor.biography),
+      service_radius_miles: num(contractor.service_radius_miles),
+      day_rate: num(contractor.day_rate),
+      hourly_rate: num(contractor.hourly_rate),
     };
     if (cp) {
       await db.update(contractorProfiles).set(cpValues).where(eq(contractorProfiles.id, cp.id));

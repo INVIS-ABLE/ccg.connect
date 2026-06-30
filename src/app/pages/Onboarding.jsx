@@ -14,12 +14,27 @@ const CONTACT_METHODS = ['phone', 'email', 'sms', 'whatsapp'];
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const { profile, refresh } = useAuth();
+  const { profile, principal, refresh } = useAuth();
 
   const [step, setStep] = useState(1);
   const [role, setRole] = useState(null);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(profile?.profile_photo_url ?? null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  async function uploadPhoto(file) {
+    if (!file || !principal?.userId) return;
+    setPhotoBusy(true);
+    try {
+      const r = await api.profiles.uploadPhoto(principal.userId, file);
+      setPhotoUrl(r.profile_photo_url);
+    } catch {
+      setError('Could not upload that photo (use an image under the size limit).');
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
 
   const [common, setCommon] = useState({
     first_name: '',
@@ -34,7 +49,14 @@ export default function Onboarding() {
     postcode: '',
     terms: false,
   });
-  const [contractor, setContractor] = useState({ trading_name: '', primary_trade: '', biography: '' });
+  const [contractor, setContractor] = useState({
+    trading_name: '',
+    primary_trade: '',
+    biography: '',
+    service_radius_miles: '',
+    day_rate: '',
+    hourly_rate: '',
+  });
   const [client, setClient] = useState({ company_name: '', client_type: 'company' });
 
   function setC(patch) {
@@ -121,6 +143,28 @@ export default function Onboarding() {
             <CardDescription>We'll use these to keep in touch about jobs.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="flex items-center gap-3 sm:col-span-2">
+              {photoUrl ? (
+                <img src={photoUrl} alt="Profile" className="h-14 w-14 rounded-full border object-cover" />
+              ) : (
+                <div className="h-14 w-14 rounded-full bg-muted" />
+              )}
+              <label className="cursor-pointer text-sm">
+                <span className="inline-flex items-center rounded-md border px-3 py-1.5 hover:bg-muted">
+                  {photoBusy ? 'Uploading…' : photoUrl ? 'Change photo' : 'Upload photo'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    uploadPhoto(f);
+                  }}
+                />
+              </label>
+            </div>
             <div className="space-y-2">
               <Label>First name</Label>
               <Input value={common.first_name} onChange={(e) => setC({ first_name: e.target.value })} required />
@@ -207,6 +251,20 @@ export default function Onboarding() {
                 <div className="space-y-2">
                   <Label>Short bio</Label>
                   <Input value={contractor.biography} onChange={(e) => setContractor({ ...contractor, biography: e.target.value })} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <Label>Radius (mi)</Label>
+                    <Input type="number" min="0" value={contractor.service_radius_miles} onChange={(e) => setContractor({ ...contractor, service_radius_miles: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Day rate £</Label>
+                    <Input type="number" min="0" value={contractor.day_rate} onChange={(e) => setContractor({ ...contractor, day_rate: e.target.value })} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hourly £</Label>
+                    <Input type="number" min="0" value={contractor.hourly_rate} onChange={(e) => setContractor({ ...contractor, hourly_rate: e.target.value })} />
+                  </div>
                 </div>
               </>
             ) : (

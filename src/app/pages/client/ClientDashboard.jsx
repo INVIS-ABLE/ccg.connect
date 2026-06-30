@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, CalendarDays, Briefcase, FileText, ImageIcon, CheckCircle, Clock } from 'lucide-react';
+import { ProfileCompleteness } from '@/app/components/ProfileCompleteness';
 
 const STATUS_LABEL = {
   draft: 'Draft', enquiry: 'Enquiry received', quoted: 'Quote sent',
@@ -127,6 +128,7 @@ export default function ClientDashboard() {
 
   return (
     <div className="space-y-6">
+      <ProfileCompleteness />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Hello, {name}</h1>
