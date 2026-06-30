@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, Users, AlertTriangle } from 'lucide-react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import Gantt from 'frappe-gantt';
+import { findConflictingBookingIds } from '@/domain/scheduling/conflicts';
 // Vendored from frappe-gantt/dist (its package "exports" map blocks importing the
 // CSS by subpath). Keep in sync if the dep is upgraded.
 import '@/styles/frappe-gantt.css';
@@ -31,6 +32,8 @@ function dayAfter(iso) {
 export default function Schedule() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
+  const [contractors, setContractors] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState('calendar');
   const ganttRef = useRef(null);
@@ -40,6 +43,9 @@ export default function Schedule() {
       .list()
       .then((r) => setJobs(r.jobs ?? []))
       .catch(() => setError('Could not load jobs.'));
+    // Team view inputs (best-effort — the calendar/timeline still work without).
+    api.contractors.list().then((r) => setContractors(r.contractors ?? [])).catch(() => {});
+    api.assignments.list().then((r) => setAssignments(r.assignments ?? [])).catch(() => {});
   }, []);
 
   const scheduled = useMemo(() => jobs.filter((j) => j.start_date), [jobs]);
@@ -69,6 +75,48 @@ export default function Schedule() {
       }),
     [scheduled],
   );
+
+  // ── Team / resource view ──
+  const jobTitleById = useMemo(() => new Map(jobs.map((j) => [j.id, j.title])), [jobs]);
+
+  // One booking per active assignment that has a planned start.
+  const bookings = useMemo(
+    () =>
+      assignments
+        .filter((a) => a.assignment_status === 'active' && a.planned_start)
+        .map((a) => {
+          const start = a.planned_start.slice(0, 10);
+          let finish = (a.planned_finish ?? a.planned_start).slice(0, 10);
+          if (finish < start) finish = start;
+          return { id: a.id, contractor_id: a.contractor_id, start, finish, job_id: a.job_id };
+        }),
+    [assignments],
+  );
+
+  const conflictIds = useMemo(() => findConflictingBookingIds(bookings), [bookings]);
+
+  // Contractors that have bookings, each with their (date-sorted) bookings.
+  const teamRows = useMemo(() => {
+    const byContractor = new Map();
+    for (const b of bookings) {
+      const list = byContractor.get(b.contractor_id) ?? [];
+      list.push(b);
+      byContractor.set(b.contractor_id, list);
+    }
+    return [...byContractor.entries()]
+      .map(([contractorId, list]) => {
+        const c = contractors.find((x) => x.id === contractorId);
+        const name = c?.trading_name || c?.legal_name || 'Contractor';
+        const hasConflict = list.some((b) => conflictIds.has(b.id));
+        return {
+          contractorId,
+          name,
+          hasConflict,
+          bookings: [...list].sort((a, b) => a.start.localeCompare(b.start)),
+        };
+      })
+      .sort((a, b) => Number(b.hasConflict) - Number(a.hasConflict) || a.name.localeCompare(b.name));
+  }, [bookings, contractors, conflictIds]);
 
   // (Re)render the Gantt when its tab is active and tasks change.
   useEffect(() => {
@@ -105,6 +153,7 @@ export default function Schedule() {
         <TabsList>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="mt-4">
@@ -134,6 +183,66 @@ export default function Schedule() {
               <div ref={ganttRef} />
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="team" className="mt-4 space-y-3">
+          {conflictIds.size > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+              <AlertTriangle size={16} className="shrink-0" />
+              {conflictIds.size} booking{conflictIds.size === 1 ? '' : 's'} double-booked — resolve the
+              clashes highlighted below.
+            </div>
+          )}
+
+          {teamRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No active assignments with planned dates yet. Assign contractors with planned start/finish
+              dates to see who&apos;s booked when.
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {teamRows.map((row) => (
+                <div
+                  key={row.contractorId}
+                  className={`rounded-lg border bg-card p-3 ${row.hasConflict ? 'border-red-300 dark:border-red-900' : ''}`}
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Users size={15} className="text-muted-foreground" />
+                    <span className="font-medium text-sm">{row.name}</span>
+                    {row.hasConflict && (
+                      <span className="flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-300">
+                        <AlertTriangle size={10} /> Double-booked
+                      </span>
+                    )}
+                    <span className="ml-auto text-xs text-muted-foreground">
+                      {row.bookings.length} job{row.bookings.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {row.bookings.map((b) => {
+                      const clash = conflictIds.has(b.id);
+                      return (
+                        <button
+                          key={b.id}
+                          onClick={() => navigate(`/jobs/${b.job_id}`)}
+                          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted ${
+                            clash ? 'bg-red-50 dark:bg-red-950/20' : ''
+                          }`}
+                        >
+                          {clash && <AlertTriangle size={13} className="shrink-0 text-red-600" />}
+                          <span className="min-w-0 flex-1 truncate">{jobTitleById.get(b.job_id) ?? 'Job'}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {b.start}
+                            {b.finish !== b.start ? ` → ${b.finish}` : ''}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
