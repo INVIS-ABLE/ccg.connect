@@ -316,6 +316,7 @@ export interface CommercialSite {
   required_cards: string | null;
   prohibited_activities: string | null;
   check_in_method: 'qr' | 'geofence' | 'roll_call' | 'supervisor' | 'manual' | null;
+  geofence_radius_m: number | null;
   po_number: string | null;
   cost_code: string | null;
   status: 'active' | 'completed' | 'suspended';
@@ -501,6 +502,8 @@ export interface AttendanceRecord {
   check_in_time: string | null;
   check_out_time: string | null;
   method: 'qr' | 'geofence' | 'roll_call' | 'supervisor' | 'manual' | null;
+  geofence_ok: boolean | null;
+  geofence_distance_m: number | null;
   reason: string | null;
   replacement_needed: boolean;
   notes: string | null;
@@ -513,6 +516,8 @@ export interface CheckinStatus {
   status: 'present' | 'late' | 'absent' | 'no_show' | null;
   check_in_time: string | null;
   check_out_time: string | null;
+  geofence_ok: boolean | null;
+  geofence_distance_m: number | null;
 }
 
 /** Context for the QR site check-in screen (worker self-service or admin kiosk). */

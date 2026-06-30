@@ -19,6 +19,7 @@ import { isAdmin } from '../../src/domain/permissions/permissions';
 import { complianceMatrix, mergeRequirements, RTW_REQUIREMENT } from '../../src/domain/workforce/compliance';
 import { isAttendanceStatus } from '../../src/domain/commercial/attendance';
 import { rankReplacementCandidates } from '../../src/domain/commercial/replacement';
+import { distanceMeters } from '../../src/domain/geo/geo';
 import type { AppEnv } from '../env';
 
 /**
@@ -320,6 +321,7 @@ route.get('/:id/checkin', async (c) => {
         worker_id: d.worker_id,
         full_name: workersById.get(d.worker_id)?.full_name ?? 'Worker',
         status: r?.status ?? null, check_in_time: r?.check_in_time ?? null, check_out_time: r?.check_out_time ?? null,
+        geofence_ok: r?.geofence_ok ?? null, geofence_distance_m: r?.geofence_distance_m ?? null,
       };
     });
     return c.json({ ...base, roster });
@@ -332,6 +334,7 @@ route.get('/:id/checkin', async (c) => {
     me_worker: {
       id: myWorkerId, full_name: meWorker?.full_name ?? 'You',
       status: r?.status ?? null, check_in_time: r?.check_in_time ?? null, check_out_time: r?.check_out_time ?? null,
+      geofence_ok: r?.geofence_ok ?? null, geofence_distance_m: r?.geofence_distance_m ?? null,
     },
   });
 });
@@ -341,7 +344,7 @@ route.post('/:id/checkin', async (c) => {
   const me = c.get('principal');
   const db = drizzle(c.env.DB);
   const id = c.req.param('id');
-  const dep = (await db.select({ id: deployments.id }).from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  const dep = (await db.select({ id: deployments.id, site_id: deployments.site_id }).from(deployments).where(eq(deployments.id, id)).limit(1))[0];
   if (!dep) return c.json({ error: 'not_found' }, 404);
 
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
@@ -355,7 +358,22 @@ route.post('/:id/checkin', async (c) => {
 
   const date = todayDate();
   const now = new Date().toISOString();
-  const loc = { check_in_lat: num(body.latitude), check_in_lng: num(body.longitude), check_in_accuracy_m: num(body.accuracy_m) };
+  const lat = num(body.latitude);
+  const lng = num(body.longitude);
+
+  // Geofence: flag whether the worker is within the site's radius. Advisory only
+  // — never blocks a check-in (poor signal / large sites); roll-call overrides.
+  let geofence_ok: boolean | null = null;
+  let geofence_distance_m: number | null = null;
+  if (dep.site_id && lat != null && lng != null) {
+    const site = (await db.select({ latitude: commercialSites.latitude, longitude: commercialSites.longitude, geofence_radius_m: commercialSites.geofence_radius_m })
+      .from(commercialSites).where(eq(commercialSites.id, dep.site_id)).limit(1))[0];
+    if (site?.latitude != null && site.longitude != null && site.geofence_radius_m) {
+      geofence_distance_m = distanceMeters({ lng: site.longitude, lat: site.latitude }, { lng, lat });
+      geofence_ok = geofence_distance_m <= site.geofence_radius_m;
+    }
+  }
+  const loc = { check_in_lat: lat, check_in_lng: lng, check_in_accuracy_m: num(body.accuracy_m), geofence_ok, geofence_distance_m };
   const existing = (await db.select().from(deploymentAttendance)
     .where(and(eq(deploymentAttendance.deployment_id, id), eq(deploymentAttendance.worker_id, targetWorkerId), eq(deploymentAttendance.date, date))).limit(1))[0];
 

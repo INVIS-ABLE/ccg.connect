@@ -985,6 +985,10 @@ export const commercialSites = sqliteTable(
     check_in_method: text('check_in_method', {
       enum: ['qr', 'geofence', 'roll_call', 'supervisor', 'manual'],
     }),
+    // Geofence radius (metres) around the site lat/long. When set, QR check-ins
+    // are flagged inside/outside — advisory evidence only, never a hard gate
+    // (poor signal, large sites; an authorised roll-call always overrides).
+    geofence_radius_m: real('geofence_radius_m'),
     po_number: text('po_number'),
     cost_code: text('cost_code'),
     status: text('status', { enum: ['active', 'completed', 'suspended'] })
@@ -1280,6 +1284,9 @@ export const deploymentAttendance = sqliteTable(
     check_in_lat: real('check_in_lat'),
     check_in_lng: real('check_in_lng'),
     check_in_accuracy_m: real('check_in_accuracy_m'),
+    // Geofence evaluation at check-in (null = not evaluated). Advisory only.
+    geofence_ok: integer('geofence_ok', { mode: 'boolean' }),
+    geofence_distance_m: real('geofence_distance_m'),
     confirmed_by: text('confirmed_by'),
     reason: text('reason'),
     replacement_needed: integer('replacement_needed', { mode: 'boolean' }).notNull().default(false),

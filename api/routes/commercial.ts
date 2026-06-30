@@ -183,14 +183,21 @@ route.post('/sites', async (c) => {
     account_id: proj.account_id,
     latitude: num(body.latitude),
     longitude: num(body.longitude),
+    geofence_radius_m: num(body.geofence_radius_m),
   }).returning();
   return c.json({ site: inserted[0] }, 201);
 });
 
+// Numeric site fields are parsed separately and only applied when present, so a
+// PATCH never accidentally nulls out coordinates it didn't mean to touch.
+const SITE_NUMERIC = ['latitude', 'longitude', 'geofence_radius_m'] as const;
+
 route.patch('/sites/:id', async (c) => {
   if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-  const patch = pick(body, SITE_FIELDS);
+  const numeric: Record<string, number | null> = {};
+  for (const k of SITE_NUMERIC) if (k in body) numeric[k] = num(body[k]);
+  const patch = { ...pick(body, SITE_FIELDS), ...numeric };
   if (Object.keys(patch).length === 0) return c.json({ error: 'nothing_to_update' }, 400);
   const db = drizzle(c.env.DB);
   const updated = await db.update(commercialSites).set({ ...patch, updated_at: new Date() }).where(eq(commercialSites.id, c.req.param('id'))).returning();
