@@ -1,18 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Button } from '@/components/ui/button';
 import { Download, RefreshCw, X, Share } from 'lucide-react';
-
-const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
-const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+import { usePwaInstall } from '@/app/pwa/usePwaInstall';
 
 /**
  * In-app PWA affordances:
  *  - an "Install app" prompt (Chromium beforeinstallprompt, or an iOS hint),
  *  - an "update available" toast when a new service worker is waiting.
- * Rendered once near the app root; self-contained so it has no external deps
- * beyond the SW registration hook.
+ * Rendered once near the app root. Install state comes from the shared
+ * `usePwaInstall` hook so this banner and the explicit "Install app" button on
+ * the login page stay in sync.
  */
 export function PwaPrompt() {
   const {
@@ -20,31 +18,8 @@ export function PwaPrompt() {
     updateServiceWorker,
   } = useRegisterSW();
 
-  const [installEvent, setInstallEvent] = useState(null);
-  const [iosHint, setIosHint] = useState(false);
+  const { canInstall, isIosDevice, isInstalled, promptInstall } = usePwaInstall();
   const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (isStandalone()) return; // already installed — nothing to offer
-    const onPrompt = (e) => {
-      e.preventDefault(); // stash it; we trigger it from our own button
-      setInstallEvent(e);
-    };
-    window.addEventListener('beforeinstallprompt', onPrompt);
-    // iOS Safari never fires beforeinstallprompt — offer the manual hint instead.
-    if (isIos()) setIosHint(true);
-    return () => window.removeEventListener('beforeinstallprompt', onPrompt);
-  }, []);
-
-  async function install() {
-    if (!installEvent) return;
-    installEvent.prompt();
-    try {
-      await installEvent.userChoice;
-    } finally {
-      setInstallEvent(null);
-    }
-  }
 
   // Update toast takes priority over the install nudge.
   if (needRefresh) {
@@ -63,16 +38,16 @@ export function PwaPrompt() {
     );
   }
 
-  if (dismissed) return null;
+  if (dismissed || isInstalled) return null;
 
-  if (installEvent) {
+  if (canInstall) {
     return (
       <Banner
         icon={<Download size={16} />}
         title="Install CCG Connect"
         body="Add it to your device for a full-screen, offline-ready app."
         action={
-          <Button size="sm" onClick={install} className="gap-1.5">
+          <Button size="sm" onClick={promptInstall} className="gap-1.5">
             <Download size={14} /> Install
           </Button>
         }
@@ -81,7 +56,7 @@ export function PwaPrompt() {
     );
   }
 
-  if (iosHint) {
+  if (isIosDevice) {
     return (
       <Banner
         icon={<Share size={16} />}

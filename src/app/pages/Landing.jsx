@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { signIn } from '@/api/authClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ChevronUp } from 'lucide-react';
 import HeroCanvas from '@/components/hero/HeroCanvas';
 import { Turnstile, turnstileEnabled } from '@/app/auth/Turnstile';
+import { InstallAppButton } from '@/app/pwa/InstallAppButton';
 
 // Served from public/ — the Cook Construction Growth brand logo. (The old
 // wp-content URL 404s now that the marketing site moved it.)
@@ -19,6 +20,10 @@ const CCG_LOGO = '/ccg-logo.png';
  */
 export default function Landing() {
   const navigate = useNavigate();
+  // The marketing site's "Install the app" link deep-links here with ?install=1
+  // so the install dialog opens automatically.
+  const [searchParams] = useSearchParams();
+  const autoInstall = searchParams.get('install') === '1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [token, setToken] = useState(null);
@@ -229,6 +234,20 @@ export default function Landing() {
             <Link to="/client-signup" className="font-medium text-[#F97316] hover:underline">
               Request a quote
             </Link>
+          </p>
+
+          {/* Install on your device — use the portal in the browser, or add the
+              app to your home screen. Deep-linked from the marketing site. */}
+          <div className="mt-8 flex items-center gap-3 text-xs text-gray-600">
+            <span className="h-px flex-1 bg-white/10" />
+            Prefer an app?
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+          <div className="mt-4">
+            <InstallAppButton autoOpen={autoInstall} />
+          </div>
+          <p className="mt-2 text-center text-xs text-gray-600">
+            Add CCG Connect to your phone for full-screen, offline-ready access.
           </p>
         </div>
       </section>
