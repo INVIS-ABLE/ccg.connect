@@ -21,6 +21,8 @@ import type {
   CommercialSite,
   Worker,
   WorkerCard,
+  Gang,
+  GangMember,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -362,6 +364,18 @@ export const api = {
       update: (workerId: string, cardId: string, data: Partial<WorkerCard>) =>
         request<{ card: WorkerCard }>(`/api/workers/${encodeURIComponent(workerId)}/cards/${encodeURIComponent(cardId)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     },
+  },
+  gangs: {
+    list: () => request<{ gangs: Gang[] }>('/api/gangs'),
+    get: (id: string) => request<{ gang: Gang; members: GangMember[] }>(`/api/gangs/${encodeURIComponent(id)}`),
+    create: (data: Partial<Gang> & { name: string }) =>
+      request<{ gang: Gang }>('/api/gangs', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Gang>) =>
+      request<{ gang: Gang }>(`/api/gangs/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    addMember: (gangId: string, data: { worker_id: string; role?: 'leader' | 'permanent' | 'reserve' }) =>
+      request<{ member: GangMember }>(`/api/gangs/${encodeURIComponent(gangId)}/members`, { method: 'POST', body: JSON.stringify(data) }),
+    removeMember: (gangId: string, memberId: string) =>
+      request<{ ok: true }>(`/api/gangs/${encodeURIComponent(gangId)}/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
   },
   checkins: {
     list: (jobId: string) =>

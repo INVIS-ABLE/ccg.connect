@@ -364,6 +364,27 @@ export interface WorkerCard {
   notes: string | null;
 }
 
+export interface Gang {
+  id: string;
+  name: string;
+  gang_leader_worker_id: string | null;
+  base_postcode: string | null;
+  service_radius_miles: number | null;
+  usual_day_rate: number | null;
+  vehicles: string | null;
+  plant_capability: string | null;
+  notes: string | null;
+  status: 'active' | 'inactive';
+}
+
+export interface GangMember {
+  id: string;
+  worker_id: string;
+  role: 'leader' | 'permanent' | 'reserve';
+  /** The worker passport with cards, for the compliance matrix. */
+  worker: (Worker & { cards: WorkerCard[] }) | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

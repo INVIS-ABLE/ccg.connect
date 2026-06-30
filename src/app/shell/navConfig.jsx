@@ -59,6 +59,7 @@ const ADMIN_NAV = [
     items: [
       { label: 'Accounts', to: '/commercial', icon: Building2 },
       { label: 'Workers', to: '/workforce/workers', icon: HardHat },
+      { label: 'Gangs', to: '/workforce/gangs', icon: Users },
     ],
   },
   {

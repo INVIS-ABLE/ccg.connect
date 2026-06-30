@@ -1052,3 +1052,35 @@ export const workerCards = sqliteTable(
   },
   (t) => ({ byWorker: index('ix_card_worker').on(t.worker_id) }),
 );
+
+// Gangs: a reusable operational grouping of workers under a gang leader. NOT a
+// compliance shortcut — every member still needs individual checks.
+export const gangs = sqliteTable('gangs', {
+  id: pk(),
+  name: text('name').notNull(),
+  gang_leader_worker_id: text('gang_leader_worker_id'),
+  base_postcode: text('base_postcode'),
+  service_radius_miles: real('service_radius_miles'),
+  usual_day_rate: real('usual_day_rate'),
+  vehicles: text('vehicles'),
+  plant_capability: text('plant_capability'),
+  notes: text('notes'),
+  status: text('status', { enum: ['active', 'inactive'] }).notNull().default('active'),
+  created_at: createdAt(),
+  updated_at: updatedAt(),
+});
+
+export const gangMembers = sqliteTable(
+  'gang_members',
+  {
+    id: pk(),
+    gang_id: text('gang_id').notNull(),
+    worker_id: text('worker_id').notNull(),
+    role: text('role', { enum: ['leader', 'permanent', 'reserve'] }).notNull().default('permanent'),
+    created_at: createdAt(),
+  },
+  (t) => ({
+    byGang: index('ix_gangmember_gang').on(t.gang_id),
+    uniqMember: uniqueIndex('ux_gangmember_gang_worker').on(t.gang_id, t.worker_id),
+  }),
+);
