@@ -47,9 +47,36 @@ export const userProfiles = sqliteTable('user_profiles', {
   })
     .notNull()
     .default('pending'),
+  preferred_contact_method: text('preferred_contact_method', {
+    enum: ['phone', 'email', 'sms', 'whatsapp'],
+  }),
+  onboarding_completed_at: text('onboarding_completed_at'),
   last_active_at: text('last_active_at'),
   terms_accepted_at: text('terms_accepted_at'),
   privacy_accepted_at: text('privacy_accepted_at'),
+  created_at: createdAt(),
+  updated_at: updatedAt(),
+});
+
+// Contact / billing / site addresses for a user. A client may have many sites;
+// addresses are kept separate from the profile. privacy_level gates exposure.
+export const contactAddresses = sqliteTable('contact_addresses', {
+  id: pk(),
+  user_id: text('user_id').notNull(),
+  address_type: text('address_type', { enum: ['contact', 'billing', 'site'] })
+    .notNull()
+    .default('contact'),
+  line_1: text('line_1'),
+  line_2: text('line_2'),
+  town_city: text('town_city'),
+  county: text('county'),
+  postcode: text('postcode'),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  is_primary: integer('is_primary', { mode: 'boolean' }).notNull().default(false),
+  privacy_level: text('privacy_level', { enum: ['private', 'job_visible', 'public'] })
+    .notNull()
+    .default('private'),
   created_at: createdAt(),
   updated_at: updatedAt(),
 });

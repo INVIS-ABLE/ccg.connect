@@ -50,6 +50,7 @@ import JobStatusBoard from '@/app/pages/admin/JobStatusBoard';
 
 // Shared
 import Messages from '@/app/pages/Messages';
+import Onboarding from '@/app/pages/Onboarding';
 
 // Heavy, route-split pages (calendar/gantt/charts kept out of the main bundle)
 const Schedule = lazy(() => import('@/app/pages/admin/Schedule'));
@@ -69,6 +70,18 @@ function RoleRoute({ role, children }) {
   return children;
 }
 
+/** Sends users who haven't completed onboarding to the onboarding wizard.
+ *  Admins (owner/ops_admin) are exempt. */
+function OnboardingGate({ children }) {
+  const { isLoading, principal, profile } = useAuth();
+  if (isLoading) return null;
+  const role = principal?.role;
+  const isAdmin = role === 'owner' || role === 'ops_admin';
+  const needsOnboarding = !isAdmin && (!profile || !profile.onboarding_completed_at);
+  if (needsOnboarding) return <Navigate to="/onboarding" replace />;
+  return children;
+}
+
 /** Role-aware root redirect — sends each role to their correct dashboard */
 function RoleDashboard() {
   const { principal } = useAuth();
@@ -81,7 +94,9 @@ function RoleDashboard() {
 
 const shell = (node) => (
   <ProtectedRoute>
-    <AppShell>{node}</AppShell>
+    <OnboardingGate>
+      <AppShell>{node}</AppShell>
+    </OnboardingGate>
   </ProtectedRoute>
 );
 
@@ -102,6 +117,16 @@ export default function App() {
             <Route path="/client-signup" element={<ClientSignup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Onboarding (authenticated, but outside the shell + gate) */}
+            <Route
+              path="/onboarding"
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Role-aware root dashboard */}
             <Route path="/" element={shell(<RoleDashboard />)} />

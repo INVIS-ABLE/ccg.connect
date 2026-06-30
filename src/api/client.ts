@@ -64,6 +64,22 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+  onboarding: {
+    submit: (data: {
+      role: 'contractor' | 'client';
+      first_name?: string;
+      last_name?: string;
+      display_name?: string;
+      email?: string;
+      phone?: string;
+      preferred_contact_method?: 'phone' | 'email' | 'sms' | 'whatsapp';
+      terms_accepted?: boolean;
+      privacy_accepted?: boolean;
+      address?: { line_1?: string; line_2?: string; town_city?: string; county?: string; postcode?: string };
+      contractor?: Record<string, unknown>;
+      client?: Record<string, unknown>;
+    }) => request<{ profile: UserProfile }>('/api/onboarding', { method: 'POST', body: JSON.stringify(data) }),
+  },
   profiles: {
     get: (userId: string) =>
       request<{ profile: UserProfile }>(`/api/profiles/${encodeURIComponent(userId)}`),
