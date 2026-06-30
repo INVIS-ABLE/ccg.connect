@@ -45,6 +45,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 /** Typed client for the CCG Connect API (api/routes/*). Grows with the backend. */
 export const api = {
   me: () => request<{ principal: Principal; profile: UserProfile | null }>('/api/me'),
+  admin: {
+    users: () => request<UserProfile[]>('/api/admin/users'),
+    setRole: (id: string, role: UserProfile['role']) =>
+      request<UserProfile>(`/api/admin/users/${encodeURIComponent(id)}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      }),
+    createStaff: (data: {
+      email: string;
+      password: string;
+      first_name?: string;
+      last_name?: string;
+      role: 'ops_admin' | 'owner';
+    }) => request<UserProfile>('/api/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+  },
   jobs: {
     list: () => request<{ jobs: Job[] }>('/api/jobs'),
     get: (id: string) => request<{ job: Job }>(`/api/jobs/${encodeURIComponent(id)}`),

@@ -7,6 +7,8 @@ import {
   canReadProfile,
   canWriteProfile,
   canSetRole,
+  canAssignRole,
+  canCreateStaff,
   canManageContractors,
   canReadContractor,
   canReadLeads,
@@ -161,6 +163,53 @@ describe('canSetRole (invariant 5: no self-promotion)', () => {
   it('non-admins may never set roles', () => {
     expect(canSetRole(contractor, 'u-con2')).toBe(false);
     expect(canSetRole(client, 'u-cli2')).toBe(false);
+  });
+});
+
+describe('canAssignRole (least privilege for staff roles)', () => {
+  const contractorTarget = { user_id: 'u-con', role: 'contractor' as const };
+  const opsTarget = { user_id: 'u-ops2', role: 'ops_admin' as const };
+  const ownerTarget = { user_id: 'u-owner2', role: 'owner' as const };
+
+  it('any admin may set a contractor↔client role', () => {
+    expect(canAssignRole(owner, contractorTarget, 'client')).toBe(true);
+    expect(canAssignRole(ops, contractorTarget, 'client')).toBe(true);
+  });
+  it('only owner may grant a privileged role', () => {
+    expect(canAssignRole(owner, contractorTarget, 'ops_admin')).toBe(true);
+    expect(canAssignRole(ops, contractorTarget, 'ops_admin')).toBe(false);
+    expect(canAssignRole(ops, contractorTarget, 'owner')).toBe(false);
+  });
+  it('only owner may change a user who is already an admin', () => {
+    expect(canAssignRole(ops, opsTarget, 'client')).toBe(false);
+    expect(canAssignRole(owner, opsTarget, 'client')).toBe(true);
+    expect(canAssignRole(ops, ownerTarget, 'client')).toBe(false);
+  });
+  it('no one may change their own role (invariant 5)', () => {
+    expect(canAssignRole(owner, { user_id: 'u-owner', role: 'owner' }, 'ops_admin')).toBe(false);
+  });
+  it('non-admins may never assign roles', () => {
+    expect(canAssignRole(contractor, contractorTarget, 'client')).toBe(false);
+    expect(canAssignRole(client, contractorTarget, 'client')).toBe(false);
+  });
+});
+
+describe('canCreateStaff (admin-only staff logins)', () => {
+  it('any admin may create an ops_admin', () => {
+    expect(canCreateStaff(owner, 'ops_admin')).toBe(true);
+    expect(canCreateStaff(ops, 'ops_admin')).toBe(true);
+  });
+  it('only owner may create another owner', () => {
+    expect(canCreateStaff(owner, 'owner')).toBe(true);
+    expect(canCreateStaff(ops, 'owner')).toBe(false);
+  });
+  it('staff creation never mints contractor/client roles', () => {
+    expect(canCreateStaff(owner, 'contractor')).toBe(false);
+    expect(canCreateStaff(owner, 'client')).toBe(false);
+  });
+  it('non-admins may never create staff', () => {
+    expect(canCreateStaff(contractor, 'ops_admin')).toBe(false);
+    expect(canCreateStaff(client, 'ops_admin')).toBe(false);
   });
 });
 
