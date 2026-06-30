@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ChevronUp } from 'lucide-react';
 import HeroCanvas from '@/components/hero/HeroCanvas';
+import { Turnstile, turnstileEnabled } from '@/app/auth/Turnstile';
 
 // Served from public/ — the Cook Construction Growth brand logo. (The old
 // wp-content URL 404s now that the marketing site moved it.)
@@ -20,6 +21,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [token, setToken] = useState(null);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const loginRef = useRef(null);
@@ -29,7 +31,10 @@ export default function Landing() {
     setError(null);
     setSubmitting(true);
     try {
-      const { error: signInError } = await signIn.email({ email, password });
+      const { error: signInError } = await signIn.email(
+        { email, password },
+        token ? { headers: { 'x-turnstile-token': token } } : undefined,
+      );
       setSubmitting(false);
       if (signInError) {
         const msg = signInError.message ?? '';
@@ -182,6 +187,8 @@ export default function Landing() {
               />
             </div>
 
+            <Turnstile onToken={setToken} />
+
             {error && (
               <p role="alert" className="text-sm text-red-400">
                 {error}
@@ -191,7 +198,7 @@ export default function Landing() {
             <Button
               type="submit"
               className="w-full bg-[#F97316] hover:bg-[#ea6c0a] text-white font-semibold"
-              disabled={submitting}
+              disabled={submitting || (turnstileEnabled && !token)}
             >
               {submitting ? 'Signing in…' : 'Sign in'}
             </Button>

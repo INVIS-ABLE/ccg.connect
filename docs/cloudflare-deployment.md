@@ -91,6 +91,20 @@ npx wrangler secret put DOCUMENSO_API_KEY   # from Documenso → Settings → AP
 Without the key the button simply reports that e-signatures aren't enabled.
 Configure the document template/fields on the Documenso side.
 
+**Bot protection (optional, Turnstile)** — sign-up and sign-in can be gated by
+Cloudflare Turnstile. It is **off by default**; enable it by setting **both**:
+
+```bash
+npx wrangler secret put TURNSTILE_SECRET_KEY   # server: verifies the token
+# and add the public site key at build time (Worker build env / .env):
+#   VITE_TURNSTILE_SITE_KEY=0x4AAAAAAA...
+```
+
+Set both together: the secret makes the server require a valid token, and the
+site key renders the widget that produces it. With only the secret set, sign-in
+would be blocked (no widget) — so don't set one without the other. With neither,
+auth behaves exactly as before.
+
 ## Database (D1)
 
 The D1 database is bound as `DB` in `wrangler.jsonc`. Apply migrations after schema

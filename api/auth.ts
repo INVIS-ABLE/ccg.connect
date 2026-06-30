@@ -26,6 +26,8 @@ export type AuthEnv = {
   ADMIN_BOOTSTRAP_SECRET?: string;
   // Optional integration: e-signatures. Unset → the signature seam is inert.
   DOCUMENSO_API_KEY?: string;
+  // Optional Cloudflare Turnstile secret. Unset → bot-protection guard is off.
+  TURNSTILE_SECRET_KEY?: string;
 };
 
 export function createAuth(env: AuthEnv) {
