@@ -11,8 +11,8 @@ function gbp(n) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
 }
 
-/** Inline quote builder: add line items, see live totals, and download a branded
- *  Quote PDF. Client-side only (not persisted) — generate-and-send for now. */
+/** Inline quote builder: add line items, see live totals, persist the quote
+ *  (Save → POST /api/quotes) and/or download a branded Quote PDF. */
 export function QuoteBuilder({ job, onSaved }) {
   const [recipient, setRecipient] = useState('');
   const [notes, setNotes] = useState('');

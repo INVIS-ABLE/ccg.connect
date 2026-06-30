@@ -77,6 +77,17 @@ export function canAccessJobChat(
   return false;
 }
 
+/**
+ * On-site check-in (QR clock-in). The same membership as a job delivery chat:
+ * the ops team and the contractors assigned to the job. Clients never check in.
+ */
+export function canCheckInToJob(
+  p: Principal,
+  ctx: { assignedContractorIds: readonly string[] },
+): boolean {
+  return canAccessJobChat(p, ctx);
+}
+
 // ── Assignments ─────────────────────────────────────────────────────────────
 export function canReadAssignment(p: Principal, a: AssignmentScope): boolean {
   if (isAdmin(p)) return true;
