@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Star, Building2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { PerformanceReviewDialog } from './PerformanceReviewDialog';
+import { ReviewStatusDialog } from './ReviewStatusDialog';
 
 function Overall({ value }) {
   if (value == null) return null;
@@ -23,6 +24,7 @@ function Overall({ value }) {
 export function PerformancePanel({ deploymentId, members }) {
   const [reviews, setReviews] = useState([]);
   const [dialog, setDialog] = useState(null); // { workerId, workerName, direction }
+  const [managing, setManaging] = useState(null); // an existing review to dispute/resolve
 
   const fetchReviews = useCallback(
     () => api.performance.list({ deploymentId }).then((r) => r.reviews ?? []).catch(() => []),
@@ -54,12 +56,17 @@ export function PerformancePanel({ deploymentId, members }) {
             <div key={m.worker_id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b py-2 last:border-0">
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.worker?.full_name ?? 'Worker'}</span>
               {client && (
-                <span className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setManaging(client)}
+                  className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted"
+                  title="View / dispute this review"
+                >
                   <Overall value={client.overall} />
                   {client.would_repeat === true && <ThumbsUp size={12} className="text-green-600" />}
                   {client.would_repeat === false && <ThumbsDown size={12} className="text-red-600" />}
                   {client.status !== 'recorded' && <span className="text-[10px] capitalize text-amber-600">· {client.status}</span>}
-                </span>
+                </button>
               )}
               <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setDialog({ workerId: m.worker_id, workerName: m.worker?.full_name, direction: 'client_on_worker' })}>
                 <Star size={13} /> {client ? 'Re-rate' : 'Rate worker'}
@@ -83,6 +90,13 @@ export function PerformancePanel({ deploymentId, members }) {
           onSaved={refresh}
         />
       )}
+
+      <ReviewStatusDialog
+        review={managing}
+        open={managing !== null}
+        onClose={() => setManaging(null)}
+        onSaved={refresh}
+      />
     </Card>
   );
 }
