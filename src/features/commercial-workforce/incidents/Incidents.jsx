@@ -8,6 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ShieldAlert, Plus, AlertTriangle } from 'lucide-react';
 import { INCIDENT_TYPES, INCIDENT_SEVERITIES, incidentTypeLabel, requiresUrgentEscalation } from '@/domain/commercial/incidents';
+import { IncidentDetailDialog } from './IncidentDetailDialog';
+
+const STATUS_FILTERS = ['all', 'open', 'investigating', 'closed'];
 
 const SEV_COLOR = {
   low: 'bg-muted text-muted-foreground',
@@ -19,8 +22,10 @@ const SEV_COLOR = {
 export default function Incidents() {
   const [rows, setRows] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ type: 'near_miss', severity: 'medium', occurred_at: '', description: '', immediate_action: '' });
+  const [form, setForm] = useState({ type: 'near_miss', severity: 'medium', occurred_at: '', description: '', immediate_action: '', witnesses: '' });
   const [saving, setSaving] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selected, setSelected] = useState(null);
 
   async function load() {
     const r = await api.incidents.list().catch(() => ({ incidents: [] }));
@@ -36,7 +41,7 @@ export default function Incidents() {
     try {
       const payload = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ''));
       await api.incidents.create({ ...payload, type: form.type });
-      setForm({ type: 'near_miss', severity: 'medium', occurred_at: '', description: '', immediate_action: '' });
+      setForm({ type: 'near_miss', severity: 'medium', occurred_at: '', description: '', immediate_action: '', witnesses: '' });
       setCreating(false);
       await load();
     } finally {
@@ -45,6 +50,7 @@ export default function Incidents() {
   }
 
   const willEscalate = requiresUrgentEscalation(form.type, form.severity);
+  const visible = statusFilter === 'all' ? rows : rows?.filter((r) => r.status === statusFilter);
 
   return (
     <div className="space-y-6">
@@ -78,6 +84,7 @@ export default function Incidents() {
               <div className="space-y-2 sm:col-span-2"><Label>When</Label><Input type="datetime-local" value={form.occurred_at} onChange={(e) => setForm({ ...form, occurred_at: e.target.value })} /></div>
               <div className="space-y-2 sm:col-span-2"><Label>What happened</Label><Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
               <div className="space-y-2 sm:col-span-2"><Label>Immediate action taken</Label><Textarea rows={2} value={form.immediate_action} onChange={(e) => setForm({ ...form, immediate_action: e.target.value })} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label>Witnesses</Label><Input value={form.witnesses} onChange={(e) => setForm({ ...form, witnesses: e.target.value })} placeholder="Names / contact (optional)" /></div>
               {willEscalate && (
                 <p className="flex items-center gap-1.5 text-xs text-red-700 dark:text-red-400 sm:col-span-2">
                   <AlertTriangle size={13} /> This will be flagged urgent and alert the ops team immediately.
@@ -89,12 +96,30 @@ export default function Incidents() {
         </Card>
       )}
 
+      {/* Status filter */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((s) => {
+          const count = s === 'all' ? rows?.length ?? 0 : rows?.filter((r) => r.status === s).length ?? 0;
+          return (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                statusFilter === s ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {s} {rows && <span className="opacity-60">({count})</span>}
+            </button>
+          );
+        })}
+      </div>
+
       {rows === null && <p className="text-sm text-muted-foreground">Loading…</p>}
       {rows?.length === 0 && <p className="text-sm text-muted-foreground">No incidents recorded.</p>}
 
       <div className="grid gap-3">
-        {rows?.map((i) => (
-          <Card key={i.id}>
+        {visible?.map((i) => (
+          <Card key={i.id} className="cursor-pointer transition-colors hover:border-primary/50" onClick={() => setSelected(i)}>
             <CardContent className="flex items-center gap-3 py-4">
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-2 font-medium">
@@ -108,7 +133,17 @@ export default function Incidents() {
             </CardContent>
           </Card>
         ))}
+        {rows && rows.length > 0 && visible.length === 0 && (
+          <p className="text-sm text-muted-foreground">No {statusFilter} incidents.</p>
+        )}
       </div>
+
+      <IncidentDetailDialog
+        incident={selected}
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        onSaved={load}
+      />
     </div>
   );
 }
