@@ -23,6 +23,7 @@ import type {
   WorkerCard,
   Gang,
   GangMember,
+  LabourRequest,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -376,6 +377,15 @@ export const api = {
       request<{ member: GangMember }>(`/api/gangs/${encodeURIComponent(gangId)}/members`, { method: 'POST', body: JSON.stringify(data) }),
     removeMember: (gangId: string, memberId: string) =>
       request<{ ok: true }>(`/api/gangs/${encodeURIComponent(gangId)}/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
+  },
+  labourRequests: {
+    list: (accountId?: string) =>
+      request<{ requests: LabourRequest[] }>(`/api/labour-requests${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
+    get: (id: string) => request<{ request: LabourRequest }>(`/api/labour-requests/${encodeURIComponent(id)}`),
+    create: (data: Partial<LabourRequest> & { account_id: string; title: string }) =>
+      request<{ request: LabourRequest }>('/api/labour-requests', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<LabourRequest>) =>
+      request<{ request: LabourRequest }>(`/api/labour-requests/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   checkins: {
     list: (jobId: string) =>
