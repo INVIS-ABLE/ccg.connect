@@ -24,6 +24,17 @@ export function isWithinRadius(center: LngLat, p: LngLat, radiusMiles: number): 
   return distanceMiles(center, p) <= radiusMiles;
 }
 
+/** Great-circle distance in whole metres (precise — for geofencing). */
+export function distanceMeters(a: LngLat, b: LngLat): number {
+  const km = distance(point([a.lng, a.lat]), point([b.lng, b.lat]), { units: 'kilometers' });
+  return Math.round(km * 1000);
+}
+
+/** Whether `p` lies within `radiusMeters` of `center` (site geofence check). */
+export function isWithinGeofence(center: LngLat, p: LngLat, radiusMeters: number): boolean {
+  return distanceMeters(center, p) <= radiusMeters;
+}
+
 /** GeoJSON polygon approximating a service-radius circle, for map display. */
 export function serviceAreaCircle(center: LngLat, radiusMiles: number): Feature<Polygon> {
   return circle([center.lng, center.lat], radiusMiles, { units: 'miles', steps: 64 });

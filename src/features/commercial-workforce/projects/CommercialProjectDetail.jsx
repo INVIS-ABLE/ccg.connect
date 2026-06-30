@@ -14,6 +14,7 @@ const EMPTY_SITE = {
   name: '', site_address: '', postcode: '', what3words: '', principal_contractor: '',
   site_manager: '', working_hours: '', ppe_requirements: '', induction_instructions: '',
   site_rules: '', required_cards: '', check_in_method: 'qr', po_number: '', cost_code: '',
+  latitude: '', longitude: '', geofence_radius_m: '',
 };
 
 export default function CommercialProjectDetail() {
@@ -98,6 +99,13 @@ export default function CommercialProjectDetail() {
                 <select id="s-checkin" className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm" value={form.check_in_method} onChange={(e) => setForm({ ...form, check_in_method: e.target.value })}>
                   {CHECK_IN_METHODS.map((m) => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
                 </select>
+              </div>
+              <div className="space-y-1.5"><Label>Latitude</Label><Input type="number" step="any" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} placeholder="51.5074" /></div>
+              <div className="space-y-1.5"><Label>Longitude</Label><Input type="number" step="any" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} placeholder="-0.1278" /></div>
+              <div className="space-y-1.5">
+                <Label>Geofence radius (m)</Label>
+                <Input type="number" min="0" step="10" value={form.geofence_radius_m} onChange={(e) => setForm({ ...form, geofence_radius_m: e.target.value })} placeholder="e.g. 150" />
+                <p className="text-xs text-muted-foreground">With lat/long + a radius, QR check-ins are flagged on/off site. Advisory only — never blocks.</p>
               </div>
               <div className="space-y-1.5 sm:col-span-2"><Label>Required cards / qualifications</Label><Input value={form.required_cards} onChange={(e) => setForm({ ...form, required_cards: e.target.value })} placeholder="CSCS, CPCS, Thames Water passport…" /></div>
               <div className="space-y-1.5 sm:col-span-2"><Label>PPE requirements</Label><Input value={form.ppe_requirements} onChange={(e) => setForm({ ...form, ppe_requirements: e.target.value })} placeholder="Orange PPE, safety boots…" /></div>

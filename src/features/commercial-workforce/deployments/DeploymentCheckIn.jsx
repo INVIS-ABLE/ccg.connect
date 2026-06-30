@@ -4,7 +4,7 @@ import { api, ApiError } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { MapPin, LogIn, LogOut, Clock, CheckCircle2, AlertTriangle, HardHat } from 'lucide-react';
+import { MapPin, LogIn, LogOut, Clock, CheckCircle2, AlertTriangle, HardHat, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 /** Best-effort browser geolocation — resolves to null if denied/unavailable so a
  *  check-in never blocks on location. Location is evidence, not a gate. */
@@ -20,6 +20,21 @@ function getLocation() {
 }
 
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null);
+
+/** Geofence indicator — green on-site / amber off-site. Renders nothing when the
+ *  site has no geofence or no location was captured (geofence_ok is null). */
+function GeoBadge({ record, className = '' }) {
+  if (record?.geofence_ok == null) return null;
+  return record.geofence_ok ? (
+    <span className={`flex items-center gap-1 text-xs text-green-600 ${className}`}>
+      <ShieldCheck size={12} /> On site
+    </span>
+  ) : (
+    <span className={`flex items-center gap-1 text-xs text-amber-600 ${className}`}>
+      <ShieldAlert size={12} /> {record.geofence_distance_m != null ? `~${Math.round(record.geofence_distance_m)}m off site` : 'Off site'}
+    </span>
+  );
+}
 
 /**
  * Mobile-first QR site check-in for a commercial deployment. A worker lands here
@@ -67,10 +82,16 @@ export default function DeploymentCheckIn() {
     setBusy(`${workerId ?? 'me'}:${type}`);
     try {
       const loc = await getLocation();
-      await api.deployments.checkin.record(id, { check_type: type, worker_id: workerId, ...(loc ?? {}) });
+      const { record: rec } = await api.deployments.checkin.record(id, { check_type: type, worker_id: workerId, ...(loc ?? {}) });
+      const offSite = rec?.geofence_ok === false;
       toast({
         title: type === 'arrival' ? 'Checked in' : 'Checked out',
-        description: loc ? 'Time and location recorded.' : 'Time recorded (location unavailable).',
+        description: offSite
+          ? `Recorded — but you appear ${Math.round(rec.geofence_distance_m)}m from the site. Ops will see this.`
+          : loc
+            ? 'Time and location recorded.'
+            : 'Time recorded (location unavailable).',
+        variant: offSite ? 'destructive' : undefined,
       });
       await load();
     } catch (err) {
@@ -134,6 +155,7 @@ export default function DeploymentCheckIn() {
                   {meWorker.check_out_time && ` · left ${fmtTime(meWorker.check_out_time)}`}
                 </span>
               )}
+              <GeoBadge record={meWorker} className="mt-1 justify-center" />
             </p>
             <div className="grid grid-cols-2 gap-3">
               <Button size="lg" className="h-16 flex-col gap-1" disabled={busy !== null} onClick={() => record('arrival')}>
@@ -174,6 +196,7 @@ export default function DeploymentCheckIn() {
                       'Not checked in'
                     )}
                   </p>
+                  <GeoBadge record={w} className="mt-0.5" />
                 </div>
                 <Button size="sm" variant={w.check_in_time ? 'outline' : 'default'} disabled={busy !== null} onClick={() => record('arrival', w.worker_id)}>
                   {busy === `${w.worker_id}:arrival` ? '…' : 'In'}
