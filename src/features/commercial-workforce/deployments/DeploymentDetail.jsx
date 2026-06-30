@@ -4,10 +4,11 @@ import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2, FileText, Receipt } from 'lucide-react';
+import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2, FileText, Receipt, UserCog } from 'lucide-react';
 import { DeploymentTimesheets } from './DeploymentTimesheets';
 import { DeploymentRollCall } from './DeploymentRollCall';
 import { DeploymentDiary } from './DeploymentDiary';
+import { ReplacementDialog } from './ReplacementDialog';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
 
@@ -25,6 +26,7 @@ export default function DeploymentDetail() {
   const [invoices, setInvoices] = useState([]);
   const [invoiceMsg, setInvoiceMsg] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [replacing, setReplacing] = useState(null);
 
   const load = useCallback(async () => {
     const [r, inv] = await Promise.all([
@@ -126,6 +128,11 @@ export default function DeploymentDetail() {
                 {m.worker?.primary_trade && <span className="ml-2 text-xs text-muted-foreground">· {m.worker.primary_trade}</span>}
               </div>
               {m.role && <span className="text-xs capitalize text-muted-foreground">{m.role}</span>}
+              {d.status !== 'completed' && d.status !== 'cancelled' && (
+                <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={() => setReplacing(m)}>
+                  <UserCog size={13} /> Replace
+                </Button>
+              )}
             </div>
           ))}
         </CardContent>
@@ -218,6 +225,13 @@ export default function DeploymentDetail() {
           ))}
         </CardContent>
       </Card>
+
+      <ReplacementDialog
+        deploymentId={d.id}
+        worker={replacing}
+        onClose={() => setReplacing(null)}
+        onReplaced={load}
+      />
     </div>
   );
 }

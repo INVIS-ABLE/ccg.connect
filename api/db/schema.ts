@@ -1325,3 +1325,20 @@ export const siteDiaryEntries = sqliteTable(
   },
   (t) => ({ byDeployment: index('ix_diary_deployment').on(t.deployment_id) }),
 );
+
+// Replacement audit — who was swapped out for whom on a deployment, and why.
+export const deploymentReplacements = sqliteTable(
+  'deployment_replacements',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    original_worker_id: text('original_worker_id').notNull(),
+    replacement_worker_id: text('replacement_worker_id'),
+    reason: text('reason'),
+    status: text('status', { enum: ['requested', 'filled', 'cancelled'] }).notNull().default('filled'),
+    requested_by: text('requested_by'),
+    filled_at: text('filled_at'),
+    created_at: createdAt(),
+  },
+  (t) => ({ byDeployment: index('ix_repl_deployment').on(t.deployment_id) }),
+);

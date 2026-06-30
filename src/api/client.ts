@@ -32,6 +32,8 @@ import type {
   CommercialInvoice,
   Incident,
   SiteDiaryEntry,
+  ReplacementCandidate,
+  DeploymentReplacement,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -419,6 +421,14 @@ export const api = {
         request<{ entries: SiteDiaryEntry[] }>(`/api/deployments/${encodeURIComponent(deploymentId)}/diary`),
       create: (deploymentId: string, data: Partial<SiteDiaryEntry> & { date: string }) =>
         request<{ entry: SiteDiaryEntry }>(`/api/deployments/${encodeURIComponent(deploymentId)}/diary`, { method: 'POST', body: JSON.stringify(data) }),
+    },
+    replacements: {
+      candidates: (deploymentId: string) =>
+        request<{ requirements: string[]; candidates: ReplacementCandidate[] }>(`/api/deployments/${encodeURIComponent(deploymentId)}/replacement-candidates`),
+      list: (deploymentId: string) =>
+        request<{ replacements: DeploymentReplacement[] }>(`/api/deployments/${encodeURIComponent(deploymentId)}/replacements`),
+      create: (deploymentId: string, data: { original_worker_id: string; replacement_worker_id: string; reason?: string }) =>
+        request<{ replacement: DeploymentReplacement }>(`/api/deployments/${encodeURIComponent(deploymentId)}/replacements`, { method: 'POST', body: JSON.stringify(data) }),
     },
   },
   incidents: {

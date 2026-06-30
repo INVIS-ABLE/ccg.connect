@@ -539,6 +539,25 @@ export interface SiteDiaryEntry {
   notes: string | null;
 }
 
+export interface ReplacementCandidate {
+  workerId: string;
+  name: string;
+  compliance: ComplianceCell;
+  score: number;
+}
+
+export interface DeploymentReplacement {
+  id: string;
+  deployment_id: string;
+  original_worker_id: string;
+  replacement_worker_id: string | null;
+  reason: string | null;
+  status: 'requested' | 'filled' | 'cancelled';
+  requested_by: string | null;
+  filled_at: string | null;
+  created_at: string;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;
