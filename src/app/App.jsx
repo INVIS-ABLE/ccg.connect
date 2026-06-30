@@ -51,6 +51,7 @@ import JobStatusBoard from '@/app/pages/admin/JobStatusBoard';
 // Shared
 import Messages from '@/app/pages/Messages';
 import Onboarding from '@/app/pages/Onboarding';
+import CheckIn from '@/app/pages/CheckIn';
 
 // Heavy, route-split pages (calendar/gantt/charts kept out of the main bundle)
 const Schedule = lazy(() => import('@/app/pages/admin/Schedule'));
@@ -124,6 +125,16 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Onboarding />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Site check-in (QR target) — authenticated; access enforced server-side */}
+            <Route
+              path="/checkin/:jobId"
+              element={
+                <ProtectedRoute>
+                  <CheckIn />
                 </ProtectedRoute>
               }
             />

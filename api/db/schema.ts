@@ -460,6 +460,32 @@ export const jobAssignments = sqliteTable('job_assignments', {
   updated_at: updatedAt(),
 });
 
+/**
+ * On-site check-ins (QR clock-in/out). A contractor scans the job's QR code on
+ * arrival/departure; we record the time and (with permission) their location as
+ * site evidence. contractor_id is the assigned contractor when known; user_id is
+ * always the person who checked in.
+ */
+export const jobCheckins = sqliteTable(
+  'job_checkins',
+  {
+    id: pk(),
+    job_id: text('job_id').notNull(),
+    contractor_id: text('contractor_id'),
+    user_id: text('user_id').notNull(),
+    check_type: text('check_type', { enum: ['arrival', 'departure'] }).notNull().default('arrival'),
+    checked_in_at: text('checked_in_at').notNull(),
+    latitude: real('latitude'),
+    longitude: real('longitude'),
+    accuracy_m: real('accuracy_m'),
+    note: text('note'),
+    created_at: createdAt(),
+  },
+  (t) => ({
+    byJob: index('ix_checkin_job').on(t.job_id),
+  }),
+);
+
 export const jobThreads = sqliteTable('job_threads', {
   id: pk(),
   job_id: text('job_id').notNull(),

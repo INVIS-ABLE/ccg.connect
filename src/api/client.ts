@@ -14,6 +14,7 @@ import type {
   CredentialType,
   ContractorCredential,
   Quote,
+  JobCheckin,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -306,6 +307,18 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+  },
+  checkins: {
+    list: (jobId: string) =>
+      request<{ checkins: JobCheckin[] }>(`/api/checkins?job_id=${encodeURIComponent(jobId)}`),
+    create: (data: {
+      job_id: string;
+      check_type: 'arrival' | 'departure';
+      latitude?: number;
+      longitude?: number;
+      accuracy_m?: number;
+      note?: string;
+    }) => request<{ checkin: JobCheckin }>('/api/checkins', { method: 'POST', body: JSON.stringify(data) }),
   },
   signatures: {
     request: (jobId: string) =>

@@ -236,6 +236,19 @@ export interface DirectMessage {
   sender?: MessagingContact | null;
 }
 
+export interface JobCheckin {
+  id: string;
+  job_id: string;
+  user_id: string;
+  user_name: string;
+  check_type: 'arrival' | 'departure';
+  checked_in_at: string;
+  latitude: number | null;
+  longitude: number | null;
+  accuracy_m: number | null;
+  note: string | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

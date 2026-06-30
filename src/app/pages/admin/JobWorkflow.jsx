@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MediaGallery } from '@/app/MediaGallery';
 import { QuoteBuilder } from '@/app/components/QuoteBuilder';
 import { SavedQuotes } from '@/app/components/SavedQuotes';
+import { JobCheckinPanel } from '@/app/components/JobCheckinPanel';
 import { ArrowLeft, Phone, Mail, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
@@ -293,6 +294,16 @@ export default function JobWorkflow() {
         </CardHeader>
         <CardContent>
           <MediaGallery jobId={id} canUpload />
+        </CardContent>
+      </Card>
+
+      {/* On-site check-in (QR) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Site check-in</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <JobCheckinPanel jobId={id} />
         </CardContent>
       </Card>
 

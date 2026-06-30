@@ -10,6 +10,7 @@ import {
   canAssignRole,
   canCreateStaff,
   canAccessJobChat,
+  canCheckInToJob,
   canManageContractors,
   canReadContractor,
   canReadLeads,
@@ -181,6 +182,17 @@ describe('canAccessJobChat (delivery-team room: ops + assigned contractors, no c
   });
   it('clients are never in a job delivery chat (hub-and-spoke preserved)', () => {
     expect(canAccessJobChat(client, { assignedContractorIds: ['c-1'] })).toBe(false);
+  });
+});
+
+describe('canCheckInToJob (QR site check-in: ops + assigned contractors)', () => {
+  it('an assigned contractor may check in; an unassigned one may not', () => {
+    expect(canCheckInToJob(contractor, { assignedContractorIds: ['c-1'] })).toBe(true);
+    expect(canCheckInToJob(contractor, { assignedContractorIds: ['c-2'] })).toBe(false);
+  });
+  it('admins may check in (e.g. recording a manual arrival); clients never can', () => {
+    expect(canCheckInToJob(owner, { assignedContractorIds: [] })).toBe(true);
+    expect(canCheckInToJob(client, { assignedContractorIds: ['c-1'] })).toBe(false);
   });
 });
 
