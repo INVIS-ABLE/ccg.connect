@@ -1,13 +1,18 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
-import { conversations, directMessages, userProfiles } from '../db/schema';
+import { conversations, directMessages, messageReactions, userProfiles } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import {
   canStartConversation,
   isConversationParticipant,
 } from '../../src/domain/permissions/permissions';
 import { isAppRole } from '../../src/domain/auth/roles';
+import {
+  isReactionEmoji,
+  summariseReactions,
+  type ReactionSummary,
+} from '../../src/domain/messaging/reactions';
 import type { AppEnv } from '../env';
 
 /**
@@ -43,9 +48,30 @@ function pairKey(a: string, b: string): string {
 
 type MessageRow = typeof directMessages.$inferSelect;
 
+/** Compact snapshot of a quoted message, enough for the UI to render the bar. */
+interface ReplyPreview {
+  id: string;
+  sender_user_id: string;
+  body: string;
+  attachment_type: MessageRow['attachment_type'];
+}
+
+function replyPreview(parent: MessageRow | undefined): ReplyPreview | null {
+  if (!parent) return null;
+  return {
+    id: parent.id,
+    sender_user_id: parent.sender_user_id,
+    body: parent.body,
+    attachment_type: parent.attachment_type,
+  };
+}
+
 /** Client shape of a message (without per-recipient `mine`). Never exposes the
  *  raw R2 key — attachments are served via the authorized attachment route. */
-function baseShape(m: MessageRow) {
+function baseShape(
+  m: MessageRow,
+  extras?: { reply_to?: ReplyPreview | null; reactions?: ReactionSummary[] },
+) {
   return {
     id: m.id,
     conversation_id: m.conversation_id,
@@ -56,6 +82,8 @@ function baseShape(m: MessageRow) {
     attachment_url: m.attachment_key ? `/api/messages/attachments/${m.id}/file` : null,
     attachment_type: m.attachment_type,
     attachment_name: m.attachment_name,
+    reply_to: extras?.reply_to ?? null,
+    reactions: extras?.reactions ?? [],
   };
 }
 
@@ -214,6 +242,23 @@ route.get('/conversations/:id/messages', async (c) => {
     .orderBy(asc(directMessages.created_at))
     .all();
 
+  // Reply previews resolve against messages already in this list (a reply always
+  // quotes an earlier message in the same conversation) — no extra query needed.
+  const byId = new Map(msgs.map((m) => [m.id, m]));
+
+  // One query for every reaction in the conversation, grouped per message.
+  const reactionRows = await db
+    .select({ message_id: messageReactions.message_id, emoji: messageReactions.emoji, user_id: messageReactions.user_id })
+    .from(messageReactions)
+    .where(eq(messageReactions.conversation_id, convo.id))
+    .all();
+  const reactionsByMsg = new Map<string, { emoji: string; user_id: string }[]>();
+  for (const r of reactionRows) {
+    const arr = reactionsByMsg.get(r.message_id) ?? [];
+    arr.push({ emoji: r.emoji, user_id: r.user_id });
+    reactionsByMsg.set(r.message_id, arr);
+  }
+
   // Mark incoming messages read (drives unread badges for the other endpoints).
   await db
     .update(directMessages)
@@ -227,12 +272,43 @@ route.get('/conversations/:id/messages', async (c) => {
     );
 
   return c.json({
-    messages: msgs.map((m) => ({ ...baseShape(m), mine: m.sender_user_id === me.userId })),
+    messages: msgs.map((m) => ({
+      ...baseShape(m, {
+        reply_to: m.reply_to_id ? replyPreview(byId.get(m.reply_to_id)) : null,
+        reactions: summariseReactions(reactionsByMsg.get(m.id) ?? [], me.userId),
+      }),
+      mine: m.sender_user_id === me.userId,
+    })),
   });
 });
 
+/**
+ * Resolve an optional reply target. Returns the parent row, `null` when no reply
+ * was requested, or the sentinel `'invalid'` when the id is missing/foreign to
+ * this conversation (caller maps that to a 400).
+ */
+async function resolveReplyParent(
+  db: ReturnType<typeof drizzle>,
+  conversationId: string,
+  replyToId: string | undefined,
+): Promise<MessageRow | null | 'invalid'> {
+  const id = replyToId?.trim();
+  if (!id) return null;
+  const parent = (
+    await db.select().from(directMessages).where(eq(directMessages.id, id)).limit(1)
+  )[0];
+  if (!parent || parent.conversation_id !== conversationId) return 'invalid';
+  return parent;
+}
+
 /** Persist last-message metadata + fan out a new message to the room. */
-async function afterSend(c: Context<AppEnv>, convoId: string, created: MessageRow, preview: string) {
+async function afterSend(
+  c: Context<AppEnv>,
+  convoId: string,
+  created: MessageRow,
+  preview: string,
+  reply_to: ReplyPreview | null = null,
+) {
   await drizzle(c.env.DB)
     .update(conversations)
     .set({ last_message_at: created.created_at instanceof Date ? created.created_at.toISOString() : new Date().toISOString(), last_message_preview: preview.slice(0, 140), updated_at: new Date() })
@@ -242,7 +318,7 @@ async function afterSend(c: Context<AppEnv>, convoId: string, created: MessageRo
     c.executionCtx.waitUntil(
       stub.fetch('https://chat/broadcast', {
         method: 'POST',
-        body: JSON.stringify({ type: 'message', message: baseShape(created) }),
+        body: JSON.stringify({ type: 'message', message: baseShape(created, { reply_to }) }),
       }),
     );
   } catch {
@@ -256,21 +332,34 @@ route.post('/conversations/:id/messages', async (c) => {
   if ('error' in loaded) return loaded.error;
   const { convo, db, me } = loaded;
 
-  const body = (await c.req.json().catch(() => null)) as { body?: string } | null;
+  const body = (await c.req.json().catch(() => null)) as
+    | { body?: string; reply_to_id?: string }
+    | null;
   const text = body?.body?.trim();
   if (!text) return c.json({ error: 'empty_message' }, 400);
   if (text.length > 4000) return c.json({ error: 'message_too_long' }, 400);
 
+  // Validate any quoted message belongs to THIS conversation (invariants 1 & 2 —
+  // never let a reply leak the existence/content of another conversation).
+  const parent = await resolveReplyParent(db, convo.id, body?.reply_to_id);
+  if (parent === 'invalid') return c.json({ error: 'invalid_reply_target' }, 400);
+
   const created = (
     await db
       .insert(directMessages)
-      .values({ conversation_id: convo.id, sender_user_id: me.userId, body: text })
+      .values({
+        conversation_id: convo.id,
+        sender_user_id: me.userId,
+        body: text,
+        reply_to_id: parent?.id ?? null,
+      })
       .returning()
   )[0];
   if (!created) return c.json({ error: 'send_failed' }, 500);
 
-  await afterSend(c, convo.id, created, text);
-  return c.json({ message: { ...baseShape(created), mine: true } }, 201);
+  const reply_to = replyPreview(parent ?? undefined);
+  await afterSend(c, convo.id, created, text, reply_to);
+  return c.json({ message: { ...baseShape(created, { reply_to }), mine: true } }, 201);
 });
 
 // POST /api/messages/conversations/:id/attachment — send an image / file / voice
@@ -289,6 +378,10 @@ route.post('/conversations/:id/attachment', async (c) => {
   if (!kind) return c.json({ error: 'unsupported_type' }, 400);
 
   const caption = typeof form?.get('body') === 'string' ? (form.get('body') as string).trim() : '';
+  const replyToId = typeof form?.get('reply_to_id') === 'string' ? (form.get('reply_to_id') as string) : undefined;
+  const parent = await resolveReplyParent(db, convo.id, replyToId);
+  if (parent === 'invalid') return c.json({ error: 'invalid_reply_target' }, 400);
+
   const key = `chat/${convo.id}/${crypto.randomUUID()}`;
   await c.env.MEDIA.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
 
@@ -303,14 +396,87 @@ route.post('/conversations/:id/attachment', async (c) => {
         attachment_type: kind,
         attachment_name: file.name,
         attachment_mime: file.type,
+        reply_to_id: parent?.id ?? null,
       })
       .returning()
   )[0];
   if (!created) return c.json({ error: 'send_failed' }, 500);
 
+  const reply_to = replyPreview(parent ?? undefined);
   const preview = caption || (kind === 'image' ? '📷 Photo' : kind === 'audio' ? '🎤 Voice note' : '📎 File');
-  await afterSend(c, convo.id, created, preview);
-  return c.json({ message: { ...baseShape(created), mine: true } }, 201);
+  await afterSend(c, convo.id, created, preview, reply_to);
+  return c.json({ message: { ...baseShape(created, { reply_to }), mine: true } }, 201);
+});
+
+// POST /api/messages/conversations/:id/messages/:messageId/reactions — toggle an
+// emoji reaction on a message. Body: { emoji }. Returns the message's updated
+// reaction summary for the caller and broadcasts a delta to the room.
+route.post('/conversations/:id/messages/:messageId/reactions', async (c) => {
+  const loaded = await loadOwnedConversation(c);
+  if ('error' in loaded) return loaded.error;
+  const { convo, db, me } = loaded;
+
+  const body = (await c.req.json().catch(() => null)) as { emoji?: string } | null;
+  const emoji = body?.emoji;
+  if (!isReactionEmoji(emoji)) return c.json({ error: 'invalid_emoji' }, 400);
+
+  const messageId = c.req.param('messageId');
+  const msg = (
+    await db.select().from(directMessages).where(eq(directMessages.id, messageId)).limit(1)
+  )[0];
+  if (!msg || msg.conversation_id !== convo.id) return c.json({ error: 'not_found' }, 404);
+
+  // Toggle: remove the caller's existing identical reaction, otherwise add it.
+  const existing = (
+    await db
+      .select({ id: messageReactions.id })
+      .from(messageReactions)
+      .where(
+        and(
+          eq(messageReactions.message_id, messageId),
+          eq(messageReactions.user_id, me.userId),
+          eq(messageReactions.emoji, emoji),
+        ),
+      )
+      .limit(1)
+  )[0];
+
+  let action: 'add' | 'remove';
+  if (existing) {
+    await db.delete(messageReactions).where(eq(messageReactions.id, existing.id));
+    action = 'remove';
+  } else {
+    await db.insert(messageReactions).values({
+      message_id: messageId,
+      conversation_id: convo.id,
+      user_id: me.userId,
+      emoji,
+    });
+    action = 'add';
+  }
+
+  // Recompute this message's summary for the caller.
+  const rows = await db
+    .select({ emoji: messageReactions.emoji, user_id: messageReactions.user_id })
+    .from(messageReactions)
+    .where(eq(messageReactions.message_id, messageId))
+    .all();
+  const reactions = summariseReactions(rows, me.userId);
+
+  // Broadcast a viewer-agnostic delta; each client recomputes its own `mine`.
+  try {
+    const stub = c.env.CHAT_ROOMS.get(c.env.CHAT_ROOMS.idFromName(convo.id));
+    c.executionCtx.waitUntil(
+      stub.fetch('https://chat/broadcast', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'reaction', messageId, emoji, userId: me.userId, action }),
+      }),
+    );
+  } catch {
+    /* realtime is an enhancement over polling */
+  }
+
+  return c.json({ messageId, reactions });
 });
 
 // GET /api/messages/attachments/:messageId/file — stream an attachment to a

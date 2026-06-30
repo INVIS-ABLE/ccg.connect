@@ -17,6 +17,7 @@ import type {
   MessagingContact,
   ConversationSummary,
   DirectMessage,
+  ReactionSummary,
 } from './types';
 
 /** Thrown on any non-2xx API response; carries the status and parsed body. */
@@ -249,15 +250,16 @@ export const api = {
       request<{ messages: DirectMessage[] }>(
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,
       ),
-    send: (conversationId: string, body: string) =>
+    send: (conversationId: string, body: string, replyToId?: string) =>
       request<{ message: DirectMessage }>(
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,
-        { method: 'POST', body: JSON.stringify({ body }) },
+        { method: 'POST', body: JSON.stringify({ body, reply_to_id: replyToId }) },
       ),
-    sendAttachment: async (conversationId: string, file: File, body?: string) => {
+    sendAttachment: async (conversationId: string, file: File, body?: string, replyToId?: string) => {
       const fd = new FormData();
       fd.append('file', file);
       if (body) fd.append('body', body);
+      if (replyToId) fd.append('reply_to_id', replyToId);
       const res = await fetch(
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/attachment`,
         { method: 'POST', credentials: 'include', body: fd },
@@ -266,6 +268,11 @@ export const api = {
       if (!res.ok) throw new ApiError(res.status, data);
       return data as { message: DirectMessage };
     },
+    react: (conversationId: string, messageId: string, emoji: string) =>
+      request<{ messageId: string; reactions: ReactionSummary[] }>(
+        `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions`,
+        { method: 'POST', body: JSON.stringify({ emoji }) },
+      ),
   },
   quotes: {
     list: (jobId?: string) =>

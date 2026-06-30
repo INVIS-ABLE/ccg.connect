@@ -57,6 +57,13 @@
       "when": 1782779829605,
       "tag": "0007_marvelous_namorita",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1782780922174,
+      "tag": "0008_chief_runaways",
+      "breakpoints": true
     }
   ]
 }

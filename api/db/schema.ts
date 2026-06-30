@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
 
 /**
  * Cloudflare D1 schema (Drizzle) — Phase 1 of the migration off Base44.
@@ -777,7 +777,32 @@ export const directMessages = sqliteTable('direct_messages', {
   attachment_type: text('attachment_type', { enum: ['image', 'file', 'audio'] }),
   attachment_name: text('attachment_name'),
   attachment_mime: text('attachment_mime'),
+  // Quoted reply: the id of an earlier message in the same conversation, or null.
+  reply_to_id: text('reply_to_id'),
   // Set when the *other* participant has read it (drives unread badges).
   read_at: text('read_at'),
   created_at: createdAt(),
 });
+
+/**
+ * Emoji reactions on a direct message. One row per (message, user, emoji); a
+ * user toggling the same emoji twice removes their reaction. `conversation_id`
+ * is denormalised so participant checks and per-conversation cleanup stay
+ * single-query.
+ */
+export const messageReactions = sqliteTable(
+  'message_reactions',
+  {
+    id: pk(),
+    message_id: text('message_id').notNull(),
+    conversation_id: text('conversation_id').notNull(),
+    user_id: text('user_id').notNull(),
+    emoji: text('emoji').notNull(),
+    created_at: createdAt(),
+  },
+  (t) => ({
+    // A user may apply each emoji to a message at most once (toggle semantics).
+    uniqByUserEmoji: uniqueIndex('ux_reaction_msg_user_emoji').on(t.message_id, t.user_id, t.emoji),
+    byMessage: index('ix_reaction_message').on(t.message_id),
+  }),
+);

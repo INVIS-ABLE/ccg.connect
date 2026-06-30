@@ -4,7 +4,7 @@ import { registerHandler, flushOutbox } from './syncQueue';
 
 // Map outbox "kinds" to the API calls that replay them. Extend as more flows
 // become offline-capable.
-registerHandler('sendMessage', (p) => api.messages.send(p.conversationId, p.body));
+registerHandler('sendMessage', (p) => api.messages.send(p.conversationId, p.body, p.replyToId));
 
 /** Mount once near the app root: flushes the offline outbox on load, when the
  *  network returns, and on a slow interval. Renders nothing. */
