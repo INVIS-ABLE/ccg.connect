@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, AlertTriangle, Truck, Plus, ChevronRight } from 'lucide-react';
 import { nextStatuses, labourRequestStatusLabel } from '@/domain/commercial/labourRequestStatus';
 import { isEmploymentModel, employmentModelInfo } from '@/domain/commercial/employmentModels';
 
@@ -17,14 +17,33 @@ export default function LabourRequestDetail() {
   const navigate = useNavigate();
   const [req, setReq] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [deps, setDeps] = useState([]);
+  const [gangs, setGangs] = useState([]);
+  const [gangId, setGangId] = useState('');
 
   const load = useCallback(async () => {
-    const r = await api.labourRequests.get(id).catch(() => null);
+    const [r, dp, gs] = await Promise.all([
+      api.labourRequests.get(id).catch(() => null),
+      api.deployments.list(id).catch(() => ({ deployments: [] })),
+      api.gangs.list().catch(() => ({ gangs: [] })),
+    ]);
     if (r) setReq(r.request);
+    setDeps(dp.deployments ?? []);
+    setGangs(gs.gangs ?? []);
   }, [id]);
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function createDeployment() {
+    setBusy(true);
+    try {
+      const r = await api.deployments.create({ labour_request_id: id, gang_id: gangId || undefined });
+      navigate(`/workforce/deployments/${r.deployment.id}`);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function advance(status) {
     setBusy(true);
@@ -122,9 +141,31 @@ export default function LabourRequestDetail() {
         </CardContent>
       </Card>
 
-      <p className="text-xs text-muted-foreground">
-        Next: deployment — match compliant, available workers/gangs to this request, confirm, and auto-create the site chat.
-      </p>
+      {/* Deployments */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><Truck size={15} /> Deployments</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {deps.length === 0 && <p className="text-xs text-muted-foreground">No deployments yet.</p>}
+          {deps.map((d) => (
+            <Link key={d.id} to={`/workforce/deployments/${d.id}`} className="flex items-center gap-2 rounded-md border p-2.5 text-sm hover:bg-muted">
+              <Truck size={15} className="text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">{d.start_date ? `From ${d.start_date}` : 'Deployment'}</span>
+              <Badge variant="outline" className="capitalize">{d.status}</Badge>
+              <ChevronRight size={15} className="text-muted-foreground" />
+            </Link>
+          ))}
+          <div className="flex flex-wrap items-end gap-2 pt-1">
+            <select className="h-9 min-w-48 flex-1 rounded-md border border-input bg-background px-2 text-sm" value={gangId} onChange={(e) => setGangId(e.target.value)}>
+              <option value="">Empty deployment (add workers later)</option>
+              {gangs.map((g) => <option key={g.id} value={g.id}>Gang: {g.name}</option>)}
+            </select>
+            <Button size="sm" disabled={busy} onClick={createDeployment} className="gap-1.5"><Plus size={14} /> New deployment</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Pick a gang to pre-fill its members, then confirm on the deployment to freeze compliance and auto-create the site chat.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

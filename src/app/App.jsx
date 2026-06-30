@@ -59,6 +59,8 @@ import Gangs from '@/features/commercial-workforce/gangs/Gangs';
 import GangDetail from '@/features/commercial-workforce/gangs/GangDetail';
 import LabourRequests from '@/features/commercial-workforce/labour-requests/LabourRequests';
 import LabourRequestDetail from '@/features/commercial-workforce/labour-requests/LabourRequestDetail';
+import Deployments from '@/features/commercial-workforce/deployments/Deployments';
+import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
 
 // Shared
 import Messages from '@/app/pages/Messages';
@@ -183,6 +185,8 @@ export default function App() {
             <Route path="/workforce/gangs/:id" element={adminShell(<GangDetail />)} />
             <Route path="/workforce/requests" element={adminShell(<LabourRequests />)} />
             <Route path="/workforce/requests/:id" element={adminShell(<LabourRequestDetail />)} />
+            <Route path="/workforce/deployments" element={adminShell(<Deployments />)} />
+            <Route path="/workforce/deployments/:id" element={adminShell(<DeploymentDetail />)} />
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
             <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
             <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />
