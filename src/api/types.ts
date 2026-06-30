@@ -622,6 +622,58 @@ export interface PortalCommercial {
   invoices: PortalInvoice[];
 }
 
+export type FormType = 'rams' | 'method_statement';
+
+export interface RamsHazard {
+  hazard: string;
+  who_at_risk: string;
+  likelihood: number;
+  severity: number;
+  controls: string;
+  residual_likelihood: number;
+  residual_severity: number;
+}
+
+export interface RamsContent {
+  sections: Record<string, string>;
+  hazards: RamsHazard[];
+}
+
+export interface FormCompleteness {
+  complete: boolean;
+  missing: string[];
+}
+
+export interface FormTemplate {
+  id: string;
+  name: string;
+  form_type: FormType;
+  description: string | null;
+  content: RamsContent;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FormDocument {
+  id: string;
+  template_id: string | null;
+  deployment_id: string | null;
+  form_type: FormType;
+  title: string;
+  reference: string | null;
+  site_name: string | null;
+  prepared_by: string | null;
+  content: RamsContent;
+  status: 'draft' | 'issued' | 'archived';
+  version: number;
+  issued_at: string | null;
+  completeness: FormCompleteness;
+  highest_residual: 'low' | 'medium' | 'high' | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

@@ -169,6 +169,13 @@
       "when": 1782794552305,
       "tag": "0023_little_boomer",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1782847159541,
+      "tag": "0024_modern_cloak",
+      "breakpoints": true
     }
   ]
 }
