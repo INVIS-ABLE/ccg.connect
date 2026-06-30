@@ -1267,3 +1267,61 @@ export const deploymentAttendance = sqliteTable(
     uniqPerDay: uniqueIndex('ux_att_deploy_worker_date').on(t.deployment_id, t.worker_id, t.date),
   }),
 );
+
+// Incidents — accidents, near misses, concerns, complaints. Linkable to a site,
+// deployment, worker or gang. restricted_notes are admin-only (sensitive).
+export const incidents = sqliteTable(
+  'incidents',
+  {
+    id: pk(),
+    type: text('type', {
+      enum: [
+        'accident', 'near_miss', 'safety_concern', 'behaviour', 'harassment',
+        'discrimination', 'fatigue', 'welfare', 'equipment', 'client_complaint', 'worker_complaint',
+      ],
+    }).notNull(),
+    severity: text('severity', { enum: ['low', 'medium', 'high', 'critical'] }).notNull().default('medium'),
+    status: text('status', { enum: ['open', 'investigating', 'closed'] }).notNull().default('open'),
+    account_id: text('account_id'),
+    site_id: text('site_id'),
+    deployment_id: text('deployment_id'),
+    worker_id: text('worker_id'),
+    gang_id: text('gang_id'),
+    occurred_at: text('occurred_at'),
+    description: text('description'),
+    immediate_action: text('immediate_action'),
+    witnesses: text('witnesses'),
+    investigation: text('investigation'),
+    outcome: text('outcome'),
+    restricted_notes: text('restricted_notes'),
+    urgent: integer('urgent', { mode: 'boolean' }).notNull().default(false),
+    reported_by: text('reported_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    bySite: index('ix_incident_site').on(t.site_id),
+    byDeployment: index('ix_incident_deployment').on(t.deployment_id),
+  }),
+);
+
+// Daily site diary per deployment.
+export const siteDiaryEntries = sqliteTable(
+  'site_diary_entries',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    date: text('date').notNull(),
+    weather: text('weather'),
+    headcount: integer('headcount'),
+    work_summary: text('work_summary'),
+    deliveries: text('deliveries'),
+    visitors: text('visitors'),
+    issues: text('issues'),
+    notes: text('notes'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byDeployment: index('ix_diary_deployment').on(t.deployment_id) }),
+);

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2, FileText, Receipt } from 'lucide-react';
 import { DeploymentTimesheets } from './DeploymentTimesheets';
 import { DeploymentRollCall } from './DeploymentRollCall';
+import { DeploymentDiary } from './DeploymentDiary';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
 
@@ -173,6 +174,14 @@ export default function DeploymentDetail() {
         <CardHeader className="pb-2"><CardTitle className="text-sm">Roll call &amp; attendance</CardTitle></CardHeader>
         <CardContent>
           <DeploymentRollCall deploymentId={d.id} members={members} />
+        </CardContent>
+      </Card>
+
+      {/* Site diary */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Site diary</CardTitle></CardHeader>
+        <CardContent>
+          <DeploymentDiary deploymentId={d.id} />
         </CardContent>
       </Card>
 

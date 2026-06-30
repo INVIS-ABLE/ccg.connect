@@ -5,6 +5,7 @@ import {
   deployments,
   deploymentWorkers,
   deploymentAttendance,
+  siteDiaryEntries,
   labourRequests,
   gangMembers,
   workers,
@@ -27,6 +28,10 @@ route.use('*', requireAuth);
 
 const admin = (c: Context<AppEnv>) => isAdmin(c.get('principal'));
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
+const num = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) : NaN;
+  return Number.isFinite(n) ? n : null;
+};
 
 /** Workers (passport + cards) for a deployment, shaped for the compliance matrix. */
 async function deploymentWorkerInputs(db: ReturnType<typeof drizzle>, deploymentId: string) {
@@ -248,6 +253,37 @@ route.post('/:id/attendance', async (c) => {
   }
   const inserted = await db.insert(deploymentAttendance).values({ deployment_id: deploymentId, worker_id: workerId, date, ...fields }).returning();
   return c.json({ record: inserted[0] }, 201);
+});
+
+// ── Site diary ───────────────────────────────────────────────────────────────
+route.get('/:id/diary', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const rows = await db.select().from(siteDiaryEntries).where(eq(siteDiaryEntries.deployment_id, c.req.param('id'))).orderBy(desc(siteDiaryEntries.date)).all();
+  return c.json({ entries: rows });
+});
+
+route.post('/:id/diary', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const date = str(body.date);
+  if (!date) return c.json({ error: 'date_required' }, 400);
+  const headcount = num(body.headcount);
+  const inserted = await db.insert(siteDiaryEntries).values({
+    deployment_id: c.req.param('id'),
+    date,
+    weather: str(body.weather),
+    headcount,
+    work_summary: str(body.work_summary),
+    deliveries: str(body.deliveries),
+    visitors: str(body.visitors),
+    issues: str(body.issues),
+    notes: str(body.notes),
+    created_by: me.userId,
+  }).returning();
+  return c.json({ entry: inserted[0] }, 201);
 });
 
 export default route;

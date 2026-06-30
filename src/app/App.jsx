@@ -61,6 +61,7 @@ import LabourRequests from '@/features/commercial-workforce/labour-requests/Labo
 import LabourRequestDetail from '@/features/commercial-workforce/labour-requests/LabourRequestDetail';
 import Deployments from '@/features/commercial-workforce/deployments/Deployments';
 import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
+import Incidents from '@/features/commercial-workforce/incidents/Incidents';
 
 // Shared
 import Messages from '@/app/pages/Messages';
@@ -187,6 +188,7 @@ export default function App() {
             <Route path="/workforce/requests/:id" element={adminShell(<LabourRequestDetail />)} />
             <Route path="/workforce/deployments" element={adminShell(<Deployments />)} />
             <Route path="/workforce/deployments/:id" element={adminShell(<DeploymentDetail />)} />
+            <Route path="/workforce/incidents" element={adminShell(<Incidents />)} />
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
             <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
             <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />
