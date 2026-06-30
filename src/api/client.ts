@@ -239,6 +239,18 @@ export const api = {
         `/api/messages/conversations/${encodeURIComponent(conversationId)}/messages`,
         { method: 'POST', body: JSON.stringify({ body }) },
       ),
+    sendAttachment: async (conversationId: string, file: File, body?: string) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (body) fd.append('body', body);
+      const res = await fetch(
+        `/api/messages/conversations/${encodeURIComponent(conversationId)}/attachment`,
+        { method: 'POST', credentials: 'include', body: fd },
+      );
+      const data: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new ApiError(res.status, data);
+      return data as { message: DirectMessage };
+    },
   },
   quotes: {
     list: (jobId?: string) =>

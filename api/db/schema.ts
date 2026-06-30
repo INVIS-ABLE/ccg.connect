@@ -771,6 +771,12 @@ export const directMessages = sqliteTable('direct_messages', {
   conversation_id: text('conversation_id').notNull(),
   sender_user_id: text('sender_user_id').notNull(),
   body: text('body').notNull(),
+  // Optional attachment (image / file / voice note). attachment_key is the R2
+  // object key — never exposed; served via the authorized attachment route.
+  attachment_key: text('attachment_key'),
+  attachment_type: text('attachment_type', { enum: ['image', 'file', 'audio'] }),
+  attachment_name: text('attachment_name'),
+  attachment_mime: text('attachment_mime'),
   // Set when the *other* participant has read it (drives unread badges).
   read_at: text('read_at'),
   created_at: createdAt(),

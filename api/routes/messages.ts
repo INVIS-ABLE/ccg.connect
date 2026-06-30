@@ -41,6 +41,48 @@ function pairKey(a: string, b: string): string {
   return [a, b].sort().join('__');
 }
 
+type MessageRow = typeof directMessages.$inferSelect;
+
+/** Client shape of a message (without per-recipient `mine`). Never exposes the
+ *  raw R2 key — attachments are served via the authorized attachment route. */
+function baseShape(m: MessageRow) {
+  return {
+    id: m.id,
+    conversation_id: m.conversation_id,
+    sender_user_id: m.sender_user_id,
+    body: m.body,
+    read_at: m.read_at,
+    created_at: m.created_at,
+    attachment_url: m.attachment_key ? `/api/messages/attachments/${m.id}/file` : null,
+    attachment_type: m.attachment_type,
+    attachment_name: m.attachment_name,
+  };
+}
+
+interface UploadedFile {
+  type: string;
+  size: number;
+  name: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+const ATTACHMENT_MAX = 25 * 1024 * 1024;
+function classifyAttachment(mime: string): 'image' | 'audio' | 'file' | null {
+  const m = mime.toLowerCase().split(';')[0]?.trim() ?? '';
+  if (m.startsWith('image/')) return 'image';
+  if (m.startsWith('audio/')) return 'audio';
+  // Documents / everything else we accept as a generic file.
+  if (
+    m === 'application/pdf' ||
+    m.startsWith('application/') ||
+    m.startsWith('text/') ||
+    m.startsWith('video/')
+  ) {
+    return 'file';
+  }
+  return null;
+}
+
 // GET /api/messages/contacts — people the caller is allowed to start a chat with.
 route.get('/contacts', async (c) => {
   const me = c.get('principal');
@@ -185,16 +227,28 @@ route.get('/conversations/:id/messages', async (c) => {
     );
 
   return c.json({
-    messages: msgs.map((m) => ({
-      id: m.id,
-      sender_user_id: m.sender_user_id,
-      body: m.body,
-      read_at: m.read_at,
-      created_at: m.created_at,
-      mine: m.sender_user_id === me.userId,
-    })),
+    messages: msgs.map((m) => ({ ...baseShape(m), mine: m.sender_user_id === me.userId })),
   });
 });
+
+/** Persist last-message metadata + fan out a new message to the room. */
+async function afterSend(c: Context<AppEnv>, convoId: string, created: MessageRow, preview: string) {
+  await drizzle(c.env.DB)
+    .update(conversations)
+    .set({ last_message_at: created.created_at instanceof Date ? created.created_at.toISOString() : new Date().toISOString(), last_message_preview: preview.slice(0, 140), updated_at: new Date() })
+    .where(eq(conversations.id, convoId));
+  try {
+    const stub = c.env.CHAT_ROOMS.get(c.env.CHAT_ROOMS.idFromName(convoId));
+    c.executionCtx.waitUntil(
+      stub.fetch('https://chat/broadcast', {
+        method: 'POST',
+        body: JSON.stringify({ type: 'message', message: baseShape(created) }),
+      }),
+    );
+  } catch {
+    /* realtime is an enhancement over polling */
+  }
+}
 
 // POST /api/messages/conversations/:id/messages — send a message.
 route.post('/conversations/:id/messages', async (c) => {
@@ -207,7 +261,6 @@ route.post('/conversations/:id/messages', async (c) => {
   if (!text) return c.json({ error: 'empty_message' }, 400);
   if (text.length > 4000) return c.json({ error: 'message_too_long' }, 400);
 
-  const now = new Date().toISOString();
   const created = (
     await db
       .insert(directMessages)
@@ -216,48 +269,72 @@ route.post('/conversations/:id/messages', async (c) => {
   )[0];
   if (!created) return c.json({ error: 'send_failed' }, 500);
 
-  await db
-    .update(conversations)
-    .set({ last_message_at: now, last_message_preview: text.slice(0, 140), updated_at: new Date() })
-    .where(eq(conversations.id, convo.id));
+  await afterSend(c, convo.id, created, text);
+  return c.json({ message: { ...baseShape(created), mine: true } }, 201);
+});
 
-  // Fan out to connected sockets via the conversation's Durable Object
-  // (best-effort; clients still have polling as a fallback).
-  try {
-    const stub = c.env.CHAT_ROOMS.get(c.env.CHAT_ROOMS.idFromName(convo.id));
-    c.executionCtx.waitUntil(
-      stub.fetch('https://chat/broadcast', {
-        method: 'POST',
-        body: JSON.stringify({
-          type: 'message',
-          message: {
-            id: created.id,
-            conversation_id: convo.id,
-            sender_user_id: created.sender_user_id,
-            body: created.body,
-            read_at: created.read_at,
-            created_at: created.created_at,
-          },
-        }),
-      }),
-    );
-  } catch {
-    /* non-fatal: realtime is an enhancement over polling */
-  }
+// POST /api/messages/conversations/:id/attachment — send an image / file / voice
+// note (multipart). Optional `body` becomes the caption.
+route.post('/conversations/:id/attachment', async (c) => {
+  const loaded = await loadOwnedConversation(c);
+  if ('error' in loaded) return loaded.error;
+  const { convo, db, me } = loaded;
 
-  return c.json(
-    {
-      message: {
-        id: created.id,
-        sender_user_id: created.sender_user_id,
-        body: created.body,
-        read_at: created.read_at,
-        created_at: created.created_at,
-        mine: true,
-      },
+  const form = await c.req.formData().catch(() => null);
+  const fileEntry = form?.get('file');
+  if (fileEntry == null || typeof fileEntry === 'string') return c.json({ error: 'file_required' }, 400);
+  const file = fileEntry as unknown as UploadedFile;
+  if (file.size <= 0 || file.size > ATTACHMENT_MAX) return c.json({ error: 'bad_size' }, 400);
+  const kind = classifyAttachment(file.type);
+  if (!kind) return c.json({ error: 'unsupported_type' }, 400);
+
+  const caption = typeof form?.get('body') === 'string' ? (form.get('body') as string).trim() : '';
+  const key = `chat/${convo.id}/${crypto.randomUUID()}`;
+  await c.env.MEDIA.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+
+  const created = (
+    await db
+      .insert(directMessages)
+      .values({
+        conversation_id: convo.id,
+        sender_user_id: me.userId,
+        body: caption,
+        attachment_key: key,
+        attachment_type: kind,
+        attachment_name: file.name,
+        attachment_mime: file.type,
+      })
+      .returning()
+  )[0];
+  if (!created) return c.json({ error: 'send_failed' }, 500);
+
+  const preview = caption || (kind === 'image' ? '📷 Photo' : kind === 'audio' ? '🎤 Voice note' : '📎 File');
+  await afterSend(c, convo.id, created, preview);
+  return c.json({ message: { ...baseShape(created), mine: true } }, 201);
+});
+
+// GET /api/messages/attachments/:messageId/file — stream an attachment to a
+// participant of its conversation.
+route.get('/attachments/:messageId/file', async (c) => {
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const msg = (
+    await db.select().from(directMessages).where(eq(directMessages.id, c.req.param('messageId'))).limit(1)
+  )[0];
+  if (!msg || !msg.attachment_key) return c.json({ error: 'not_found' }, 404);
+  const convo = (
+    await db.select().from(conversations).where(eq(conversations.id, msg.conversation_id)).limit(1)
+  )[0];
+  if (!convo || !isConversationParticipant(me, convo)) return c.json({ error: 'forbidden' }, 403);
+
+  const object = await c.env.MEDIA.get(msg.attachment_key);
+  if (!object) return c.json({ error: 'file_missing' }, 404);
+  return new Response(object.body, {
+    headers: {
+      'content-type': msg.attachment_mime ?? object.httpMetadata?.contentType ?? 'application/octet-stream',
+      'cache-control': 'private, max-age=3600',
     },
-    201,
-  );
+  });
 });
 
 // GET /api/messages/conversations/:id/ws — realtime channel for a conversation.

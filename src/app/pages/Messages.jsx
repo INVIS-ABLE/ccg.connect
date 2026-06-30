@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock } from 'lucide-react';
+import { MessageSquare, Send, Plus, ChevronLeft, Check, CheckCheck, Search, Clock, Paperclip, Mic, Square, FileText } from 'lucide-react';
 import { enqueue } from '@/offline/syncQueue';
 import { useDraft } from '@/offline/drafts';
 
@@ -92,6 +92,48 @@ export default function Messages() {
 
   const endRef = useRef(null);
   const lastCountRef = useRef(0);
+  const fileRef = useRef(null);
+  const recorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const [recording, setRecording] = useState(false);
+
+  async function sendAttachment(file) {
+    if (!file || !activeId) return;
+    try {
+      await api.messages.sendAttachment(activeId, file);
+      await loadMessages(activeId);
+      void loadConversations();
+    } catch {
+      /* surfaced to the user via the empty state staying; keep it simple */
+    }
+  }
+
+  async function toggleRecord() {
+    if (recording) {
+      recorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        const type = mr.mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type });
+        stream.getTracks().forEach((t) => t.stop());
+        setRecording(false);
+        await sendAttachment(new File([blob], `voice-note.${type.includes('ogg') ? 'ogg' : 'webm'}`, { type }));
+      };
+      recorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch {
+      setRecording(false);
+    }
+  }
   const wsRef = useRef(null);
   const typingTimerRef = useRef(null);
   const lastTypingSentRef = useRef(0);
@@ -432,7 +474,31 @@ export default function Messages() {
                         : 'bg-card border text-foreground rounded-bl-sm'
                     }`}
                   >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.body}</p>
+                    {m.attachment_url && m.attachment_type === 'image' && (
+                      <a href={m.attachment_url} target="_blank" rel="noreferrer">
+                        <img
+                          src={m.attachment_url}
+                          alt={m.attachment_name ?? 'image'}
+                          className="mb-1 max-h-60 rounded-lg object-cover"
+                        />
+                      </a>
+                    )}
+                    {m.attachment_url && m.attachment_type === 'audio' && (
+                      <audio controls src={m.attachment_url} className="mb-1 w-56 max-w-full" />
+                    )}
+                    {m.attachment_url && m.attachment_type === 'file' && (
+                      <a
+                        href={m.attachment_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mb-1 flex items-center gap-1.5 text-sm underline"
+                      >
+                        <FileText size={14} /> {m.attachment_name ?? 'File'}
+                      </a>
+                    )}
+                    {m.body && (
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{m.body}</p>
+                    )}
                     <span
                       className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${
                         m.mine ? 'text-primary-foreground/80' : 'text-muted-foreground'
@@ -455,15 +521,45 @@ export default function Messages() {
             </div>
 
             {/* Composer */}
-            <form onSubmit={sendMessage} className="flex gap-2 border-t p-3">
+            <form onSubmit={sendMessage} className="flex items-center gap-1.5 border-t p-3">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,application/pdf,audio/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) void sendAttachment(f);
+                }}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={() => fileRef.current?.click()}
+                aria-label="Attach file"
+              >
+                <Paperclip size={18} />
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant={recording ? 'destructive' : 'ghost'}
+                onClick={toggleRecord}
+                aria-label={recording ? 'Stop recording' : 'Record voice note'}
+              >
+                {recording ? <Square size={16} /> : <Mic size={18} />}
+              </Button>
               <Input
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
                   notifyTyping();
                 }}
-                placeholder="Type a message…"
+                placeholder={recording ? 'Recording…' : 'Type a message…'}
                 className="flex-1"
+                disabled={recording}
               />
               <Button type="submit" size="icon" disabled={!input.trim() || sending} aria-label="Send">
                 <Send size={16} />
