@@ -1217,3 +1217,27 @@ export const commercialTimesheets = sqliteTable(
   },
   (t) => ({ byDeployment: index('ix_ts_deployment').on(t.deployment_id) }),
 );
+
+// Commercial (client) invoices generated from approved/locked timesheets.
+export const commercialInvoices = sqliteTable(
+  'commercial_invoices',
+  {
+    id: pk(),
+    account_id: text('account_id'),
+    deployment_id: text('deployment_id'),
+    invoice_number: text('invoice_number'),
+    period_start: text('period_start'),
+    period_end: text('period_end'),
+    line_items: text('line_items'),
+    net_amount: real('net_amount').notNull().default(0),
+    vat_rate: real('vat_rate').notNull().default(0.2),
+    vat_amount: real('vat_amount').notNull().default(0),
+    gross_amount: real('gross_amount').notNull().default(0),
+    status: text('status', { enum: ['draft', 'issued', 'paid', 'cancelled'] }).notNull().default('draft'),
+    notes: text('notes'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byAccount: index('ix_cinv_account').on(t.account_id) }),
+);
