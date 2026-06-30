@@ -506,6 +506,39 @@ export interface AttendanceRecord {
   notes: string | null;
 }
 
+export interface Incident {
+  id: string;
+  type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'open' | 'investigating' | 'closed';
+  account_id: string | null;
+  site_id: string | null;
+  deployment_id: string | null;
+  worker_id: string | null;
+  gang_id: string | null;
+  occurred_at: string | null;
+  description: string | null;
+  immediate_action: string | null;
+  witnesses: string | null;
+  investigation: string | null;
+  outcome: string | null;
+  restricted_notes: string | null;
+  urgent: boolean;
+}
+
+export interface SiteDiaryEntry {
+  id: string;
+  deployment_id: string;
+  date: string;
+  weather: string | null;
+  headcount: number | null;
+  work_summary: string | null;
+  deliveries: string | null;
+  visitors: string | null;
+  issues: string | null;
+  notes: string | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

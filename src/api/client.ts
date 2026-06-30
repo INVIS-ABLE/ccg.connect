@@ -30,6 +30,8 @@ import type {
   AttendanceRecord,
   CommercialTimesheet,
   CommercialInvoice,
+  Incident,
+  SiteDiaryEntry,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -412,6 +414,20 @@ export const api = {
       set: (deploymentId: string, data: { worker_id: string; date: string; status: string; replacement_needed?: boolean; reason?: string; check_in_time?: string }) =>
         request<{ record: AttendanceRecord }>(`/api/deployments/${encodeURIComponent(deploymentId)}/attendance`, { method: 'POST', body: JSON.stringify(data) }),
     },
+    diary: {
+      list: (deploymentId: string) =>
+        request<{ entries: SiteDiaryEntry[] }>(`/api/deployments/${encodeURIComponent(deploymentId)}/diary`),
+      create: (deploymentId: string, data: Partial<SiteDiaryEntry> & { date: string }) =>
+        request<{ entry: SiteDiaryEntry }>(`/api/deployments/${encodeURIComponent(deploymentId)}/diary`, { method: 'POST', body: JSON.stringify(data) }),
+    },
+  },
+  incidents: {
+    list: () => request<{ incidents: Incident[] }>('/api/incidents'),
+    get: (id: string) => request<{ incident: Incident }>(`/api/incidents/${encodeURIComponent(id)}`),
+    create: (data: Partial<Incident> & { type: string }) =>
+      request<{ incident: Incident }>('/api/incidents', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Incident>) =>
+      request<{ incident: Incident }>(`/api/incidents/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   commercialTimesheets: {
     list: (deploymentId?: string) =>
