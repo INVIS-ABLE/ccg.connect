@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  Legend,
   XAxis,
   YAxis,
   Tooltip,
@@ -13,6 +17,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
+import { bucketByMonth } from '@/domain/reports/timeseries';
 
 const PALETTE = ['#f97316', '#1e3a5f', '#16a34a', '#8b5cf6', '#eab308', '#ef4444', '#0ea5e9', '#6b7280'];
 
@@ -47,6 +52,7 @@ export default function Reports() {
   const [contractors, setContractors] = useState([]);
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [months, setMonths] = useState(6);
 
   useEffect(() => {
     Promise.all([
@@ -77,6 +83,27 @@ export default function Reports() {
     return Object.entries(m).map(([name, value]) => ({ name, value: Math.round(value) }));
   }, [invoices]);
 
+  // ── Monthly trends (revenue vs cost vs profit, and jobs created) ──
+  const financeTrend = useMemo(() => {
+    const now = new Date();
+    const revenueRows = invoices.filter((i) => i.invoice_type === 'ccg_to_client');
+    const costRows = invoices.filter((i) => i.invoice_type === 'contractor_to_ccg');
+    const amount = (i) => i.gross_amount ?? i.net_amount ?? 0;
+    const rev = bucketByMonth(revenueRows, (i) => i.created_at, amount, months, now);
+    const cost = bucketByMonth(costRows, (i) => i.created_at, amount, months, now);
+    return rev.map((b, idx) => ({
+      label: b.label,
+      revenue: Math.round(b.value),
+      cost: Math.round(cost[idx]?.value ?? 0),
+      profit: Math.round(b.value - (cost[idx]?.value ?? 0)),
+    }));
+  }, [invoices, months]);
+
+  const jobsTrend = useMemo(
+    () => bucketByMonth(jobs, (j) => j.created_at, () => 1, months, new Date()),
+    [jobs, months],
+  );
+
   const stats = useMemo(() => {
     const active = jobs.filter((j) => !['completed', 'cancelled', 'draft'].includes(j.status)).length;
     const completed = jobs.filter((j) => j.status === 'completed').length;
@@ -105,6 +132,59 @@ export default function Reports() {
             <StatCard label="Approved contractors" value={stats.approved} />
             <StatCard label="Open leads" value={stats.openLeads} />
             <StatCard label="Timesheets to review" value={stats.pendingTs} />
+          </div>
+
+          {/* Trends */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Trends</h2>
+            <div className="flex gap-1 rounded-md border p-0.5">
+              {[6, 12].map((m) => (
+                <Button
+                  key={m}
+                  size="sm"
+                  variant={months === m ? 'default' : 'ghost'}
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setMonths(m)}
+                >
+                  {m}m
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Revenue, cost &amp; profit (£/month)</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={financeTrend} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip formatter={(v) => gbp(v)} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#16a34a" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="cost" name="Cost" stroke="#ef4444" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="profit" name="Profit" stroke="#1e3a5f" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Jobs created per month</CardTitle></CardHeader>
+              <CardContent className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={jobsTrend} margin={{ top: 8, right: 8, bottom: 8, left: -16 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Jobs" fill="#f97316" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
