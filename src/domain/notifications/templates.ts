@@ -5,6 +5,7 @@
  */
 export type NotificationType =
   | 'job_assigned'
+  | 'job_status_changed'
   | 'timesheet_approved'
   | 'timesheet_returned';
 
@@ -13,6 +14,31 @@ export interface NotificationTemplate {
   title: string;
   body: string;
   deep_link: string;
+}
+
+/** Human-friendly labels for the job statuses surfaced in notifications. */
+const STATUS_LABELS: Record<string, string> = {
+  enquiry: 'Enquiry',
+  quoted: 'Quote sent',
+  viewing: 'Viewing booked',
+  confirmed: 'Confirmed',
+  in_progress: 'In progress',
+  support: 'Support',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+export function jobStatusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status.replace(/_/g, ' ');
+}
+
+export function jobStatusChanged(jobTitle: string, status: string): NotificationTemplate {
+  return {
+    notification_type: 'job_status_changed',
+    title: 'Job status updated',
+    body: `“${jobTitle}” is now ${jobStatusLabel(status)}.`,
+    deep_link: '/contractor/jobs',
+  };
 }
 
 export function jobAssigned(jobTitle: string): NotificationTemplate {
