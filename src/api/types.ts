@@ -35,6 +35,10 @@ export interface Job {
   start_date: string | null;
   end_date: string | null;
   status: string;
+  sector?: 'domestic' | 'commercial' | null;
+  /** JSON array of { description, qty, unit_cost } — internal cost breakdown. */
+  materials?: string | null;
+  labour_cost?: number | null;
   // internal_notes / private_admin_notes are redacted for non-admins (server-side).
   internal_notes?: string | null;
   client_visible_notes: string | null;

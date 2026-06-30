@@ -342,6 +342,12 @@ export const jobs = sqliteTable('jobs', {
   hourly_rate: real('hourly_rate'),
   day_rate: real('day_rate'),
   headcount_required: integer('headcount_required').notNull().default(1),
+  // Job classification: domestic (homeowner) vs commercial (business/contract).
+  sector: text('sector', { enum: ['domestic', 'commercial'] }),
+  // Internal cost breakdown. materials is a JSON array of
+  // { description, qty, unit_cost }; labour_cost is the total labour figure.
+  materials: text('materials'),
+  labour_cost: real('labour_cost'),
   status: text('status', {
     enum: [
       'new_lead',

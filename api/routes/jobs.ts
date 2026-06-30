@@ -27,6 +27,7 @@ const WRITABLE: (keyof JobInsert)[] = [
   'client_contact_name', 'client_contact_phone', 'access_instructions',
   'parking_instructions', 'health_and_safety_notes', 'internal_notes',
   'client_visible_notes', 'assignment_locked',
+  'sector', 'materials', 'labour_cost',
 ];
 
 function pickWritable(body: Record<string, unknown>): Partial<JobInsert> {

@@ -13,6 +13,7 @@ import { QuoteBuilder } from '@/app/components/QuoteBuilder';
 import { SavedQuotes } from '@/app/components/SavedQuotes';
 import { JobCheckinPanel } from '@/app/components/JobCheckinPanel';
 import { JobContactsPanel } from '@/app/components/JobContactsPanel';
+import { JobCostingPanel } from '@/app/components/JobCostingPanel';
 import { ArrowLeft, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
@@ -162,6 +163,7 @@ export default function JobWorkflow() {
           <h1 className="text-xl font-bold">{job.title}</h1>
           <p className="text-xs text-muted-foreground">{job.job_reference ?? job.id.slice(0, 8).toUpperCase()}</p>
         </div>
+        {job.sector && <Badge variant="outline" className="capitalize">{job.sector}</Badge>}
         <Badge variant="secondary">{job.status}</Badge>
       </div>
 
@@ -311,6 +313,16 @@ export default function JobWorkflow() {
             Request client e-signature
           </Button>
           {sigMsg && <p className="w-full text-xs text-muted-foreground">{sigMsg}</p>}
+        </CardContent>
+      </Card>
+
+      {/* Cost breakdown (internal): sector, materials, labour, total */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Cost breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <JobCostingPanel job={job} onSaved={(j) => setJob(j)} />
         </CardContent>
       </Card>
 
