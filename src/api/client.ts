@@ -88,6 +88,19 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    photoUrl: (userId: string) => `/api/profiles/${encodeURIComponent(userId)}/photo`,
+    uploadPhoto: async (userId: string, file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/profiles/${encodeURIComponent(userId)}/photo`, {
+        method: 'POST',
+        credentials: 'include',
+        body: fd,
+      });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new ApiError(res.status, body);
+      return body as { profile_photo_url: string };
+    },
   },
   contractors: {
     list: () => request<{ contractors: Contractor[] }>('/api/contractors'),

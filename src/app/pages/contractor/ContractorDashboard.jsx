@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Clock, FileText, CheckCircle } from 'lucide-react';
+import { ProfileCompleteness } from '@/app/components/ProfileCompleteness';
 
 const URGENCY_COLOR = {
   low: 'bg-gray-100 text-gray-600',
@@ -45,6 +46,7 @@ export default function ContractorDashboard() {
 
   return (
     <div className="space-y-6">
+      <ProfileCompleteness />
       <div>
         <h1 className="text-2xl font-bold">Welcome back, {name}</h1>
         <p className="text-sm text-muted-foreground">Here's your work overview for today</p>

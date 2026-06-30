@@ -10,7 +10,16 @@ import {
   canWriteProfile,
   canSetRole,
 } from '../../src/domain/permissions/permissions';
+import { validateUpload } from '../../src/domain/media/validation';
 import type { AppEnv } from '../env';
+
+/** Minimal shape of an uploaded file (Workers File/Blob), avoiding the DOM lib. */
+interface UploadedFile {
+  type: string;
+  size: number;
+  name: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
 
 const route = new Hono<AppEnv>();
 route.use('*', requireAuth);
@@ -37,6 +46,49 @@ route.get('/:userId', async (c) => {
   const rows = await db.select().from(userProfiles).where(eq(userProfiles.user_id, userId)).limit(1);
   if (!rows[0]) return c.json({ error: 'not_found' }, 404);
   return c.json({ profile: rows[0] });
+});
+
+// POST /api/profiles/:userId/photo — upload an avatar (self or admin). Stored at
+// a fixed R2 key per user (overwrites); profile_photo_url points at the serve route.
+route.post('/:userId/photo', async (c) => {
+  const p = c.get('principal');
+  const userId = c.req.param('userId');
+  if (!canWriteProfile(p, { user_id: userId })) return c.json({ error: 'forbidden' }, 403);
+
+  const form = await c.req.formData().catch(() => null);
+  const fileEntry = form?.get('file');
+  if (fileEntry == null || typeof fileEntry === 'string') return c.json({ error: 'file_required' }, 400);
+  const file = fileEntry as unknown as UploadedFile;
+
+  const v = validateUpload(file.type, file.size);
+  if (!v.ok || v.mediaType !== 'image') return c.json({ error: 'image_required' }, 400);
+
+  const key = `avatars/${userId}`;
+  await c.env.MEDIA.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
+
+  const url = `/api/profiles/${userId}/photo`;
+  const db = drizzle(c.env.DB);
+  const existing = await db.select({ user_id: userProfiles.user_id }).from(userProfiles).where(eq(userProfiles.user_id, userId)).limit(1);
+  if (existing[0]) {
+    await db.update(userProfiles).set({ profile_photo_url: url }).where(eq(userProfiles.user_id, userId));
+  } else {
+    await db.insert(userProfiles).values({ user_id: userId, role: 'contractor', profile_photo_url: url });
+  }
+  return c.json({ profile_photo_url: url });
+});
+
+// GET /api/profiles/:userId/photo — serve the avatar. Any authenticated user may
+// view an avatar (they appear in chat and contacts).
+route.get('/:userId/photo', async (c) => {
+  const userId = c.req.param('userId');
+  const object = await c.env.MEDIA.get(`avatars/${userId}`);
+  if (!object) return c.json({ error: 'not_found' }, 404);
+  return new Response(object.body, {
+    headers: {
+      'content-type': object.httpMetadata?.contentType ?? 'image/jpeg',
+      'cache-control': 'private, max-age=3600',
+    },
+  });
 });
 
 // PATCH /api/profiles/:userId — update own profile (or any, for admins). Creates
