@@ -1,5 +1,6 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { createAuth } from './auth';
+import { verifyTurnstile } from './lib/integrations/turnstile';
 import type { AppEnv } from './env';
 import meRoutes from './routes/me';
 import jobRoutes from './routes/jobs';
@@ -42,6 +43,21 @@ export { ConversationRoom } from './chat/ConversationRoom';
 const app = new Hono<AppEnv>();
 
 app.get('/api/health', (c) => c.json({ ok: true, service: 'ccg-connect-api' }));
+
+// Bot protection (optional): when TURNSTILE_SECRET_KEY is set, sign-up and
+// sign-in require a valid Turnstile token (sent by the client as a header). No
+// secret → no-op, so auth is unaffected until you enable it.
+const turnstileGuard = async (c: Context<AppEnv>, next: () => Promise<void>) => {
+  const secret = c.env.TURNSTILE_SECRET_KEY;
+  if (secret) {
+    const token = c.req.header('x-turnstile-token');
+    const ok = await verifyTurnstile(secret, token, c.req.header('cf-connecting-ip') ?? undefined);
+    if (!ok) return c.json({ error: 'turnstile_failed' }, 403);
+  }
+  await next();
+};
+app.use('/api/auth/sign-up/email', turnstileGuard);
+app.use('/api/auth/sign-in/email', turnstileGuard);
 
 // Better Auth handles all of /api/auth/*.
 app.on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.raw));

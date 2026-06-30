@@ -4,8 +4,9 @@ import { signUp } from '@/api/authClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Turnstile, turnstileEnabled } from '@/app/auth/Turnstile';
 
-const CCG_LOGO = 'https://cookconstructiongrowth.co.uk/wp-content/uploads/2024/11/CCG-Logo.png';
+const CCG_LOGO = '/ccg-logo.png';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [role, setRole] = useState('contractor');
+  const [token, setToken] = useState(null);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -24,7 +26,10 @@ export default function Register() {
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setSubmitting(true);
     try {
-      const { error: signUpError } = await signUp.email({ email, password, name });
+      const { error: signUpError } = await signUp.email(
+        { email, password, name },
+        token ? { headers: { 'x-turnstile-token': token } } : undefined,
+      );
       setSubmitting(false);
       if (signUpError) {
         const msg = signUpError.message ?? '';
@@ -136,6 +141,8 @@ export default function Register() {
             />
           </div>
 
+          <Turnstile onToken={setToken} />
+
           {error && (
             <p role="alert" className="text-sm text-red-400">{error}</p>
           )}
@@ -143,7 +150,7 @@ export default function Register() {
           <Button
             type="submit"
             className="w-full bg-[#F97316] hover:bg-[#ea6c0a] text-white font-semibold"
-            disabled={submitting}
+            disabled={submitting || (turnstileEnabled && !token)}
           >
             {submitting ? 'Creating account…' : 'Create account'}
           </Button>
