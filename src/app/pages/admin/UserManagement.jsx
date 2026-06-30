@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { api } from '@/api/client';
+import { api, ApiError } from '@/api/client';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { isOwnerRole } from '@/domain/auth/roles';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, User, Briefcase, Building2, AlertTriangle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Shield, User, AlertTriangle, UserPlus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
 const ROLE_META = {
@@ -32,21 +33,31 @@ export default function UserManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    api.get('/admin/users').then((r) => setUsers(r.data)).finally(() => setLoading(false));
-  }, []);
+    api.admin
+      .users()
+      .then((rows) => setUsers(rows))
+      .catch(() =>
+        toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' }),
+      )
+      .finally(() => setLoading(false));
+  }, [toast]);
 
   async function changeRole(userId, newRole) {
     setUpdating(userId);
     setConfirmGrant(null);
     try {
-      const res = await api.patch(`/admin/users/${userId}/role`, { role: newRole });
-      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: res.data.role } : u)));
+      const updated = await api.admin.setRole(userId, newRole);
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...updated } : u)));
       toast({ title: 'Role updated', description: `User is now ${roleMeta(newRole).label}` });
     } catch {
       toast({ title: 'Error', description: 'Failed to update role', variant: 'destructive' });
     } finally {
       setUpdating(null);
     }
+  }
+
+  function onStaffCreated(profile) {
+    setUsers((prev) => (prev ? [...prev, profile] : [profile]));
   }
 
   return (
@@ -72,6 +83,9 @@ export default function UserManagement() {
         </div>
       )}
 
+      {/* Add staff member — admin-only creation of a new login for Lee + staff */}
+      <AddStaffForm isOwner={isOwner} onCreated={onStaffCreated} />
+
       {loading && <p className="text-muted-foreground text-sm">Loading users…</p>}
       {!loading && users?.length === 0 && <p className="text-muted-foreground text-sm">No users found yet.</p>}
 
@@ -79,7 +93,7 @@ export default function UserManagement() {
         {users?.map((user) => {
           const meta = roleMeta(user.role);
           const displayName = user.display_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Unnamed user';
-          const isSelf = user.id === principal?.id;
+          const isSelf = user.user_id === principal?.userId;
           const isConfirming = confirmGrant === user.id;
 
           return (
@@ -181,5 +195,172 @@ export default function UserManagement() {
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * Admin-only form to create a new staff login (Lee + any team members he gives
+ * accounts to). This is the privileged counterpart to public onboarding, which
+ * deliberately refuses owner/ops_admin roles — staff accounts can only be minted
+ * here by an existing admin. Owner role is owner-only to create.
+ */
+function AddStaffForm({ isOwner, onCreated }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    role: 'ops_admin',
+  });
+
+  function set(field, value) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function reset() {
+    setForm({ first_name: '', last_name: '', email: '', password: '', role: 'ops_admin' });
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!form.email.trim() || form.password.length < 8) {
+      toast({
+        title: 'Check the form',
+        description: 'A valid email and a password of at least 8 characters are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const profile = await api.admin.createStaff({
+        email: form.email.trim(),
+        password: form.password,
+        first_name: form.first_name.trim() || undefined,
+        last_name: form.last_name.trim() || undefined,
+        role: form.role,
+      });
+      onCreated(profile);
+      toast({
+        title: 'Staff login created',
+        description: `${profile.display_name || profile.email} can now sign in.`,
+      });
+      reset();
+      setOpen(false);
+    } catch (err) {
+      const code = err instanceof ApiError ? err.body?.error : null;
+      const messages = {
+        profile_exists: 'An account already exists for that email.',
+        weak_password: 'Password must be at least 8 characters.',
+        invalid_email: 'That email address is not valid.',
+        only_owner_can_create_owner: 'Only the Owner can create another Owner.',
+        Forbidden: 'You do not have permission to create staff.',
+      };
+      toast({
+        title: 'Could not create staff login',
+        description: (code && messages[code]) || 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <Button variant="outline" className="flex items-center gap-2" onClick={() => setOpen(true)}>
+        <UserPlus size={16} /> Add staff member
+      </Button>
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <h2 className="text-sm font-semibold flex items-center gap-2 mb-4">
+          <UserPlus size={16} className="text-primary" /> Add staff member
+        </h2>
+        <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-1.5">
+            <Label htmlFor="staff-first">First name</Label>
+            <Input
+              id="staff-first"
+              value={form.first_name}
+              onChange={(e) => set('first_name', e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="staff-last">Last name</Label>
+            <Input
+              id="staff-last"
+              value={form.last_name}
+              onChange={(e) => set('last_name', e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="staff-email">Email</Label>
+            <Input
+              id="staff-email"
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => set('email', e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="staff-password">Temporary password</Label>
+            <Input
+              id="staff-password"
+              type="password"
+              required
+              minLength={8}
+              value={form.password}
+              onChange={(e) => set('password', e.target.value)}
+              autoComplete="new-password"
+            />
+            <p className="text-xs text-muted-foreground">
+              At least 8 characters. Share it securely; they can change it after signing in.
+            </p>
+          </div>
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="staff-role">Role</Label>
+            <select
+              id="staff-role"
+              value={form.role}
+              onChange={(e) => set('role', e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="ops_admin">Operations Admin</option>
+              {isOwner && <option value="owner">Owner</option>}
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Operations Admins manage day-to-day work. {isOwner ? 'Owner has full control including user management.' : 'Only the Owner can create another Owner.'}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 sm:col-span-2">
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Creating…' : 'Create login'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={submitting}
+              onClick={() => {
+                reset();
+                setOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

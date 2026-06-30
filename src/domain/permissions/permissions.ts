@@ -85,6 +85,39 @@ export function canSetRole(p: Principal, targetUserId: string): boolean {
   return isAdmin(p) && targetUserId !== p.userId;
 }
 
+/**
+ * Whether `p` may assign `newRole` to the user identified by `target`.
+ *
+ * Layers on top of `canSetRole` the least-privilege rules for staff/admin roles:
+ *  - granting or revoking a privileged role (`owner`/`ops_admin`) is owner-only;
+ *  - only an owner may change a user who is currently an `owner`;
+ *  - no one changes their own role (invariant 5).
+ */
+export function canAssignRole(
+  p: Principal,
+  target: { user_id: string; role: AppRole },
+  newRole: AppRole,
+): boolean {
+  if (!canSetRole(p, target.user_id)) return false;
+  const touchesPrivileged =
+    isAdminRole(newRole) || isAdminRole(target.role);
+  if (touchesPrivileged && p.role !== 'owner') return false;
+  return true;
+}
+
+/**
+ * Whether `p` may create a brand-new staff login with `role`.
+ *
+ * Staff creation is the admin-only counterpart to public onboarding (which
+ * refuses owner/ops_admin entirely). Any admin may create an `ops_admin`; only
+ * an owner may create another `owner`.
+ */
+export function canCreateStaff(p: Principal, role: AppRole): boolean {
+  if (!isAdmin(p)) return false;
+  if (role === 'owner') return p.role === 'owner';
+  return role === 'ops_admin';
+}
+
 // ── Contractors ──────────────────────────────────────────────────────────────
 /** Approving/suspending/risk-rating contractors is an admin action. */
 export const canManageContractors = (p: Principal): boolean => isAdmin(p);
