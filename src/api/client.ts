@@ -34,6 +34,7 @@ import type {
   DeploymentMember,
   ComplianceCell,
   AttendanceRecord,
+  CheckinContext,
   CommercialTimesheet,
   CommercialInvoice,
   Incident,
@@ -456,6 +457,14 @@ export const api = {
         request<{ attendance: AttendanceRecord[] }>(`/api/deployments/${encodeURIComponent(deploymentId)}/attendance${date ? `?date=${encodeURIComponent(date)}` : ''}`),
       set: (deploymentId: string, data: { worker_id: string; date: string; status: string; replacement_needed?: boolean; reason?: string; check_in_time?: string }) =>
         request<{ record: AttendanceRecord }>(`/api/deployments/${encodeURIComponent(deploymentId)}/attendance`, { method: 'POST', body: JSON.stringify(data) }),
+    },
+    checkin: {
+      context: (deploymentId: string) =>
+        request<CheckinContext>(`/api/deployments/${encodeURIComponent(deploymentId)}/checkin`),
+      record: (
+        deploymentId: string,
+        data: { check_type: 'arrival' | 'departure'; worker_id?: string; latitude?: number; longitude?: number; accuracy_m?: number },
+      ) => request<{ record: AttendanceRecord }>(`/api/deployments/${encodeURIComponent(deploymentId)}/checkin`, { method: 'POST', body: JSON.stringify(data) }),
     },
     diary: {
       list: (deploymentId: string) =>

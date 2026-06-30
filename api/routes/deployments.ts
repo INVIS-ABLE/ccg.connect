@@ -12,6 +12,7 @@ import {
   workers,
   workerCards,
   conversations,
+  commercialSites,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
@@ -254,6 +255,135 @@ route.post('/:id/attendance', async (c) => {
     return c.json({ record: updated[0] });
   }
   const inserted = await db.insert(deploymentAttendance).values({ deployment_id: deploymentId, worker_id: workerId, date, ...fields }).returning();
+  return c.json({ record: inserted[0] }, 201);
+});
+
+// ── QR site check-in ─────────────────────────────────────────────────────────
+// A worker scans the site QR and clocks themselves in/out; ops or the gang
+// leader can clock a worker in from the same screen (kiosk style). Writes to
+// deployment_attendance with method='qr' and the captured location as evidence.
+// Roll-call still overrides — GPS is never the sole truth (CLAUDE.md / HSE).
+
+/** The worker record (if any) linked to the caller's login. */
+async function callerWorkerId(db: ReturnType<typeof drizzle>, userId: string): Promise<string | null> {
+  const row = (await db.select({ id: workers.id }).from(workers).where(eq(workers.user_id, userId)).limit(1))[0];
+  return row?.id ?? null;
+}
+
+async function workerOnDeployment(db: ReturnType<typeof drizzle>, deploymentId: string, workerId: string): Promise<boolean> {
+  const row = (await db.select({ id: deploymentWorkers.id }).from(deploymentWorkers)
+    .where(and(eq(deploymentWorkers.deployment_id, deploymentId), eq(deploymentWorkers.worker_id, workerId))).limit(1))[0];
+  return Boolean(row);
+}
+
+const todayDate = () => new Date().toISOString().slice(0, 10);
+
+// GET /api/deployments/:id/checkin — context for the check-in screen.
+route.get('/:id/checkin', async (c) => {
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const dep = (await db.select().from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  if (!dep) return c.json({ error: 'not_found' }, 404);
+
+  const isAdminUser = admin(c);
+  const myWorkerId = isAdminUser ? null : await callerWorkerId(db, me.userId);
+  if (!isAdminUser && !(myWorkerId && (await workerOnDeployment(db, id, myWorkerId)))) {
+    return c.json({ error: 'forbidden' }, 403);
+  }
+
+  const site = dep.site_id
+    ? (await db.select({ name: commercialSites.name, postcode: commercialSites.postcode })
+        .from(commercialSites).where(eq(commercialSites.id, dep.site_id)).limit(1))[0] ?? null
+    : null;
+  const date = todayDate();
+  const att = await db.select().from(deploymentAttendance)
+    .where(and(eq(deploymentAttendance.deployment_id, id), eq(deploymentAttendance.date, date))).all();
+  const recordOf = (wid: string) => att.find((a) => a.worker_id === wid) ?? null;
+
+  const base = {
+    deployment: {
+      id: dep.id, status: dep.status, start_date: dep.start_date,
+      site_name: site?.name ?? null, site_postcode: site?.postcode ?? null,
+    },
+    date,
+    is_admin: isAdminUser,
+  };
+
+  // Admins see the full roster + today's marks; a worker sees only their own
+  // status (never other workers' names — invariant: minimal disclosure).
+  if (isAdminUser) {
+    const { dws, workersById } = await deploymentWorkerInputs(db, id);
+    const roster = dws.map((d) => {
+      const r = recordOf(d.worker_id);
+      return {
+        worker_id: d.worker_id,
+        full_name: workersById.get(d.worker_id)?.full_name ?? 'Worker',
+        status: r?.status ?? null, check_in_time: r?.check_in_time ?? null, check_out_time: r?.check_out_time ?? null,
+      };
+    });
+    return c.json({ ...base, roster });
+  }
+
+  const meWorker = (await db.select({ full_name: workers.full_name }).from(workers).where(eq(workers.id, myWorkerId!)).limit(1))[0];
+  const r = recordOf(myWorkerId!);
+  return c.json({
+    ...base,
+    me_worker: {
+      id: myWorkerId, full_name: meWorker?.full_name ?? 'You',
+      status: r?.status ?? null, check_in_time: r?.check_in_time ?? null, check_out_time: r?.check_out_time ?? null,
+    },
+  });
+});
+
+// POST /api/deployments/:id/checkin — record a QR arrival/departure (+ location).
+route.post('/:id/checkin', async (c) => {
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const dep = (await db.select({ id: deployments.id }).from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  if (!dep) return c.json({ error: 'not_found' }, 404);
+
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const checkType = body.check_type === 'departure' ? 'departure' : 'arrival';
+
+  // Admins may clock any worker on the deployment; a worker clocks only themselves.
+  const myWorkerId = await callerWorkerId(db, me.userId);
+  const targetWorkerId = admin(c) && str(body.worker_id) ? str(body.worker_id) : myWorkerId;
+  if (!targetWorkerId) return c.json({ error: 'no_worker_for_user' }, 403);
+  if (!(await workerOnDeployment(db, id, targetWorkerId))) return c.json({ error: 'forbidden' }, 403);
+
+  const date = todayDate();
+  const now = new Date().toISOString();
+  const loc = { check_in_lat: num(body.latitude), check_in_lng: num(body.longitude), check_in_accuracy_m: num(body.accuracy_m) };
+  const existing = (await db.select().from(deploymentAttendance)
+    .where(and(eq(deploymentAttendance.deployment_id, id), eq(deploymentAttendance.worker_id, targetWorkerId), eq(deploymentAttendance.date, date))).limit(1))[0];
+
+  if (checkType === 'departure') {
+    if (existing) {
+      const updated = await db.update(deploymentAttendance)
+        .set({ check_out_time: now, method: 'qr', confirmed_by: me.userId, updated_at: new Date() })
+        .where(eq(deploymentAttendance.id, existing.id)).returning();
+      return c.json({ record: updated[0] });
+    }
+    const inserted = await db.insert(deploymentAttendance).values({
+      deployment_id: id, worker_id: targetWorkerId, date, status: 'present',
+      check_out_time: now, method: 'qr', confirmed_by: me.userId, ...loc,
+    }).returning();
+    return c.json({ record: inserted[0] }, 201);
+  }
+
+  // arrival — keep an earlier check-in time if one exists; refresh location.
+  if (existing) {
+    const updated = await db.update(deploymentAttendance)
+      .set({ check_in_time: existing.check_in_time ?? now, method: 'qr', confirmed_by: me.userId, ...loc, updated_at: new Date() })
+      .where(eq(deploymentAttendance.id, existing.id)).returning();
+    return c.json({ record: updated[0] });
+  }
+  const inserted = await db.insert(deploymentAttendance).values({
+    deployment_id: id, worker_id: targetWorkerId, date, status: 'present',
+    check_in_time: now, method: 'qr', confirmed_by: me.userId, ...loc,
+  }).returning();
   return c.json({ record: inserted[0] }, 201);
 });
 

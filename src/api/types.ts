@@ -506,6 +506,32 @@ export interface AttendanceRecord {
   notes: string | null;
 }
 
+/** A worker's today status as seen on the QR check-in screen. */
+export interface CheckinStatus {
+  worker_id: string;
+  full_name: string;
+  status: 'present' | 'late' | 'absent' | 'no_show' | null;
+  check_in_time: string | null;
+  check_out_time: string | null;
+}
+
+/** Context for the QR site check-in screen (worker self-service or admin kiosk). */
+export interface CheckinContext {
+  deployment: {
+    id: string;
+    status: string;
+    start_date: string | null;
+    site_name: string | null;
+    site_postcode: string | null;
+  };
+  date: string;
+  is_admin: boolean;
+  /** Present for admins/ops: the full roster with today's marks. */
+  roster?: CheckinStatus[];
+  /** Present for a worker checking themselves in. */
+  me_worker?: CheckinStatus;
+}
+
 export interface Incident {
   id: string;
   type: string;
