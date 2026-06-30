@@ -199,6 +199,9 @@ export interface DirectMessage {
   read_at: string | null;
   created_at: string;
   mine: boolean;
+  attachment_url?: string | null;
+  attachment_type?: 'image' | 'audio' | 'file' | null;
+  attachment_name?: string | null;
 }
 
 export interface MatchCandidate {
