@@ -562,6 +562,26 @@ export interface KidDocument {
   acknowledged_signature: string | null;
 }
 
+export interface PerformanceReview {
+  id: string;
+  deployment_id: string;
+  worker_id: string;
+  direction: 'client_on_worker' | 'worker_on_site';
+  scores: Record<string, number>;
+  overall: number | null;
+  would_repeat: boolean | null;
+  comment: string | null;
+  evidence: string | null;
+  status: 'recorded' | 'disputed' | 'upheld' | 'withdrawn';
+}
+
+export interface WorkerPerformanceSummary {
+  worker_id: string;
+  count: number;
+  average: number | null;
+  would_repeat_rate: number | null;
+}
+
 export interface Incident {
   id: string;
   type: string;

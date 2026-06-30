@@ -197,6 +197,13 @@
       "when": 1782857983549,
       "tag": "0027_peaceful_shard",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1782859270988,
+      "tag": "0028_solid_kabuki",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,8 @@ import type {
   AttendanceRecord,
   CheckinContext,
   KidDocument,
+  PerformanceReview,
+  WorkerPerformanceSummary,
   CommercialTimesheet,
   CommercialInvoice,
   Incident,
@@ -500,6 +502,20 @@ export const api = {
       request<{ kid: KidDocument }>(`/api/kids/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     acknowledge: (id: string, signature: string) =>
       request<{ kid: KidDocument }>(`/api/kids/${encodeURIComponent(id)}/acknowledge`, { method: 'POST', body: JSON.stringify({ signature }) }),
+  },
+  performance: {
+    list: (params: { deploymentId?: string; workerId?: string }) => {
+      const q = params.deploymentId ? `deployment_id=${encodeURIComponent(params.deploymentId)}` : `worker_id=${encodeURIComponent(params.workerId ?? '')}`;
+      return request<{ reviews: PerformanceReview[] }>(`/api/performance?${q}`);
+    },
+    summary: (workerId: string) =>
+      request<WorkerPerformanceSummary>(`/api/performance/worker/${encodeURIComponent(workerId)}/summary`),
+    create: (data: {
+      deployment_id: string; worker_id: string; direction: 'client_on_worker' | 'worker_on_site';
+      scores: Record<string, number>; would_repeat?: boolean; comment?: string; evidence?: string;
+    }) => request<{ review: PerformanceReview }>('/api/performance', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { status?: string; comment?: string }) =>
+      request<{ review: PerformanceReview }>(`/api/performance/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   dashboard: {
     commercial: (months?: number) =>

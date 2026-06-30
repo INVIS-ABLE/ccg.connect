@@ -1414,6 +1414,37 @@ export const kidDocuments = sqliteTable(
   }),
 );
 
+// ── Performance & quality reviews ────────────────────────────────────────────
+// One review per completed assignment: the client rates the worker, and the
+// worker gives feedback on the site. `scores` is a JSON map of dimension → 1..5.
+// NOT an automated blacklist — low scores require an evidenced reason, the
+// register is restricted to ops, and records are appealable (status field).
+export const performanceReviews = sqliteTable(
+  'performance_reviews',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    worker_id: text('worker_id').notNull(),
+    // Who is reviewing whom.
+    direction: text('direction', { enum: ['client_on_worker', 'worker_on_site'] }).notNull(),
+    scores: text('scores'), // JSON: { dimension: 1..5 }
+    overall: real('overall'),
+    would_repeat: integer('would_repeat', { mode: 'boolean' }),
+    comment: text('comment'),
+    // Evidence is required when any dimension is poor (see domain/performance).
+    evidence: text('evidence'),
+    // Appeal/review state — a worker can contest a negative review.
+    status: text('status', { enum: ['recorded', 'disputed', 'upheld', 'withdrawn'] }).notNull().default('recorded'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    byDeployment: index('ix_perf_deployment').on(t.deployment_id),
+    byWorker: index('ix_perf_worker').on(t.worker_id),
+  }),
+);
+
 // ── Forms: RAMS & Method Statements ──────────────────────────────────────────
 // Reusable templates authored by ops; `content` is the JSON RamsContent shape
 // (sections + hazard table) from src/domain/forms/rams.ts.
