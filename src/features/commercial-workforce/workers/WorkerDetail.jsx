@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, IdCard, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Plus, IdCard, ShieldCheck, Star } from 'lucide-react';
 import { cardStatus } from '@/domain/workforce/cardStatus';
 
 const RTW_STATUSES = ['unchecked', 'checked', 'expired', 'restricted'];
@@ -28,11 +28,13 @@ export default function WorkerDetail() {
   const [savingRtw, setSavingRtw] = useState(false);
   const [card, setCard] = useState({ card_type: '', reference: '', issuer: '', expiry_date: '' });
   const [busy, setBusy] = useState(false);
+  const [perf, setPerf] = useState(null);
 
   const load = useCallback(async () => {
-    const [w, cs] = await Promise.all([
+    const [w, cs, perfSummary] = await Promise.all([
       api.workers.get(id).catch(() => null),
       api.workers.cards.list(id).catch(() => ({ cards: [] })),
+      api.performance.summary(id).catch(() => null),
     ]);
     if (w) {
       setWorker(w.worker);
@@ -45,6 +47,7 @@ export default function WorkerDetail() {
       });
     }
     setCards(cs.cards ?? []);
+    setPerf(perfSummary);
   }, [id]);
   useEffect(() => {
     void load();
@@ -93,6 +96,15 @@ export default function WorkerDetail() {
             {worker.primary_trade || 'Trade not set'}{worker.mobile ? ` · ${worker.mobile}` : ''}{worker.base_postcode ? ` · ${worker.base_postcode}` : ''}
           </p>
         </div>
+        {perf && perf.count > 0 && perf.average != null && (
+          <span
+            className="flex items-center gap-1 rounded-full bg-muted px-2 py-1 text-xs font-semibold"
+            title={`${perf.count} client review${perf.count === 1 ? '' : 's'}${perf.would_repeat_rate != null ? ` · ${Math.round(perf.would_repeat_rate * 100)}% would use again` : ''}`}
+          >
+            <Star size={12} className="fill-amber-400 text-amber-400" /> {perf.average.toFixed(1)}
+            <span className="text-muted-foreground">({perf.count})</span>
+          </span>
+        )}
         <Badge variant="secondary" className="capitalize">{worker.status}</Badge>
       </div>
 
