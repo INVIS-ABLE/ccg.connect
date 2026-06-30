@@ -868,3 +868,111 @@ export const messageReactions = sqliteTable(
     byMessage: index('ix_reaction_message').on(t.message_id),
   }),
 );
+
+// ── Commercial / agency (labour supply) ──────────────────────────────────────
+// Enterprise corporate structure: Corporate account → Project → Site (→ later:
+// labour requests → deployments → shifts → timesheets). Distinct from the simple
+// `clients` model so a national contractor can have many divisions, projects,
+// approvers and rate cards. Internal/admin-managed.
+
+export const corporateAccounts = sqliteTable('corporate_accounts', {
+  id: pk(),
+  legal_name: text('legal_name').notNull(),
+  trading_name: text('trading_name'),
+  registration_number: text('registration_number'),
+  status: text('status', { enum: ['prospect', 'active', 'inactive'] }).notNull().default('active'),
+  // Captured for professional tax review — never used to auto-decide status.
+  vat_treatment: text('vat_treatment'),
+  cis_treatment: text('cis_treatment'),
+  payment_terms: text('payment_terms'),
+  framework_agreement: text('framework_agreement'),
+  insurance_requirements: text('insurance_requirements'),
+  required_accreditations: text('required_accreditations'),
+  invoice_instructions: text('invoice_instructions'),
+  supplier_portal_reference: text('supplier_portal_reference'),
+  data_retention_note: text('data_retention_note'),
+  notes: text('notes'),
+  created_at: createdAt(),
+  updated_at: updatedAt(),
+});
+
+// Named contacts on a corporate account (commercial, procurement, accounts, …).
+export const corporateContacts = sqliteTable(
+  'corporate_contacts',
+  {
+    id: pk(),
+    account_id: text('account_id').notNull(),
+    name: text('name').notNull(),
+    role: text('role', {
+      enum: ['commercial', 'procurement', 'accounts', 'site', 'other'],
+    })
+      .notNull()
+      .default('other'),
+    email: text('email'),
+    phone: text('phone'),
+    notes: text('notes'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byAccount: index('ix_corpcontact_account').on(t.account_id) }),
+);
+
+export const commercialProjects = sqliteTable(
+  'commercial_projects',
+  {
+    id: pk(),
+    account_id: text('account_id').notNull(),
+    name: text('name').notNull(),
+    project_number: text('project_number'),
+    region_division: text('region_division'),
+    status: text('status', { enum: ['active', 'on_hold', 'completed', 'cancelled'] })
+      .notNull()
+      .default('active'),
+    notes: text('notes'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byAccount: index('ix_project_account').on(t.account_id) }),
+);
+
+export const commercialSites = sqliteTable(
+  'commercial_sites',
+  {
+    id: pk(),
+    project_id: text('project_id').notNull(),
+    account_id: text('account_id').notNull(),
+    name: text('name').notNull(),
+    site_address: text('site_address'),
+    postcode: text('postcode'),
+    what3words: text('what3words'),
+    latitude: real('latitude'),
+    longitude: real('longitude'),
+    principal_contractor: text('principal_contractor'),
+    site_manager: text('site_manager'),
+    commercial_manager: text('commercial_manager'),
+    working_hours: text('working_hours'),
+    parking_access: text('parking_access'),
+    induction_instructions: text('induction_instructions'),
+    ppe_requirements: text('ppe_requirements'),
+    drug_alcohol_policy: text('drug_alcohol_policy'),
+    emergency_arrangements: text('emergency_arrangements'),
+    welfare_info: text('welfare_info'),
+    site_rules: text('site_rules'),
+    required_cards: text('required_cards'),
+    prohibited_activities: text('prohibited_activities'),
+    check_in_method: text('check_in_method', {
+      enum: ['qr', 'geofence', 'roll_call', 'supervisor', 'manual'],
+    }),
+    po_number: text('po_number'),
+    cost_code: text('cost_code'),
+    status: text('status', { enum: ['active', 'completed', 'suspended'] })
+      .notNull()
+      .default('active'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({
+    byProject: index('ix_site_project').on(t.project_id),
+    byAccount: index('ix_site_account').on(t.account_id),
+  }),
+);

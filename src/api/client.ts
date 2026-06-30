@@ -15,6 +15,10 @@ import type {
   ContractorCredential,
   Quote,
   JobCheckin,
+  CorporateAccount,
+  CorporateContact,
+  CommercialProject,
+  CommercialSite,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -307,6 +311,38 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+  },
+  commercial: {
+    accounts: {
+      list: () => request<{ accounts: CorporateAccount[] }>('/api/commercial/accounts'),
+      get: (id: string) => request<{ account: CorporateAccount }>(`/api/commercial/accounts/${encodeURIComponent(id)}`),
+      create: (data: Partial<CorporateAccount> & { legal_name: string }) =>
+        request<{ account: CorporateAccount }>('/api/commercial/accounts', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<CorporateAccount>) =>
+        request<{ account: CorporateAccount }>(`/api/commercial/accounts/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    },
+    contacts: {
+      list: (accountId: string) =>
+        request<{ contacts: CorporateContact[] }>(`/api/commercial/contacts?account_id=${encodeURIComponent(accountId)}`),
+      create: (data: Partial<CorporateContact> & { account_id: string; name: string }) =>
+        request<{ contact: CorporateContact }>('/api/commercial/contacts', { method: 'POST', body: JSON.stringify(data) }),
+    },
+    projects: {
+      list: (accountId?: string) =>
+        request<{ projects: CommercialProject[] }>(`/api/commercial/projects${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
+      get: (id: string) => request<{ project: CommercialProject }>(`/api/commercial/projects/${encodeURIComponent(id)}`),
+      create: (data: Partial<CommercialProject> & { account_id: string; name: string }) =>
+        request<{ project: CommercialProject }>('/api/commercial/projects', { method: 'POST', body: JSON.stringify(data) }),
+    },
+    sites: {
+      list: (projectId: string) =>
+        request<{ sites: CommercialSite[] }>(`/api/commercial/sites?project_id=${encodeURIComponent(projectId)}`),
+      get: (id: string) => request<{ site: CommercialSite }>(`/api/commercial/sites/${encodeURIComponent(id)}`),
+      create: (data: Partial<CommercialSite> & { project_id: string; name: string }) =>
+        request<{ site: CommercialSite }>('/api/commercial/sites', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<CommercialSite>) =>
+        request<{ site: CommercialSite }>(`/api/commercial/sites/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    },
   },
   checkins: {
     list: (jobId: string) =>

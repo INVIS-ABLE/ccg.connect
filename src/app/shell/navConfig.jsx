@@ -52,6 +52,7 @@ const ADMIN_NAV = [
       { label: 'Users', to: '/users', icon: UserCog },
     ],
   },
+  { label: 'Commercial', to: '/commercial', icon: Building2 },
   {
     label: 'Money',
     icon: FileText,
