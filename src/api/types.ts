@@ -476,6 +476,22 @@ export interface CommercialTimesheet {
   totals: PayTotals;
 }
 
+export interface CommercialInvoice {
+  id: string;
+  account_id: string | null;
+  deployment_id: string | null;
+  invoice_number: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  line_items: string | null;
+  net_amount: number;
+  vat_rate: number;
+  vat_amount: number;
+  gross_amount: number;
+  status: 'draft' | 'issued' | 'paid' | 'cancelled';
+  notes: string | null;
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

@@ -3,10 +3,16 @@ import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import { nextTimesheetStatuses, timesheetStatusLabel } from '@/domain/commercial/timesheetApproval';
 
 const gbp = (n) => (n == null ? '—' : new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n));
+
+/** Quote a CSV cell (RFC-4180-ish). */
+function csvCell(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 /** Weekly timesheets for a deployment, with the rate engine's pay/charge/margin.
  *  Margin is sensitive — this whole surface is admin-only. */
@@ -47,6 +53,21 @@ export function DeploymentTimesheets({ deploymentId, members }) {
   async function advance(ts, status) {
     await api.commercialTimesheets.update(ts.id, { status });
     await load();
+  }
+
+  function downloadPayrollCsv() {
+    const header = ['Worker', 'Week start', 'Basic hours', 'Overtime hours', 'Pay rate', 'Worker pay', 'Employer cost', 'Client charge', 'Margin', 'Status'];
+    const body = rows.map((r) => [
+      nameOf(r.worker_id), r.week_start, r.basic_hours, r.overtime_hours, r.pay_rate ?? '',
+      r.totals?.workerPay, r.totals?.employerCost, r.totals?.clientCharge, r.totals?.margin, r.status,
+    ]);
+    const csv = [header, ...body].map((row) => row.map(csvCell).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payroll-${deploymentId.slice(0, 8)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const totalMargin = rows.reduce((s, r) => s + (r.totals?.margin ?? 0), 0);
@@ -112,7 +133,14 @@ export function DeploymentTimesheets({ deploymentId, members }) {
         <Input type="number" min="0" step="0.5" className="w-24" placeholder="OT h" value={form.overtime_hours} onChange={(e) => setForm({ ...form, overtime_hours: e.target.value })} />
         <Button type="submit" size="sm" disabled={busy || !form.worker_id || !form.week_start} className="gap-1.5"><Plus size={14} /> Add</Button>
       </form>
-      <p className="text-xs text-muted-foreground">Rates are taken from the deployment; margin is visible to CCG staff only.</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Rates are taken from the deployment; margin is visible to CCG staff only.</p>
+        {rows.length > 0 && (
+          <Button type="button" size="sm" variant="outline" onClick={downloadPayrollCsv} className="gap-1.5">
+            <Download size={14} /> Payroll CSV
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

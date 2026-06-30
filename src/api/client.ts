@@ -28,6 +28,7 @@ import type {
   DeploymentMember,
   ComplianceCell,
   CommercialTimesheet,
+  CommercialInvoice,
   MessagingContact,
   ConversationSummary,
   DirectMessage,
@@ -412,6 +413,14 @@ export const api = {
       request<{ timesheet: CommercialTimesheet }>('/api/commercial-timesheets', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Record<string, unknown>) =>
       request<{ timesheet: CommercialTimesheet }>(`/api/commercial-timesheets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  commercialInvoices: {
+    list: (deploymentId?: string) =>
+      request<{ invoices: CommercialInvoice[] }>(`/api/commercial-invoices${deploymentId ? `?deployment_id=${encodeURIComponent(deploymentId)}` : ''}`),
+    generate: (deploymentId: string, vatRate?: number) =>
+      request<{ invoice: CommercialInvoice }>('/api/commercial-invoices/generate', { method: 'POST', body: JSON.stringify({ deployment_id: deploymentId, vat_rate: vatRate }) }),
+    update: (id: string, data: { status?: string; notes?: string }) =>
+      request<{ invoice: CommercialInvoice }>(`/api/commercial-invoices/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
   },
   checkins: {
     list: (jobId: string) =>

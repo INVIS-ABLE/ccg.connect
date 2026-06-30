@@ -4,8 +4,10 @@ import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2, FileText, Receipt } from 'lucide-react';
 import { DeploymentTimesheets } from './DeploymentTimesheets';
+
+const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
 
 const CELL = {
   ok: <Check size={14} className="text-green-600" />,
@@ -18,12 +20,31 @@ export default function DeploymentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [invoiceMsg, setInvoiceMsg] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const r = await api.deployments.get(id).catch(() => null);
+    const [r, inv] = await Promise.all([
+      api.deployments.get(id).catch(() => null),
+      api.commercialInvoices.list(id).catch(() => ({ invoices: [] })),
+    ]);
     if (r) setData(r);
+    setInvoices(inv.invoices ?? []);
   }, [id]);
+
+  async function generateInvoice() {
+    setBusy(true);
+    setInvoiceMsg(null);
+    try {
+      await api.commercialInvoices.generate(id);
+      await load();
+    } catch (err) {
+      setInvoiceMsg(err?.body?.error === 'no_locked_timesheets' ? 'No locked timesheets to invoice — approve and lock timesheets first.' : 'Could not generate invoice.');
+    } finally {
+      setBusy(false);
+    }
+  }
   useEffect(() => {
     void load();
   }, [load]);
@@ -151,6 +172,32 @@ export default function DeploymentDetail() {
         <CardHeader className="pb-2"><CardTitle className="text-sm">Time &amp; pay</CardTitle></CardHeader>
         <CardContent>
           <DeploymentTimesheets deploymentId={d.id} members={members} />
+        </CardContent>
+      </Card>
+
+      {/* Invoices */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm"><Receipt size={15} /> Client invoices</CardTitle>
+          <Button size="sm" variant="outline" disabled={busy} onClick={generateInvoice} className="gap-1.5">
+            <FileText size={14} /> Generate from locked timesheets
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {invoiceMsg && <p className="text-xs text-amber-700 dark:text-amber-400">{invoiceMsg}</p>}
+          {invoices.length === 0 && <p className="text-xs text-muted-foreground">No invoices yet. Lock timesheets, then generate.</p>}
+          {invoices.map((inv) => (
+            <div key={inv.id} className="flex items-center gap-3 rounded-md border p-2.5 text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{inv.invoice_number}</p>
+                <p className="text-xs text-muted-foreground">
+                  {inv.period_start}{inv.period_end && inv.period_end !== inv.period_start ? ` – ${inv.period_end}` : ''} · net {gbp(inv.net_amount)} · VAT {gbp(inv.vat_amount)}
+                </p>
+              </div>
+              <span className="font-semibold tabular-nums">{gbp(inv.gross_amount)}</span>
+              <Badge variant="secondary" className="capitalize">{inv.status}</Badge>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
