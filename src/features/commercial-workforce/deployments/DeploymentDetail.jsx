@@ -4,12 +4,13 @@ import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2, FileText, Receipt, UserCog } from 'lucide-react';
+import { ArrowLeft, Check, AlertTriangle, X, ShieldCheck, MessageSquare, CheckCircle2, FileText, Receipt, UserCog, QrCode } from 'lucide-react';
 import { DeploymentTimesheets } from './DeploymentTimesheets';
 import { DeploymentRollCall } from './DeploymentRollCall';
 import { DeploymentDiary } from './DeploymentDiary';
 import { DeploymentDocuments } from './DeploymentDocuments';
 import { ReplacementDialog } from './ReplacementDialog';
+import { SiteCheckInQrDialog } from './SiteCheckInQrDialog';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
 
@@ -28,6 +29,7 @@ export default function DeploymentDetail() {
   const [invoiceMsg, setInvoiceMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const [replacing, setReplacing] = useState(null);
+  const [qrOpen, setQrOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [r, inv] = await Promise.all([
@@ -106,8 +108,11 @@ export default function DeploymentDetail() {
               {s === 'active' ? 'Mark active' : s === 'completed' ? 'Mark completed' : s}
             </Button>
           ))}
+          <Button size="sm" variant="outline" onClick={() => setQrOpen(true)} className="ml-auto gap-1.5">
+            <QrCode size={14} /> Check-in QR
+          </Button>
           {d.conversation_id && (
-            <Link to="/messages" className="ml-auto">
+            <Link to="/messages">
               <Button size="sm" variant="outline" className="gap-1.5"><MessageSquare size={14} /> Site chat</Button>
             </Link>
           )}
@@ -240,6 +245,13 @@ export default function DeploymentDetail() {
         worker={replacing}
         onClose={() => setReplacing(null)}
         onReplaced={load}
+      />
+
+      <SiteCheckInQrDialog
+        deploymentId={d.id}
+        siteName={request?.title ?? 'Site'}
+        open={qrOpen}
+        onOpenChange={setQrOpen}
       />
     </div>
   );

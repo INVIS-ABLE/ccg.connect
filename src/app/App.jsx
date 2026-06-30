@@ -63,6 +63,7 @@ import LabourRequests from '@/features/commercial-workforce/labour-requests/Labo
 import LabourRequestDetail from '@/features/commercial-workforce/labour-requests/LabourRequestDetail';
 import Deployments from '@/features/commercial-workforce/deployments/Deployments';
 import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
+import DeploymentCheckIn from '@/features/commercial-workforce/deployments/DeploymentCheckIn';
 import Incidents from '@/features/commercial-workforce/incidents/Incidents';
 import CommercialDashboard from '@/app/pages/admin/CommercialDashboard';
 import Forms from '@/features/forms/Forms';
@@ -157,6 +158,16 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <CheckIn />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Commercial deployment QR check-in (worker self-service / kiosk roll-call) */}
+            <Route
+              path="/checkin/deployment/:id"
+              element={
+                <ProtectedRoute>
+                  <DeploymentCheckIn />
                 </ProtectedRoute>
               }
             />

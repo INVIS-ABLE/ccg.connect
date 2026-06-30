@@ -1275,6 +1275,11 @@ export const deploymentAttendance = sqliteTable(
     check_in_time: text('check_in_time'),
     check_out_time: text('check_out_time'),
     method: text('method', { enum: ['qr', 'geofence', 'roll_call', 'supervisor', 'manual'] }),
+    // Location captured at QR check-in — evidence only, never the sole truth: an
+    // authorised confirmer can always override the status (see roll-call).
+    check_in_lat: real('check_in_lat'),
+    check_in_lng: real('check_in_lng'),
+    check_in_accuracy_m: real('check_in_accuracy_m'),
     confirmed_by: text('confirmed_by'),
     reason: text('reason'),
     replacement_needed: integer('replacement_needed', { mode: 'boolean' }).notNull().default(false),

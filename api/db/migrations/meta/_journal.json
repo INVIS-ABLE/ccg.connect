@@ -176,6 +176,13 @@
       "when": 1782847159541,
       "tag": "0024_modern_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1782856255317,
+      "tag": "0025_stormy_wallop",
+      "breakpoints": true
     }
   ]
 }
