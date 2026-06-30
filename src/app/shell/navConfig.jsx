@@ -93,6 +93,7 @@ const CONTRACTOR_NAV = [
 const CLIENT_NAV = [
   { label: 'Home', to: '/', icon: Home, end: true },
   { label: 'Projects', to: '/client/projects', icon: FolderKanban },
+  { label: 'Site Work', to: '/client/site-work', icon: HardHat },
   { label: 'Submit Job', to: '/client/submit-job', icon: Send },
   { label: 'Messages', to: '/messages', icon: MessageSquare },
 ];
