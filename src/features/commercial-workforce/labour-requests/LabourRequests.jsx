@@ -14,7 +14,7 @@ const MODELS = listEmploymentModels();
 const EMPTY = {
   account_id: '', project_id: '', site_id: '', title: '', trade: '', number_required: '1',
   employment_model: '', start_date: '', finish_date: '', shift_pattern: '',
-  rate_offered: '', charge_rate: '', po_number: '', minimum_qualifications: '',
+  rate_offered: '', charge_rate: '', overtime_rate: '', po_number: '', minimum_qualifications: '',
 };
 
 export default function LabourRequests() {
@@ -26,6 +26,7 @@ export default function LabourRequests() {
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [rateCards, setRateCards] = useState([]);
 
   async function load() {
     try {
@@ -42,8 +43,11 @@ export default function LabourRequests() {
 
   // Cascade: account → projects, project → sites.
   useEffect(() => {
-    if (!form.account_id) { setProjects([]); return; }
+    if (!form.account_id) { setProjects([]); setRateCards([]); return; }
     api.commercial.projects.list(form.account_id).then((r) => setProjects(r.projects ?? [])).catch(() => setProjects([]));
+    api.commercial.rateCards.list(form.account_id)
+      .then((r) => setRateCards((r.rate_cards ?? []).filter((rc) => rc.status === 'active')))
+      .catch(() => setRateCards([]));
   }, [form.account_id]);
   useEffect(() => {
     if (!form.project_id) { setSites([]); return; }
@@ -130,8 +134,38 @@ export default function LabourRequests() {
               <div className="space-y-2"><Label>Start date</Label><Input type="date" value={form.start_date} onChange={(e) => set({ start_date: e.target.value })} /></div>
               <div className="space-y-2"><Label>Finish date</Label><Input type="date" value={form.finish_date} onChange={(e) => set({ finish_date: e.target.value })} /></div>
               <div className="space-y-2"><Label>Shift pattern</Label><Input value={form.shift_pattern} onChange={(e) => set({ shift_pattern: e.target.value })} placeholder="07:00–17:00" /></div>
+
+              {/* Prefill rates from the account's agreed rate card. */}
+              {rateCards.length > 0 && (
+                <div className="space-y-2 sm:col-span-3">
+                  <Label>Apply rate card</Label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    value=""
+                    onChange={(e) => {
+                      const rc = rateCards.find((x) => x.id === e.target.value);
+                      if (!rc) return;
+                      set({
+                        trade: rc.trade ?? form.trade,
+                        rate_offered: rc.pay_rate != null ? String(rc.pay_rate) : form.rate_offered,
+                        charge_rate: rc.charge_rate != null ? String(rc.charge_rate) : form.charge_rate,
+                        overtime_rate: rc.overtime_rate != null ? String(rc.overtime_rate) : form.overtime_rate,
+                      });
+                    }}
+                  >
+                    <option value="">Choose a rate card to fill rates…</option>
+                    {rateCards.map((rc) => (
+                      <option key={rc.id} value={rc.id}>
+                        {rc.trade}{rc.role ? ` · ${rc.role}` : ''} — £{rc.pay_rate ?? '?'} pay / £{rc.charge_rate ?? '?'} charge /{rc.unit}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="space-y-2"><Label>Pay rate £/hr</Label><Input type="number" min="0" step="0.01" value={form.rate_offered} onChange={(e) => set({ rate_offered: e.target.value })} /></div>
               <div className="space-y-2"><Label>Charge rate £/hr</Label><Input type="number" min="0" step="0.01" value={form.charge_rate} onChange={(e) => set({ charge_rate: e.target.value })} /></div>
+              <div className="space-y-2"><Label>Overtime £/hr</Label><Input type="number" min="0" step="0.01" value={form.overtime_rate} onChange={(e) => set({ overtime_rate: e.target.value })} /></div>
               <div className="space-y-2 sm:col-span-3"><Label>Minimum qualifications</Label><Input value={form.minimum_qualifications} onChange={(e) => set({ minimum_qualifications: e.target.value })} placeholder="CSCS, CPCS, Thames Water passport…" /></div>
               <div><Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Create request'}</Button></div>
             </form>
