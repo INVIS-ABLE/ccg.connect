@@ -4,6 +4,7 @@ import type { AppEnv } from './env';
 import meRoutes from './routes/me';
 import jobRoutes from './routes/jobs';
 import profileRoutes from './routes/profiles';
+import onboardingRoutes from './routes/onboarding';
 import assignmentRoutes from './routes/assignments';
 import leadRoutes from './routes/leads';
 import contractorRoutes from './routes/contractors';
@@ -49,6 +50,7 @@ app.on(['GET', 'POST'], '/api/auth/*', (c) => createAuth(c.env).handler(c.req.ra
 app.route('/api/me', meRoutes);
 app.route('/api/jobs', jobRoutes);
 app.route('/api/profiles', profileRoutes);
+app.route('/api/onboarding', onboardingRoutes);
 app.route('/api/assignments', assignmentRoutes);
 app.route('/api/leads', leadRoutes);
 app.route('/api/contractors', contractorRoutes);

@@ -19,6 +19,8 @@ export interface UserProfile {
   phone: string | null;
   profile_photo_url: string | null;
   account_status: 'active' | 'pending' | 'suspended' | 'archived';
+  preferred_contact_method?: 'phone' | 'email' | 'sms' | 'whatsapp' | null;
+  onboarding_completed_at?: string | null;
 }
 
 export interface Job {

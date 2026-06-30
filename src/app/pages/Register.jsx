@@ -35,7 +35,8 @@ export default function Register() {
         }
         return;
       }
-      navigate('/', { replace: true });
+      // New accounts complete a role-specific onboarding before entering the app.
+      navigate('/onboarding', { replace: true });
     } catch (err) {
       setSubmitting(false);
       const msg = String(err?.message ?? err ?? '');
