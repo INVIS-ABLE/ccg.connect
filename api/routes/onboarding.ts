@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq } from 'drizzle-orm';
-import { userProfiles, contactAddresses, contractorProfiles, clients } from '../db/schema';
+import { userProfiles, contactAddresses, contractorProfiles, clients, auditEvents } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { geocodePostcode } from '../lib/geocode';
 import type { AppEnv } from '../env';
@@ -12,12 +12,21 @@ import type { AppEnv } from '../env';
  * contractor OR client profile server-side.
  *
  * SECURITY (non-negotiable): public onboarding may only ever create `contractor`
- * or `client`. `owner` / `ops_admin` are never settable here — those roles are
- * created only by an administrator. An existing admin cannot be downgraded via
- * this route either.
+ * or `client` freely. The `staff` path additionally grants `ops_admin` ONLY when
+ * the caller presents the correct, server-held staff invite code — it can never
+ * grant `owner`, and an existing admin is never downgraded. Direct admin creation
+ * (incl. owner) remains the admin-only path in routes/adminPromotion.ts.
  */
 const route = new Hono<AppEnv>();
 route.use('*', requireAuth);
+
+/** Constant-time string comparison to avoid leaking the invite code via timing. */
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 type Addr = {
   line_1?: string;
@@ -32,7 +41,7 @@ route.post('/', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
 
   const role = body.role;
-  if (role !== 'contractor' && role !== 'client') {
+  if (role !== 'contractor' && role !== 'client' && role !== 'staff') {
     return c.json({ error: 'invalid_role' }, 400);
   }
 
@@ -40,12 +49,65 @@ route.post('/', async (c) => {
   const existing = (
     await db.select().from(userProfiles).where(eq(userProfiles.user_id, p.userId)).limit(1)
   )[0];
-  // Never let onboarding touch an admin account.
+
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+
+  // ── Staff self-registration (invite-code gated) ──
+  // Visible "Cook Construction staff" path. Grants ops_admin ONLY with the
+  // correct server-held code; never owner; audited.
+  if (role === 'staff') {
+    const expected = c.env.STAFF_INVITE_CODE;
+    if (!expected) return c.json({ error: 'staff_signup_disabled' }, 403);
+    const code = typeof body.staff_code === 'string' ? body.staff_code.trim() : '';
+    if (!code || !safeEqual(code, expected)) return c.json({ error: 'invalid_staff_code' }, 403);
+
+    // An existing owner must not be silently demoted to ops_admin; treat as done.
+    if (existing?.role === 'owner') {
+      return c.json({ profile: existing }, 200);
+    }
+
+    const now = new Date().toISOString();
+    const staffValues = {
+      role: 'ops_admin' as const,
+      first_name: str(body.first_name),
+      last_name: str(body.last_name),
+      display_name:
+        str(body.display_name) ??
+        ([str(body.first_name), str(body.last_name)].filter(Boolean).join(' ') || null),
+      email: str(body.email),
+      phone: str(body.phone),
+      account_status: 'active' as const,
+      onboarding_completed_at: now,
+      terms_accepted_at: body.terms_accepted ? now : (existing?.terms_accepted_at ?? null),
+      privacy_accepted_at: body.privacy_accepted ? now : (existing?.privacy_accepted_at ?? null),
+    };
+    if (existing) {
+      await db.update(userProfiles).set(staffValues).where(eq(userProfiles.user_id, p.userId));
+    } else {
+      await db.insert(userProfiles).values({ user_id: p.userId, ...staffValues });
+    }
+
+    await db.insert(auditEvents).values({
+      actor_user_id: p.userId,
+      action: 'staff.self_register',
+      entity_type: 'user_profile',
+      entity_id: p.userId,
+      new_values: JSON.stringify({ role: 'ops_admin', account_status: 'active' }),
+      timestamp: now,
+      reason: 'Staff self-registration with invite code',
+    });
+
+    const updatedStaff = (
+      await db.select().from(userProfiles).where(eq(userProfiles.user_id, p.userId)).limit(1)
+    )[0];
+    return c.json({ profile: updatedStaff }, existing ? 200 : 201);
+  }
+
+  // Never let contractor/client onboarding touch an admin account.
   if (existing && (existing.role === 'owner' || existing.role === 'ops_admin')) {
     return c.json({ error: 'already_provisioned' }, 409);
   }
 
-  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
   const num = (v: unknown) => {
     const n = typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) : NaN;
     return Number.isFinite(n) ? n : null;
