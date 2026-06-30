@@ -17,6 +17,7 @@ import type {
   JobCheckin,
   CorporateAccount,
   CorporateContact,
+  RateCard,
   CorporateAccountUser,
   PortalCommercial,
   FormType,
@@ -352,6 +353,14 @@ export const api = {
         request<{ contacts: CorporateContact[] }>(`/api/commercial/contacts?account_id=${encodeURIComponent(accountId)}`),
       create: (data: Partial<CorporateContact> & { account_id: string; name: string }) =>
         request<{ contact: CorporateContact }>('/api/commercial/contacts', { method: 'POST', body: JSON.stringify(data) }),
+    },
+    rateCards: {
+      list: (accountId: string) =>
+        request<{ rate_cards: RateCard[] }>(`/api/commercial/rate-cards?account_id=${encodeURIComponent(accountId)}`),
+      create: (data: Partial<RateCard> & { account_id: string; trade: string }) =>
+        request<{ rate_card: RateCard }>('/api/commercial/rate-cards', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<RateCard>) =>
+        request<{ rate_card: RateCard }>(`/api/commercial/rate-cards/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     },
     projects: {
       list: (accountId?: string) =>

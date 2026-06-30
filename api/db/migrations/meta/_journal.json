@@ -204,6 +204,13 @@
       "when": 1782859270988,
       "tag": "0028_solid_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1782861460640,
+      "tag": "0029_public_psylocke",
+      "breakpoints": true
     }
   ]
 }

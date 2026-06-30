@@ -939,6 +939,29 @@ export const corporateAccountUsers = sqliteTable(
   }),
 );
 
+// Agreed rate card lines per corporate account (per trade/role). Pay vs charge
+// is sensitive (margin) — never exposed to the client portal. Archived rather
+// than deleted (retention). Used to prefill labour-request rates.
+export const rateCards = sqliteTable(
+  'rate_cards',
+  {
+    id: pk(),
+    account_id: text('account_id').notNull(),
+    trade: text('trade').notNull(),
+    role: text('role'),
+    unit: text('unit', { enum: ['hour', 'day', 'shift'] }).notNull().default('hour'),
+    pay_rate: real('pay_rate'),
+    charge_rate: real('charge_rate'),
+    overtime_rate: real('overtime_rate'),
+    notes: text('notes'),
+    status: text('status', { enum: ['active', 'archived'] }).notNull().default('active'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byAccount: index('ix_ratecard_account').on(t.account_id) }),
+);
+
 export const commercialProjects = sqliteTable(
   'commercial_projects',
   {

@@ -7,6 +7,7 @@ import {
   commercialProjects,
   commercialSites,
   corporateAccountUsers,
+  rateCards,
   userProfiles,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
@@ -103,6 +104,49 @@ route.post('/contacts', async (c) => {
     account_id: accountId, name, role, email: str(body.email), phone: str(body.phone), notes: str(body.notes),
   }).returning();
   return c.json({ contact: inserted[0] }, 201);
+});
+
+// ── Rate cards ───────────────────────────────────────────────────────────────
+const RATE_CARD_FIELDS = ['trade', 'role', 'unit', 'notes', 'status'] as const;
+const RATE_CARD_NUMERIC = ['pay_rate', 'charge_rate', 'overtime_rate'] as const;
+
+route.get('/rate-cards', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const accountId = c.req.query('account_id');
+  if (!accountId) return c.json({ error: 'account_id_required' }, 400);
+  const db = drizzle(c.env.DB);
+  const rows = await db.select().from(rateCards).where(eq(rateCards.account_id, accountId)).orderBy(desc(rateCards.created_at)).all();
+  return c.json({ rate_cards: rows });
+});
+
+route.post('/rate-cards', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const me = c.get('principal');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const accountId = str(body.account_id);
+  const trade = str(body.trade);
+  if (!accountId || !trade) return c.json({ error: 'account_id_and_trade_required' }, 400);
+  const unit = ['hour', 'day', 'shift'].includes(String(body.unit)) ? (body.unit as 'hour' | 'day' | 'shift') : 'hour';
+  const db = drizzle(c.env.DB);
+  const inserted = await db.insert(rateCards).values({
+    account_id: accountId, trade, role: str(body.role), unit,
+    pay_rate: num(body.pay_rate), charge_rate: num(body.charge_rate), overtime_rate: num(body.overtime_rate),
+    notes: str(body.notes), created_by: me.userId,
+  }).returning();
+  return c.json({ rate_card: inserted[0] }, 201);
+});
+
+route.patch('/rate-cards/:id', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const patch: Record<string, unknown> = {};
+  for (const f of RATE_CARD_FIELDS) if (f in body) patch[f] = body[f] === '' ? null : body[f];
+  for (const f of RATE_CARD_NUMERIC) if (f in body) patch[f] = num(body[f]);
+  if (Object.keys(patch).length === 0) return c.json({ error: 'nothing_to_update' }, 400);
+  const db = drizzle(c.env.DB);
+  const updated = await db.update(rateCards).set({ ...patch, updated_at: new Date() }).where(eq(rateCards.id, c.req.param('id'))).returning();
+  if (!updated[0]) return c.json({ error: 'not_found' }, 404);
+  return c.json({ rate_card: updated[0] });
 });
 
 // ── Projects ─────────────────────────────────────────────────────────────────
