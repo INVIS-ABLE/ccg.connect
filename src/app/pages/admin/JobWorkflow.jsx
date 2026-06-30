@@ -12,7 +12,8 @@ import { MediaGallery } from '@/app/MediaGallery';
 import { QuoteBuilder } from '@/app/components/QuoteBuilder';
 import { SavedQuotes } from '@/app/components/SavedQuotes';
 import { JobCheckinPanel } from '@/app/components/JobCheckinPanel';
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
+import { JobContactsPanel } from '@/app/components/JobContactsPanel';
+import { ArrowLeft, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
   { key: 'enquiry', label: 'Enquiry received' },
@@ -238,20 +239,7 @@ export default function JobWorkflow() {
           <CardTitle className="text-sm">Contact / arrange</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Phone size={14} /> Call client
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Mail size={14} /> Email client
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Phone size={14} /> Call contractor
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Mail size={14} /> Email contractor
-            </Button>
-          </div>
+          <JobContactsPanel job={job} />
           <div className="space-y-2 pt-2">
             <Label className="text-xs">Quick message template</Label>
             <Select onValueChange={(v) => setContactMsg(v)}>
