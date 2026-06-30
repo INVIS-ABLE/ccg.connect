@@ -62,21 +62,27 @@ export function MediaGallery({ jobId, canUpload = false }) {
                   height={dims[m.id]?.h ?? 1200}
                 >
                   {({ ref, open }) => (
-                    <div className="block cursor-zoom-in overflow-hidden rounded-md border">
-                      <img
-                        ref={ref}
+                    <div className="block overflow-hidden rounded-md border">
+                      <button
+                        type="button"
                         onClick={open}
-                        src={m.url}
-                        alt={m.caption ?? m.original_filename ?? 'media'}
-                        className="aspect-square w-full object-cover"
-                        onLoad={(e) =>
-                          setDims((d) =>
-                            d[m.id]
-                              ? d
-                              : { ...d, [m.id]: { w: e.target.naturalWidth, h: e.target.naturalHeight } },
-                          )
-                        }
-                      />
+                        className="block w-full cursor-zoom-in"
+                        aria-label={`Open ${m.caption ?? m.original_filename ?? 'image'}`}
+                      >
+                        <img
+                          ref={ref}
+                          src={m.url}
+                          alt={m.caption ?? m.original_filename ?? 'media'}
+                          className="aspect-square w-full object-cover"
+                          onLoad={(e) =>
+                            setDims((d) =>
+                              d[m.id]
+                                ? d
+                                : { ...d, [m.id]: { w: e.target.naturalWidth, h: e.target.naturalHeight } },
+                            )
+                          }
+                        />
+                      </button>
                       <MetaRow m={m} />
                     </div>
                   )}

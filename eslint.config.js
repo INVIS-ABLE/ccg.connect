@@ -3,8 +3,35 @@ import pluginJs from "@eslint/js";
 import pluginReact from "eslint-plugin-react";
 import pluginReactHooks from "eslint-plugin-react-hooks";
 import pluginUnusedImports from "eslint-plugin-unused-imports";
+import pluginJsxA11y from "eslint-plugin-jsx-a11y";
 
 export default [
+  // Accessibility linting across the actual app surface (the React block below
+  // only covers a narrow legacy glob). Scoped to a11y rules only so it surfaces
+  // accessibility issues without cascading the full React ruleset.
+  {
+    files: ["src/app/**/*.{js,jsx}", "src/components/**/*.{js,jsx}"],
+    ignores: ["src/components/ui/**/*"],
+    // react-hooks is registered (not enforced here) so existing inline
+    // `eslint-disable react-hooks/*` directives in app files resolve.
+    plugins: { "jsx-a11y": pluginJsxA11y, "react-hooks": pluginReactHooks },
+    languageOptions: {
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    rules: {
+      ...pluginJsxA11y.flatConfigs.recommended.rules,
+      // Intentional, accessible uses in this app:
+      //  - autoFocus on inputs inside just-opened dialogs/search is good UX.
+      //  - voice notes are user-generated audio; captions aren't feasible.
+      "jsx-a11y/no-autofocus": "off",
+      "jsx-a11y/media-has-caption": "off",
+    },
+  },
   {
     files: [
       "src/components/**/*.{js,mjs,cjs,jsx}",

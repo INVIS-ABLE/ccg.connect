@@ -119,8 +119,9 @@ export function MediaUploader({ jobId, defaultCategory = 'progress', onUploaded 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs text-muted-foreground">Category</label>
+        <label htmlFor="mu-category" className="text-xs text-muted-foreground">Category</label>
         <select
+          id="mu-category"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           className="h-8 rounded-md border bg-background px-2 text-sm capitalize"

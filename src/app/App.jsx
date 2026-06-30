@@ -66,9 +66,9 @@ function AdminRoute({ children }) {
 }
 
 /** Restrict a route to a specific app role */
-function RoleRoute({ role, children }) {
+function RoleRoute({ appRole, children }) {
   const { principal } = useAuth();
-  if (principal?.role !== role) return <Navigate to="/" replace />;
+  if (principal?.role !== appRole) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -103,8 +103,8 @@ const shell = (node) => (
 );
 
 const adminShell = (node) => shell(<AdminRoute>{node}</AdminRoute>);
-const contractorShell = (node) => shell(<RoleRoute role="contractor">{node}</RoleRoute>);
-const clientShell = (node) => shell(<RoleRoute role="client">{node}</RoleRoute>);
+const contractorShell = (node) => shell(<RoleRoute appRole="contractor">{node}</RoleRoute>);
+const clientShell = (node) => shell(<RoleRoute appRole="client">{node}</RoleRoute>);
 
 export default function App() {
   return (
