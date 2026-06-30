@@ -162,6 +162,13 @@
       "when": 1782793218330,
       "tag": "0022_clammy_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1782794552305,
+      "tag": "0023_little_boomer",
+      "breakpoints": true
     }
   ]
 }

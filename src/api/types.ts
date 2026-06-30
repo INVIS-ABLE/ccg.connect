@@ -586,6 +586,42 @@ export interface CommercialDashboard {
   incidentsBySeverity: Record<string, number>;
 }
 
+export interface CorporateAccountUser {
+  id: string;
+  account_id: string;
+  user_id: string;
+  granted_by: string | null;
+  created_at: string;
+}
+
+export interface PortalDeployment {
+  id: string;
+  status: string;
+  start_date: string | null;
+  finish_date: string | null;
+  site_name: string | null;
+  request_title: string | null;
+  workers_required: number | null;
+  workers_assigned: number;
+}
+
+export interface PortalInvoice {
+  id: string;
+  invoice_number: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  net_amount: number;
+  vat_amount: number;
+  gross_amount: number;
+  status: string;
+}
+
+export interface PortalCommercial {
+  accounts: { id: string; name: string }[];
+  deployments: PortalDeployment[];
+  invoices: PortalInvoice[];
+}
+
 export interface MatchCandidate {
   contractor_id: string;
   trading_name: string | null;

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   type Principal,
   canManageJobs,
+  canAccessAccount,
   canReadJob,
   canReadAssignment,
   canReadProfile,
@@ -57,6 +58,27 @@ describe('canManageJobs (invariant 12)', () => {
     expect(canManageJobs(ops)).toBe(true);
     expect(canManageJobs(contractor)).toBe(false);
     expect(canManageJobs(client)).toBe(false);
+  });
+});
+
+describe('canAccessAccount (invariant 2: commercial portal scoping)', () => {
+  const linkedClient: Principal = { ...client, corporateAccountIds: ['acc-1', 'acc-2'] };
+  it('admins can access any account', () => {
+    expect(canAccessAccount(owner, 'acc-9')).toBe(true);
+    expect(canAccessAccount(ops, 'acc-9')).toBe(true);
+  });
+  it('a client can access only explicitly-linked accounts', () => {
+    expect(canAccessAccount(linkedClient, 'acc-1')).toBe(true);
+    expect(canAccessAccount(linkedClient, 'acc-2')).toBe(true);
+    expect(canAccessAccount(linkedClient, 'acc-3')).toBe(false);
+  });
+  it('a client with no links (or missing field) is denied', () => {
+    expect(canAccessAccount(client, 'acc-1')).toBe(false);
+    expect(canAccessAccount({ ...client, corporateAccountIds: [] }, 'acc-1')).toBe(false);
+  });
+  it('contractors are always denied, and a null account id is denied', () => {
+    expect(canAccessAccount(contractor, 'acc-1')).toBe(false);
+    expect(canAccessAccount(linkedClient, null)).toBe(false);
   });
 });
 

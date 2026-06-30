@@ -21,6 +21,11 @@ export interface Principal {
   contractorId: string | null;
   /** Client.id when the caller is a client, else null. */
   clientId: string | null;
+  /**
+   * Corporate accounts this client login may view in the commercial portal,
+   * resolved from corporate_account_users. Empty/omitted for everyone else.
+   */
+  corporateAccountIds?: readonly string[];
 }
 
 export interface JobScope {
@@ -38,6 +43,18 @@ export interface OwnedRecord {
 }
 
 export const isAdmin = (p: Principal): boolean => isAdminRole(p.role);
+
+// ── Commercial portal (corporate accounts) ─────────────────────────────────
+/**
+ * Invariant 2: a client may read a corporate account's commercial data only if
+ * an admin has explicitly linked them to that account (corporate_account_users,
+ * surfaced as `corporateAccountIds`). Admins see everything; contractors never.
+ */
+export function canAccessAccount(p: Principal, accountId: string | null | undefined): boolean {
+  if (isAdmin(p)) return true;
+  if (p.role !== 'client' || !accountId) return false;
+  return (p.corporateAccountIds ?? []).includes(accountId);
+}
 
 // ── Jobs ──────────────────────────────────────────────────────────────────
 // Invariant 12: assignment/management of jobs is an admin-only action.

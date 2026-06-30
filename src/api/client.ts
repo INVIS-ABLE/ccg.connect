@@ -17,6 +17,8 @@ import type {
   JobCheckin,
   CorporateAccount,
   CorporateContact,
+  CorporateAccountUser,
+  PortalCommercial,
   CommercialProject,
   CommercialSite,
   Worker,
@@ -359,6 +361,18 @@ export const api = {
       update: (id: string, data: Partial<CommercialSite>) =>
         request<{ site: CommercialSite }>(`/api/commercial/sites/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     },
+    accountUsers: {
+      list: (accountId: string) =>
+        request<{ users: CorporateAccountUser[] }>(`/api/commercial/accounts/${encodeURIComponent(accountId)}/users`),
+      link: (accountId: string, userId: string) =>
+        request<{ link: CorporateAccountUser }>(`/api/commercial/accounts/${encodeURIComponent(accountId)}/users`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+      unlink: (accountId: string, userId: string) =>
+        request<{ ok: boolean }>(`/api/commercial/accounts/${encodeURIComponent(accountId)}/users/${encodeURIComponent(userId)}`, { method: 'DELETE' }),
+    },
+  },
+  portal: {
+    commercial: (accountId?: string) =>
+      request<PortalCommercial>(`/api/portal/commercial${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
   },
   workers: {
     list: (contractorId?: string) =>
