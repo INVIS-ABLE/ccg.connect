@@ -15,8 +15,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // `prompt` (not autoUpdate) so a new deploy surfaces an in-app "update
+      // available" toast instead of swapping under the user's feet. We register
+      // the SW ourselves via the React hook (PwaPrompt), so don't auto-inject.
+      registerType: 'prompt',
+      injectRegister: null,
       // Precache both the scalable SVGs (Android/Chrome/desktop) and the branded
       // PNGs (iOS home-screen + broadest install compatibility) so install and
       // offline work everywhere. See docs/cloudflare-deployment.md.
@@ -54,7 +57,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,ico,woff,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        // No skipWaiting — the waiting SW activates only when the user accepts
+        // the in-app update prompt (updateServiceWorker(true) in PwaPrompt).
         // Some bundles (e.g. three.js) are large; raise the precache size ceiling.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
