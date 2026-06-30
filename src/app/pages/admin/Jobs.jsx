@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,7 +28,7 @@ export default function Jobs() {
   const [jobs, setJobs] = useState(null);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', trade_category: '', site_postcode: '' });
+  const [form, setForm] = useState({ title: '', trade_category: '', site_postcode: '', sector: '', short_description: '' });
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selected, setSelected] = useState(new Set());
@@ -47,8 +48,13 @@ export default function Jobs() {
     if (!form.title.trim()) return;
     setSaving(true);
     try {
-      await api.jobs.create(form);
-      setForm({ title: '', trade_category: '', site_postcode: '' });
+      // Only send fields the user actually filled (omit empty strings so the
+      // sector enum / optional text columns stay null rather than blank).
+      const payload = Object.fromEntries(
+        Object.entries(form).filter(([, v]) => typeof v !== 'string' || v.trim() !== ''),
+      );
+      await api.jobs.create(payload);
+      setForm({ title: '', trade_category: '', site_postcode: '', sector: '', short_description: '' });
       setCreating(false);
       await load();
     } catch {
@@ -128,6 +134,29 @@ export default function Jobs() {
               <div className="space-y-2">
                 <Label htmlFor="postcode">Site postcode</Label>
                 <Input id="postcode" value={form.site_postcode} onChange={(e) => setForm({ ...form, site_postcode: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sector">Type</Label>
+                <select
+                  id="sector"
+                  value={form.sector}
+                  onChange={(e) => setForm({ ...form, sector: e.target.value })}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  <option value="">Not set</option>
+                  <option value="domestic">Domestic</option>
+                  <option value="commercial">Commercial</option>
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-3">
+                <Label htmlFor="descr">Notes / description</Label>
+                <Textarea
+                  id="descr"
+                  rows={2}
+                  value={form.short_description}
+                  onChange={(e) => setForm({ ...form, short_description: e.target.value })}
+                  placeholder="Brief description of the work…"
+                />
               </div>
               <div className="flex items-end">
                 <Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Create'}</Button>

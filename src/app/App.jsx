@@ -49,6 +49,11 @@ import ContractorMatchEngine from '@/app/pages/admin/ContractorMatchEngine';
 import ComplianceDashboard from '@/app/pages/admin/ComplianceDashboard';
 import JobStatusBoard from '@/app/pages/admin/JobStatusBoard';
 
+// Commercial / agency (labour supply)
+import CommercialAccounts from '@/features/commercial-workforce/accounts/CommercialAccounts';
+import CommercialAccountDetail from '@/features/commercial-workforce/accounts/CommercialAccountDetail';
+import CommercialProjectDetail from '@/features/commercial-workforce/projects/CommercialProjectDetail';
+
 // Shared
 import Messages from '@/app/pages/Messages';
 import Onboarding from '@/app/pages/Onboarding';
@@ -163,6 +168,9 @@ export default function App() {
             <Route path="/compliance" element={adminShell(<Compliance />)} />
             <Route path="/leads" element={adminShell(<Leads />)} />
             <Route path="/users" element={adminShell(<UserManagement />)} />
+            <Route path="/commercial" element={adminShell(<CommercialAccounts />)} />
+            <Route path="/commercial/accounts/:id" element={adminShell(<CommercialAccountDetail />)} />
+            <Route path="/commercial/projects/:id" element={adminShell(<CommercialProjectDetail />)} />
             <Route path="/match-engine" element={adminShell(<ContractorMatchEngine />)} />
             <Route path="/compliance-dashboard" element={adminShell(<ComplianceDashboard />)} />
             <Route path="/job-board" element={adminShell(<JobStatusBoard />)} />

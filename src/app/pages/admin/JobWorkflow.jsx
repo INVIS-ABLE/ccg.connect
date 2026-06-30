@@ -12,7 +12,9 @@ import { MediaGallery } from '@/app/MediaGallery';
 import { QuoteBuilder } from '@/app/components/QuoteBuilder';
 import { SavedQuotes } from '@/app/components/SavedQuotes';
 import { JobCheckinPanel } from '@/app/components/JobCheckinPanel';
-import { ArrowLeft, Phone, Mail, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
+import { JobContactsPanel } from '@/app/components/JobContactsPanel';
+import { JobCostingPanel } from '@/app/components/JobCostingPanel';
+import { ArrowLeft, MapPin, Calendar, ChevronRight, CheckCircle } from 'lucide-react';
 
 const STAGES = [
   { key: 'enquiry', label: 'Enquiry received' },
@@ -161,6 +163,7 @@ export default function JobWorkflow() {
           <h1 className="text-xl font-bold">{job.title}</h1>
           <p className="text-xs text-muted-foreground">{job.job_reference ?? job.id.slice(0, 8).toUpperCase()}</p>
         </div>
+        {job.sector && <Badge variant="outline" className="capitalize">{job.sector}</Badge>}
         <Badge variant="secondary">{job.status}</Badge>
       </div>
 
@@ -238,20 +241,7 @@ export default function JobWorkflow() {
           <CardTitle className="text-sm">Contact / arrange</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Phone size={14} /> Call client
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Mail size={14} /> Email client
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Phone size={14} /> Call contractor
-            </Button>
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <Mail size={14} /> Email contractor
-            </Button>
-          </div>
+          <JobContactsPanel job={job} />
           <div className="space-y-2 pt-2">
             <Label className="text-xs">Quick message template</Label>
             <Select onValueChange={(v) => setContactMsg(v)}>
@@ -323,6 +313,16 @@ export default function JobWorkflow() {
             Request client e-signature
           </Button>
           {sigMsg && <p className="w-full text-xs text-muted-foreground">{sigMsg}</p>}
+        </CardContent>
+      </Card>
+
+      {/* Cost breakdown (internal): sector, materials, labour, total */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Cost breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <JobCostingPanel job={job} onSaved={(j) => setJob(j)} />
         </CardContent>
       </Card>
 

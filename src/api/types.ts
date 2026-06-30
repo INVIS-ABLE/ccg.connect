@@ -35,6 +35,10 @@ export interface Job {
   start_date: string | null;
   end_date: string | null;
   status: string;
+  sector?: 'domestic' | 'commercial' | null;
+  /** JSON array of { description, qty, unit_cost } — internal cost breakdown. */
+  materials?: string | null;
+  labour_cost?: number | null;
   // internal_notes / private_admin_notes are redacted for non-admins (server-side).
   internal_notes?: string | null;
   client_visible_notes: string | null;
@@ -247,6 +251,74 @@ export interface JobCheckin {
   longitude: number | null;
   accuracy_m: number | null;
   note: string | null;
+}
+
+// ── Commercial / agency ──────────────────────────────────────────────────────
+export interface CorporateAccount {
+  id: string;
+  legal_name: string;
+  trading_name: string | null;
+  registration_number: string | null;
+  status: 'prospect' | 'active' | 'inactive';
+  vat_treatment: string | null;
+  cis_treatment: string | null;
+  payment_terms: string | null;
+  framework_agreement: string | null;
+  insurance_requirements: string | null;
+  required_accreditations: string | null;
+  invoice_instructions: string | null;
+  supplier_portal_reference: string | null;
+  data_retention_note: string | null;
+  notes: string | null;
+}
+
+export interface CorporateContact {
+  id: string;
+  account_id: string;
+  name: string;
+  role: 'commercial' | 'procurement' | 'accounts' | 'site' | 'other';
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+}
+
+export interface CommercialProject {
+  id: string;
+  account_id: string;
+  name: string;
+  project_number: string | null;
+  region_division: string | null;
+  status: 'active' | 'on_hold' | 'completed' | 'cancelled';
+  notes: string | null;
+}
+
+export interface CommercialSite {
+  id: string;
+  project_id: string;
+  account_id: string;
+  name: string;
+  site_address: string | null;
+  postcode: string | null;
+  what3words: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  principal_contractor: string | null;
+  site_manager: string | null;
+  commercial_manager: string | null;
+  working_hours: string | null;
+  parking_access: string | null;
+  induction_instructions: string | null;
+  ppe_requirements: string | null;
+  drug_alcohol_policy: string | null;
+  emergency_arrangements: string | null;
+  welfare_info: string | null;
+  site_rules: string | null;
+  required_cards: string | null;
+  prohibited_activities: string | null;
+  check_in_method: 'qr' | 'geofence' | 'roll_call' | 'supervisor' | 'manual' | null;
+  po_number: string | null;
+  cost_code: string | null;
+  status: 'active' | 'completed' | 'suspended';
 }
 
 export interface MatchCandidate {
