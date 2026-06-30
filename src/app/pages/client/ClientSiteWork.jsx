@@ -2,9 +2,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { HardHat, Receipt, Users } from 'lucide-react';
+import { HardHat, Receipt, Users, Building2, CalendarCheck, ClipboardList, ShieldAlert } from 'lucide-react';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
+
+function Kpi({ icon: Icon, label, value, tone = '' }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 py-4">
+        <Icon size={18} className="shrink-0 text-muted-foreground" />
+        <div className="min-w-0">
+          <p className={`text-lg font-semibold leading-tight ${tone}`}>{value}</p>
+          <p className="truncate text-xs text-muted-foreground">{label}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 const STATUS_TONE = {
   active: 'default',
@@ -84,6 +98,29 @@ export default function ClientSiteWork() {
           Labour supplied to {data.accounts.map((a) => a.name).join(', ')}.
         </p>
       </div>
+
+      {/* Summary KPIs */}
+      {data.summary && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Kpi icon={Building2} label="Current sites" value={data.summary.currentSites} />
+          <Kpi icon={Users} label="Workers booked" value={data.summary.workersBooked} />
+          <Kpi icon={CalendarCheck} label="On site today" value={data.summary.presentToday} />
+          <Kpi icon={ClipboardList} label="Open requests" value={data.summary.openRequests} />
+          <Kpi
+            icon={ShieldAlert}
+            label="Open incidents"
+            value={data.summary.openIncidents}
+            tone={data.summary.openIncidents > 0 ? 'text-amber-700 dark:text-amber-400' : ''}
+          />
+          <Kpi icon={Receipt} label="Invoiced" value={gbp(data.summary.invoiced)} />
+          <Kpi
+            icon={Receipt}
+            label="Outstanding"
+            value={gbp(data.summary.outstanding)}
+            tone={data.summary.outstanding > 0 ? 'text-amber-700 dark:text-amber-400' : ''}
+          />
+        </div>
+      )}
 
       {/* Deployments */}
       <Card>
