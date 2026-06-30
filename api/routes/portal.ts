@@ -7,7 +7,9 @@ import {
   labourRequests,
   deployments,
   deploymentWorkers,
+  deploymentAttendance,
   commercialInvoices,
+  incidents,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
@@ -76,7 +78,38 @@ route.get('/commercial', async (c) => {
 
   const portalAccounts = accounts.map((a) => ({ id: a.id, name: a.trading_name || a.legal_name }));
 
-  return c.json({ accounts: portalAccounts, deployments: portalDeployments, invoices: portalInvoices });
+  // ── Dashboard summary — counts and the client's own invoice totals only.
+  // Allowlist-safe: no worker identities, rates, margins, cost or internal notes.
+  const liveStatuses = new Set(['confirmed', 'active']);
+  const liveDeps = deps.filter((d) => liveStatuses.has(d.status));
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Present-today is a COUNT only — worker ids are used to de-duplicate, never returned.
+  const attendanceRows = depIds.length
+    ? await db.select({ worker_id: deploymentAttendance.worker_id, status: deploymentAttendance.status, date: deploymentAttendance.date })
+        .from(deploymentAttendance).where(inArray(deploymentAttendance.deployment_id, depIds)).all()
+    : [];
+  const presentToday = new Set(
+    attendanceRows.filter((a) => a.date === today && (a.status === 'present' || a.status === 'late')).map((a) => a.worker_id),
+  ).size;
+
+  // Open incident COUNT for the client's accounts — never the detail/notes/worker.
+  const incRows = await db.select({ status: incidents.status }).from(incidents).where(inArray(incidents.account_id, accountIds)).all();
+  const openIncidents = incRows.filter((i) => i.status !== 'closed').length;
+
+  const openReqStatuses = new Set(['open', 'sourcing', 'partially_filled', 'awaiting_approval', 'confirmed']);
+  const summary = {
+    activeDeployments: liveDeps.length,
+    currentSites: new Set(liveDeps.map((d) => d.site_id).filter(Boolean)).size,
+    workersBooked: liveDeps.reduce((s, d) => s + (assignedCount.get(d.id) ?? 0), 0),
+    presentToday,
+    openRequests: requests.filter((r) => openReqStatuses.has(r.status)).length,
+    openIncidents,
+    invoiced: Math.round(portalInvoices.reduce((s, i) => s + (i.gross_amount || 0), 0) * 100) / 100,
+    outstanding: Math.round(invoices.filter((i) => i.status === 'issued').reduce((s, i) => s + (i.gross_amount || 0), 0) * 100) / 100,
+  };
+
+  return c.json({ accounts: portalAccounts, summary, deployments: portalDeployments, invoices: portalInvoices });
 });
 
 export default route;

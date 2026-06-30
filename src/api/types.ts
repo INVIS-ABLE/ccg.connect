@@ -709,8 +709,20 @@ export interface PortalInvoice {
   status: string;
 }
 
+export interface PortalCommercialSummary {
+  activeDeployments: number;
+  currentSites: number;
+  workersBooked: number;
+  presentToday: number;
+  openRequests: number;
+  openIncidents: number;
+  invoiced: number;
+  outstanding: number;
+}
+
 export interface PortalCommercial {
   accounts: { id: string; name: string }[];
+  summary?: PortalCommercialSummary;
   deployments: PortalDeployment[];
   invoices: PortalInvoice[];
 }
