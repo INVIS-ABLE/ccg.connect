@@ -1362,3 +1362,46 @@ export const deploymentReplacements = sqliteTable(
   },
   (t) => ({ byDeployment: index('ix_repl_deployment').on(t.deployment_id) }),
 );
+
+// ── Forms: RAMS & Method Statements ──────────────────────────────────────────
+// Reusable templates authored by ops; `content` is the JSON RamsContent shape
+// (sections + hazard table) from src/domain/forms/rams.ts.
+export const formTemplates = sqliteTable(
+  'form_templates',
+  {
+    id: pk(),
+    name: text('name').notNull(),
+    form_type: text('form_type', { enum: ['rams', 'method_statement'] }).notNull().default('rams'),
+    description: text('description'),
+    content: text('content'),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byType: index('ix_formtpl_type').on(t.form_type) }),
+);
+
+// A filled document, attached to a deployment. `content` is RamsContent JSON.
+// Append-only in spirit: issuing freezes a version; further edits bump it.
+export const formDocuments = sqliteTable(
+  'form_documents',
+  {
+    id: pk(),
+    template_id: text('template_id'),
+    deployment_id: text('deployment_id'),
+    form_type: text('form_type', { enum: ['rams', 'method_statement'] }).notNull().default('rams'),
+    title: text('title').notNull(),
+    reference: text('reference'),
+    site_name: text('site_name'),
+    prepared_by: text('prepared_by'),
+    content: text('content'),
+    status: text('status', { enum: ['draft', 'issued', 'archived'] }).notNull().default('draft'),
+    version: integer('version').notNull().default(1),
+    issued_at: text('issued_at'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byDeployment: index('ix_formdoc_deployment').on(t.deployment_id) }),
+);

@@ -19,6 +19,10 @@ import type {
   CorporateContact,
   CorporateAccountUser,
   PortalCommercial,
+  FormType,
+  FormTemplate,
+  FormDocument,
+  RamsContent,
   CommercialProject,
   CommercialSite,
   Worker,
@@ -373,6 +377,28 @@ export const api = {
   portal: {
     commercial: (accountId?: string) =>
       request<PortalCommercial>(`/api/portal/commercial${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
+  },
+  forms: {
+    templates: {
+      list: (type?: FormType) =>
+        request<{ templates: FormTemplate[] }>(`/api/forms/templates${type ? `?type=${encodeURIComponent(type)}` : ''}`),
+      get: (id: string) => request<{ template: FormTemplate }>(`/api/forms/templates/${encodeURIComponent(id)}`),
+      create: (data: { name: string; form_type: FormType; description?: string; content?: RamsContent }) =>
+        request<{ template: FormTemplate }>('/api/forms/templates', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<{ name: string; description: string | null; content: RamsContent; active: boolean }>) =>
+        request<{ template: FormTemplate }>(`/api/forms/templates/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    },
+    documents: {
+      list: (deploymentId?: string) =>
+        request<{ documents: FormDocument[] }>(`/api/forms/documents${deploymentId ? `?deployment_id=${encodeURIComponent(deploymentId)}` : ''}`),
+      get: (id: string) => request<{ document: FormDocument }>(`/api/forms/documents/${encodeURIComponent(id)}`),
+      create: (data: { title: string; form_type?: FormType; template_id?: string; deployment_id?: string; reference?: string; site_name?: string; prepared_by?: string; content?: RamsContent }) =>
+        request<{ document: FormDocument }>('/api/forms/documents', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<{ title: string; reference: string | null; site_name: string | null; prepared_by: string | null; content: RamsContent; status: string }>) =>
+        request<{ document: FormDocument }>(`/api/forms/documents/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      issue: (id: string) =>
+        request<{ document: FormDocument }>(`/api/forms/documents/${encodeURIComponent(id)}/issue`, { method: 'POST', body: JSON.stringify({}) }),
+    },
   },
   workers: {
     list: (contractorId?: string) =>
