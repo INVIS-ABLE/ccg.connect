@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { api } from '@/api/client';
+import { api, ApiError } from '@/api/client';
 import { useAuth } from '@/app/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { HardHat, Building2 } from 'lucide-react';
+import { HardHat, Building2, ShieldCheck } from 'lucide-react';
 
 const CONTACT_METHODS = ['phone', 'email', 'sms', 'whatsapp'];
 
@@ -58,6 +58,7 @@ export default function Onboarding() {
     hourly_rate: '',
   });
   const [client, setClient] = useState({ company_name: '', client_type: 'company' });
+  const [staffCode, setStaffCode] = useState('');
 
   function setC(patch) {
     setCommon((s) => ({ ...s, ...patch }));
@@ -65,6 +66,36 @@ export default function Onboarding() {
 
   const contactValid =
     common.first_name.trim() && common.phone && common.postcode.trim() && common.line_1.trim() && common.terms;
+
+  async function submitStaff() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await api.onboarding.submit({
+        role: 'staff',
+        first_name: common.first_name,
+        last_name: common.last_name,
+        display_name: [common.first_name, common.last_name].filter(Boolean).join(' ') || undefined,
+        email: common.email || undefined,
+        phone: common.phone || undefined,
+        staff_code: staffCode.trim(),
+        terms_accepted: common.terms,
+        privacy_accepted: common.terms,
+      });
+      await refresh();
+      navigate('/', { replace: true });
+    } catch (err) {
+      const code = err instanceof ApiError ? err.body?.error : null;
+      setError(
+        code === 'invalid_staff_code'
+          ? 'That staff access code is not correct. Please check it with Lee.'
+          : code === 'staff_signup_disabled'
+            ? 'Staff self-registration is not enabled yet. Ask an administrator to add you instead.'
+            : 'Could not complete staff sign-up. Please try again.',
+      );
+      setSubmitting(false);
+    }
+  }
 
   async function submit() {
     setSubmitting(true);
@@ -102,41 +133,115 @@ export default function Onboarding() {
     <div className="mx-auto max-w-lg px-4 py-10">
       <div className="mb-6 text-center">
         <h1 className="text-2xl font-bold">Welcome to CCG Connect</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Let's set up your account — step {step} of 3.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Let&apos;s set up your account — step {step} of {role === 'staff' ? 2 : 3}.
+        </p>
       </div>
 
       {/* Step 1 — account type */}
       {step === 1 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => {
-              setRole('contractor');
-              setStep(2);
-            }}
-            className="flex flex-col items-center gap-2 rounded-xl border p-6 text-center hover:border-primary hover:bg-primary/5"
-          >
-            <HardHat className="h-8 w-8 text-primary" />
-            <span className="font-semibold">I'm a contractor</span>
-            <span className="text-xs text-muted-foreground">Tradesperson looking for work</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setRole('client');
-              setStep(2);
-            }}
-            className="flex flex-col items-center gap-2 rounded-xl border p-6 text-center hover:border-primary hover:bg-primary/5"
-          >
-            <Building2 className="h-8 w-8 text-primary" />
-            <span className="font-semibold">I'm a client</span>
-            <span className="text-xs text-muted-foreground">Looking for work done</span>
-          </button>
-        </div>
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => {
+                setRole('contractor');
+                setStep(2);
+              }}
+              className="flex flex-col items-center gap-2 rounded-xl border p-6 text-center hover:border-primary hover:bg-primary/5"
+            >
+              <HardHat className="h-8 w-8 text-primary" />
+              <span className="font-semibold">I'm a contractor</span>
+              <span className="text-xs text-muted-foreground">Tradesperson looking for work</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRole('client');
+                setStep(2);
+              }}
+              className="flex flex-col items-center gap-2 rounded-xl border p-6 text-center hover:border-primary hover:bg-primary/5"
+            >
+              <Building2 className="h-8 w-8 text-primary" />
+              <span className="font-semibold">I'm a client</span>
+              <span className="text-xs text-muted-foreground">Looking for work done</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setRole('staff');
+                setStep(2);
+              }}
+              className="flex flex-col items-center gap-2 rounded-xl border p-6 text-center hover:border-primary hover:bg-primary/5"
+            >
+              <ShieldCheck className="h-8 w-8 text-primary" />
+              <span className="font-semibold">Cook Construction staff</span>
+              <span className="text-xs text-muted-foreground">Office / ops team (invite code needed)</span>
+            </button>
+          </div>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Already have a staff login?{' '}
+            <button type="button" onClick={() => navigate('/login')} className="font-medium text-primary underline">
+              Sign in here
+            </button>
+          </p>
+        </>
       )}
 
-      {/* Step 2 — common contact */}
-      {step === 2 && (
+      {/* Staff step — invite-code gated (no address/trade needed) */}
+      {step === 2 && role === 'staff' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" /> Staff sign-up
+            </CardTitle>
+            <CardDescription>
+              For Lee and the Cook Construction team. You&apos;ll need the staff access code Lee shared with you.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>First name</Label>
+              <Input value={common.first_name} onChange={(e) => setC({ first_name: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Last name</Label>
+              <Input value={common.last_name} onChange={(e) => setC({ last_name: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Email</Label>
+              <Input type="email" value={common.email} onChange={(e) => setC({ email: e.target.value })} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Staff access code</Label>
+              <Input
+                value={staffCode}
+                onChange={(e) => setStaffCode(e.target.value)}
+                placeholder="Enter the code Lee gave you"
+                autoComplete="off"
+                required
+              />
+            </div>
+            <label className="flex items-start gap-2 sm:col-span-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={common.terms} onChange={(e) => setC({ terms: e.target.checked })} />
+              <span>I agree to the terms of service and privacy policy.</span>
+            </label>
+            {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
+            <div className="flex justify-between sm:col-span-2">
+              <Button variant="outline" onClick={() => setStep(1)} disabled={submitting}>Back</Button>
+              <Button
+                onClick={submitStaff}
+                disabled={submitting || !common.first_name.trim() || !staffCode.trim() || !common.terms}
+              >
+                {submitting ? 'Verifying…' : 'Join the team'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2 — common contact (contractor / client) */}
+      {step === 2 && role !== 'staff' && (
         <Card>
           <CardHeader>
             <CardTitle>Your contact details</CardTitle>

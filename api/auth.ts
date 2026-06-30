@@ -28,6 +28,9 @@ export type AuthEnv = {
   DOCUMENSO_API_KEY?: string;
   // Optional Cloudflare Turnstile secret. Unset → bot-protection guard is off.
   TURNSTILE_SECRET_KEY?: string;
+  // Optional staff self-registration code. Unset → the onboarding "staff" path is
+  // disabled (403). When set, entering it during onboarding grants ops_admin.
+  STAFF_INVITE_CODE?: string;
 };
 
 export function createAuth(env: AuthEnv) {

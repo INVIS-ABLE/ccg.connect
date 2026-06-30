@@ -83,7 +83,7 @@ export const api = {
   },
   onboarding: {
     submit: (data: {
-      role: 'contractor' | 'client';
+      role: 'contractor' | 'client' | 'staff';
       first_name?: string;
       last_name?: string;
       display_name?: string;
@@ -92,6 +92,8 @@ export const api = {
       preferred_contact_method?: 'phone' | 'email' | 'sms' | 'whatsapp';
       terms_accepted?: boolean;
       privacy_accepted?: boolean;
+      /** Required only for the staff path — the server-held invite code. */
+      staff_code?: string;
       address?: { line_1?: string; line_2?: string; town_city?: string; county?: string; postcode?: string };
       contractor?: Record<string, unknown>;
       client?: Record<string, unknown>;
