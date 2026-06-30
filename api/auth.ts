@@ -24,10 +24,7 @@ export type AuthEnv = {
   // One-time first-admin bootstrap (see routes/adminBootstrap.ts). When unset the
   // bootstrap route is disabled. Provision transiently via `wrangler secret put`.
   ADMIN_BOOTSTRAP_SECRET?: string;
-  // Optional integrations (step 10). Unset → in-app only / signature seam inert.
-  NOVU_API_KEY?: string;
-  // Novu API base. Defaults to EU (UK/Europe). Set to https://api.novu.co for US.
-  NOVU_API_URL?: string;
+  // Optional integration: e-signatures. Unset → the signature seam is inert.
   DOCUMENSO_API_KEY?: string;
 };
 

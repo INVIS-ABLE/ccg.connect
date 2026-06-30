@@ -73,32 +73,23 @@ npx wrangler secret delete ADMIN_BOOTSTRAP_SECRET
 The new owner then signs in normally at `/api/auth` (email + password). Further
 admins are created by promoting existing users via `PATCH /api/admin/users/:id/role`.
 
-## External integrations (optional)
+## Notifications & e-signatures
 
-In-app notifications and the e-signature button work without any of these. They
-light up the moment the matching secret is set — no code change.
+**Notifications are in-app only** — written to D1 and shown in the top-bar bell
+(plus realtime in chat). There is no paid notification service; nothing to
+configure. Events that notify: a contractor is assigned to a job; a timesheet is
+approved or returned.
 
-| Secret | Enables |
-| --- | --- |
-| `NOVU_API_KEY` | External notification channels (email/SMS/push) behind the in-app bell, via Novu. |
-| `DOCUMENSO_API_KEY` | The "Request client e-signature" action on a job (Documenso). |
+**E-signatures (optional)** — the job page's "Request client e-signature" button
+uses Documenso. It is inert until you set the secret; then it creates a signature
+request for the job's client (the client must have an email set).
 
 ```bash
-npx wrangler secret put NOVU_API_KEY
-npx wrangler secret put DOCUMENSO_API_KEY
+npx wrangler secret put DOCUMENSO_API_KEY   # from Documenso → Settings → API Tokens
 ```
 
-- **Novu:** every in-app notification also triggers a Novu event named after the
-  notification type (`job_assigned`, `timesheet_approved`, `timesheet_returned`),
-  with `subscriberId` = the user id, the recipient's email/phone/name, and a
-  `{ title, body, deepLink }` payload. The app sends the contact details, so Novu
-  delivers email/SMS without manual subscriber upkeep — just create matching
-  workflows. **Region:** defaults to **EU** (`eu.api.novu.co`, UK/Europe); set
-  `NOVU_API_URL=https://api.novu.co` only for a US Novu account. Without the key,
-  only the in-app bell fires.
-- **Documenso:** the job page's "Request client e-signature" calls Documenso for
-  the job's client. Without the key the button reports that e-signatures aren't
-  enabled. Configure the document template/fields on the Documenso side.
+Without the key the button simply reports that e-signatures aren't enabled.
+Configure the document template/fields on the Documenso side.
 
 ## Database (D1)
 

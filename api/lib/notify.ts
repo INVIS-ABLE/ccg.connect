@@ -1,15 +1,13 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { and, eq, isNull } from 'drizzle-orm';
-import { notifications, userProfiles } from '../db/schema';
-import { user as authUser } from '../db/auth-schema';
+import { notifications } from '../db/schema';
 import type { Bindings } from '../env';
-import { novuTrigger } from './integrations/novu';
 
 /**
- * Channel-independent notification service (upgrade plan, step 10). Always writes
- * the user-facing in-app notification to D1 (the one bell users see), then hands
- * off to external channel adapters (Novu) which are no-ops unless configured.
- * Designed to be called via `waitUntil` — it never throws.
+ * In-app notification service. Writes the user-facing notification to D1 — the
+ * bell users see in the top bar. Kept channel-aware in the schema so external
+ * delivery (email/SMS/push) can be added later, but there is no paid third-party
+ * dependency. Designed to be called via `waitUntil` — it never throws.
  */
 export interface NotifyInput {
   userId: string;
@@ -52,31 +50,6 @@ export async function notify(env: Bindings, input: NotifyInput): Promise<void> {
       channel: 'in_app',
       delivery_status: 'delivered',
       sent_at: new Date().toISOString(),
-    });
-
-    // Look up the recipient's contact details so Novu can deliver email/SMS
-    // (it upserts the subscriber from these).
-    const authRow = (
-      await db.select({ email: authUser.email, name: authUser.name }).from(authUser).where(eq(authUser.id, input.userId)).limit(1)
-    )[0];
-    const profRow = (
-      await db
-        .select({ phone: userProfiles.phone, first_name: userProfiles.first_name, last_name: userProfiles.last_name, email: userProfiles.email })
-        .from(userProfiles)
-        .where(eq(userProfiles.user_id, input.userId))
-        .limit(1)
-    )[0];
-
-    await novuTrigger(env, {
-      userId: input.userId,
-      type: input.notification_type,
-      title: input.title,
-      body: input.body ?? '',
-      deepLink: input.deep_link,
-      email: authRow?.email ?? profRow?.email ?? null,
-      phone: profRow?.phone ?? null,
-      firstName: profRow?.first_name ?? null,
-      lastName: profRow?.last_name ?? null,
     });
   } catch {
     /* notifications must never break the originating action */
