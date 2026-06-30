@@ -62,6 +62,7 @@ import LabourRequestDetail from '@/features/commercial-workforce/labour-requests
 import Deployments from '@/features/commercial-workforce/deployments/Deployments';
 import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
 import Incidents from '@/features/commercial-workforce/incidents/Incidents';
+import CommercialDashboard from '@/app/pages/admin/CommercialDashboard';
 
 // Shared
 import Messages from '@/app/pages/Messages';
@@ -178,6 +179,7 @@ export default function App() {
             <Route path="/leads" element={adminShell(<Leads />)} />
             <Route path="/users" element={adminShell(<UserManagement />)} />
             <Route path="/commercial" element={adminShell(<CommercialAccounts />)} />
+            <Route path="/commercial/dashboard" element={adminShell(<CommercialDashboard />)} />
             <Route path="/commercial/accounts/:id" element={adminShell(<CommercialAccountDetail />)} />
             <Route path="/commercial/projects/:id" element={adminShell(<CommercialProjectDetail />)} />
             <Route path="/workforce/workers" element={adminShell(<Workers />)} />
