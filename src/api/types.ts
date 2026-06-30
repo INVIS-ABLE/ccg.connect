@@ -535,6 +535,8 @@ export interface CheckinContext {
   roster?: CheckinStatus[];
   /** Present for a worker checking themselves in. */
   me_worker?: CheckinStatus;
+  /** The worker's Key Information Document for this deployment (issued/acknowledged), if any. */
+  my_kid?: KidDocument | null;
 }
 
 export interface KidDocument {
