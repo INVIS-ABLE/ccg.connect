@@ -119,10 +119,17 @@ Inspect tables: `npx wrangler d1 execute ccg-connect-db --remote --command "SELE
 
 ## Custom domain — `app.cookconstructiongrowth.co.uk`
 
-1. Workers & Pages → this project → **Settings → Domains & Routes → Add → Custom domain**.
-2. Enter `app.cookconstructiongrowth.co.uk` (the zone must be on Cloudflare; the
-   `app` record is created automatically).
-3. Set `BETTER_AUTH_URL` to that origin so sign-in redirects resolve correctly.
+The custom domain is declared in `wrangler.jsonc` (`routes` with `custom_domain:
+true`), so **deploying the Worker provisions the domain and creates the `app` DNS
+record automatically** — no manual dashboard step is needed, as long as the
+`cookconstructiongrowth.co.uk` zone is on this Cloudflare account.
+
+After the first deploy that includes the route, set `BETTER_AUTH_URL` to
+`https://app.cookconstructiongrowth.co.uk` so sign-in redirects resolve correctly,
+then redeploy.
+
+If you ever need to attach it by hand instead: Workers & Pages → this project →
+**Settings → Domains & Routes → Add → Custom domain** → `app.cookconstructiongrowth.co.uk`.
 
 The marketing site links here via its `NEXT_PUBLIC_PORTAL_URL` env var (defaults to
 `https://app.cookconstructiongrowth.co.uk`).

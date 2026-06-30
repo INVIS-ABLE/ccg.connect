@@ -10,6 +10,15 @@
   "compatibility_date": "2026-06-22",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Canonical public origin. Declaring the custom domain here (rather than only in
+  // the dashboard) makes the binding reproducible: on deploy, Cloudflare attaches
+  // `app.cookconstructiongrowth.co.uk` to this Worker and creates the `app` DNS
+  // record automatically. The zone (cookconstructiongrowth.co.uk) must be on this
+  // Cloudflare account. Keep BETTER_AUTH_URL set to this same origin (see
+  // docs/cloudflare-deployment.md) so sign-in redirects resolve correctly.
+  "routes": [
+    { "pattern": "app.cookconstructiongrowth.co.uk", "custom_domain": true }
+  ],
   // Daily 07:00 UTC: credential-expiry reminders (see api/jobs/credentialExpiry.ts).
   "triggers": { "crons": ["0 7 * * *"] },
   "assets": {
