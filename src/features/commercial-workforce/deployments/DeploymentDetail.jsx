@@ -11,6 +11,7 @@ import { DeploymentDiary } from './DeploymentDiary';
 import { DeploymentDocuments } from './DeploymentDocuments';
 import { ReplacementDialog } from './ReplacementDialog';
 import { SiteCheckInQrDialog } from './SiteCheckInQrDialog';
+import { KidPanel } from './KidPanel';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
 
@@ -205,6 +206,9 @@ export default function DeploymentDetail() {
           <DeploymentDocuments deploymentId={d.id} siteName={request?.title ?? ''} />
         </CardContent>
       </Card>
+
+      {/* Key Information Documents (agency workers) */}
+      <KidPanel deploymentId={d.id} members={members} />
 
       {/* Time & pay */}
       <Card>
