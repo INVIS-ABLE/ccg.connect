@@ -108,14 +108,36 @@ route.get('/commercial', async (c) => {
   const openIncidents = inc.filter((i) => i.status !== 'closed').length;
   const incidentsBySeverity = countByStatus(inc.filter((i) => i.status !== 'closed'), (i) => i.severity);
 
+  // ── Today's operational picture ──────────────────────────────────────────
+  const today = now.toISOString().slice(0, 10);
+  const todaysAttendance = attendance.filter((a) => a.date === today);
+  const workersOnSiteToday = new Set(
+    todaysAttendance.filter((a) => a.status === 'present' || a.status === 'late').map((a) => a.worker_id),
+  ).size;
+  const absentToday = todaysAttendance.filter((a) => a.status === 'absent' || a.status === 'no_show').length;
+
+  // Timesheets in the approval pipeline (submitted by worker/site, not yet ops-approved).
+  const AWAITING_APPROVAL = new Set(['submitted', 'site_confirmed']);
+  const timesheetsAwaitingApproval = timesheets.filter((ts) => AWAITING_APPROVAL.has(ts.status)).length;
+
+  // Payroll exposure: worker pay on approved/locked timesheets not yet invoiced.
+  const PAYROLL_DUE = new Set(['ops_approved', 'locked']);
+  const payrollExposure = Math.round(
+    timesheets.reduce((s, ts, idx) => s + (PAYROLL_DUE.has(ts.status) ? totals[idx]!.workerPay : 0), 0) * 100,
+  ) / 100;
+
   return c.json({
     months,
     kpis: {
       activeDeployments,
       workersDeployed,
+      workersOnSiteToday,
+      absentToday,
       openRequests,
+      timesheetsAwaitingApproval,
       revenue,
       outstanding,
+      payrollExposure,
       margin: margin.margin,
       marginPct: margin.marginPct,
       attendanceRate: attendanceReliability.rate,
