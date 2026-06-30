@@ -1,9 +1,10 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, inArray, desc } from 'drizzle-orm';
+import { eq, inArray, desc, and } from 'drizzle-orm';
 import {
   deployments,
   deploymentWorkers,
+  deploymentAttendance,
   labourRequests,
   gangMembers,
   workers,
@@ -13,6 +14,7 @@ import {
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import { complianceMatrix, mergeRequirements, RTW_REQUIREMENT } from '../../src/domain/workforce/compliance';
+import { isAttendanceStatus } from '../../src/domain/commercial/attendance';
 import type { AppEnv } from '../env';
 
 /**
@@ -203,6 +205,49 @@ route.patch('/:id', async (c) => {
   const updated = await db.update(deployments).set({ ...patch, updated_at: new Date() }).where(eq(deployments.id, c.req.param('id'))).returning();
   if (!updated[0]) return c.json({ error: 'not_found' }, 404);
   return c.json({ deployment: updated[0] });
+});
+
+// ── Attendance / roll-call ───────────────────────────────────────────────────
+route.get('/:id/attendance', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const date = c.req.query('date');
+  const rows = date
+    ? await db.select().from(deploymentAttendance).where(and(eq(deploymentAttendance.deployment_id, c.req.param('id')), eq(deploymentAttendance.date, date))).all()
+    : await db.select().from(deploymentAttendance).where(eq(deploymentAttendance.deployment_id, c.req.param('id'))).all();
+  return c.json({ attendance: rows });
+});
+
+// Upsert one worker's roll-call for a day.
+route.post('/:id/attendance', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const me = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const deploymentId = c.req.param('id');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const workerId = str(body.worker_id);
+  const date = str(body.date);
+  if (!workerId || !date) return c.json({ error: 'worker_id_and_date_required' }, 400);
+  const status = isAttendanceStatus(body.status) ? body.status : 'present';
+  const fields = {
+    status,
+    check_in_time: str(body.check_in_time),
+    check_out_time: str(body.check_out_time),
+    method: ['qr', 'geofence', 'roll_call', 'supervisor', 'manual'].includes(String(body.method)) ? (body.method as 'qr' | 'geofence' | 'roll_call' | 'supervisor' | 'manual') : 'roll_call',
+    confirmed_by: me.userId,
+    reason: str(body.reason),
+    replacement_needed: body.replacement_needed === true,
+    notes: str(body.notes),
+  };
+
+  const existing = (await db.select({ id: deploymentAttendance.id }).from(deploymentAttendance)
+    .where(and(eq(deploymentAttendance.deployment_id, deploymentId), eq(deploymentAttendance.worker_id, workerId), eq(deploymentAttendance.date, date))).limit(1))[0];
+  if (existing) {
+    const updated = await db.update(deploymentAttendance).set({ ...fields, updated_at: new Date() }).where(eq(deploymentAttendance.id, existing.id)).returning();
+    return c.json({ record: updated[0] });
+  }
+  const inserted = await db.insert(deploymentAttendance).values({ deployment_id: deploymentId, worker_id: workerId, date, ...fields }).returning();
+  return c.json({ record: inserted[0] }, 201);
 });
 
 export default route;

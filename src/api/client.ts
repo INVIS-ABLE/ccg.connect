@@ -27,6 +27,7 @@ import type {
   Deployment,
   DeploymentMember,
   ComplianceCell,
+  AttendanceRecord,
   CommercialTimesheet,
   CommercialInvoice,
   MessagingContact,
@@ -405,6 +406,12 @@ export const api = {
       request<{ deployment: Deployment; conversation_id: string | null }>(`/api/deployments/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) }),
     update: (id: string, data: { status?: string; notes?: string }) =>
       request<{ deployment: Deployment }>(`/api/deployments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    attendance: {
+      list: (deploymentId: string, date?: string) =>
+        request<{ attendance: AttendanceRecord[] }>(`/api/deployments/${encodeURIComponent(deploymentId)}/attendance${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+      set: (deploymentId: string, data: { worker_id: string; date: string; status: string; replacement_needed?: boolean; reason?: string; check_in_time?: string }) =>
+        request<{ record: AttendanceRecord }>(`/api/deployments/${encodeURIComponent(deploymentId)}/attendance`, { method: 'POST', body: JSON.stringify(data) }),
+    },
   },
   commercialTimesheets: {
     list: (deploymentId?: string) =>
