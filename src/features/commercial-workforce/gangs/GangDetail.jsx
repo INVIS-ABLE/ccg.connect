@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Check, AlertTriangle, X, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Check, AlertTriangle, X, ShieldCheck, Sparkles, Layers } from 'lucide-react';
 import { complianceMatrix, mergeRequirements, RTW_REQUIREMENT } from '@/domain/workforce/compliance';
+import { computeGangRollup } from '@/domain/commercial/gangRollup';
 
 const CELL = {
   ok: { icon: <Check size={14} className="text-green-600" />, label: 'OK' },
@@ -95,6 +96,24 @@ export default function GangDetail() {
     return complianceMatrix(inputs, requirements, now);
   }, [members, requirements, now]);
 
+  const rollup = useMemo(
+    () =>
+      computeGangRollup(
+        members
+          .filter((m) => m.worker)
+          .map((m) => ({
+            role: m.role,
+            right_to_work_status: m.worker.right_to_work_status,
+            available_from: m.worker.available_from ?? null,
+            day_rate: m.worker.day_rate ?? null,
+            cards: m.worker.cards ?? [],
+          })),
+        gang?.usual_day_rate ?? null,
+        now,
+      ),
+    [members, gang, now],
+  );
+
   const memberWorkerIds = new Set(members.map((m) => m.worker_id));
   const addable = allWorkers.filter((w) => !memberWorkerIds.has(w.id));
   const deployableCount = matrix.filter((r) => r.deployable).length;
@@ -149,6 +168,54 @@ export default function GangDetail() {
             </select>
             <Button type="submit" size="sm" disabled={busy || !pick.worker_id} className="gap-1.5"><Plus size={14} /> Add</Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Gang roll-up — combined quals, availability & cost/margin */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-1.5 text-sm"><Layers size={14} /> Gang roll-up</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-md border p-2.5">
+              <p className="text-xs text-muted-foreground">Available now</p>
+              <p className="text-lg font-semibold">{rollup.availableNow}<span className="text-sm text-muted-foreground">/{rollup.totalMembers}</span></p>
+              {rollup.earliestAvailable && <p className="text-[11px] text-amber-600">rest from {fmtDate(rollup.earliestAvailable)}</p>}
+            </div>
+            <div className="rounded-md border p-2.5">
+              <p className="text-xs text-muted-foreground">RTW valid</p>
+              <p className="text-lg font-semibold">{rollup.rtwValid}<span className="text-sm text-muted-foreground">/{rollup.totalMembers}</span></p>
+            </div>
+            <div className="rounded-md border p-2.5">
+              <p className="text-xs text-muted-foreground">Pay cost / day</p>
+              <p className="text-lg font-semibold">£{rollup.payCostPerDay}</p>
+              <p className="text-[11px] text-muted-foreground">{rollup.coreMembers} core{rollup.reserveMembers ? ` · ${rollup.reserveMembers} reserve` : ''}</p>
+            </div>
+            <div className="rounded-md border p-2.5">
+              <p className="text-xs text-muted-foreground">Margin / day</p>
+              {rollup.marginPerDay === null ? (
+                <p className="text-sm text-muted-foreground">set charge rate</p>
+              ) : (
+                <p className={`text-lg font-semibold ${rollup.marginPerDay < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  £{rollup.marginPerDay}
+                  {rollup.marginPct !== null && <span className="ml-1 text-xs font-normal text-muted-foreground">({rollup.marginPct}%)</span>}
+                </p>
+              )}
+              {rollup.chargePerDay !== null && <p className="text-[11px] text-muted-foreground">charge £{rollup.chargePerDay}/day</p>}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">Combined verified qualifications</p>
+            {rollup.qualifications.length === 0 ? (
+              <p className="text-xs text-muted-foreground">None verified yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {rollup.qualifications.map((q) => <Badge key={q} variant="secondary" className="font-normal">{q}</Badge>)}
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Pay cost covers the working core (leader + permanent); reserves are backups and aren&apos;t charged. Margin uses the gang&apos;s usual day rate as the client charge.
+          </p>
         </CardContent>
       </Card>
 
