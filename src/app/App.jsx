@@ -64,7 +64,6 @@ import LabourRequestDetail from '@/features/commercial-workforce/labour-requests
 import Deployments from '@/features/commercial-workforce/deployments/Deployments';
 import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
 import DeploymentCheckIn from '@/features/commercial-workforce/deployments/DeploymentCheckIn';
-import DispatchBoard from '@/features/commercial-workforce/dispatch/DispatchBoard';
 import MyWork from '@/app/pages/MyWork';
 import Incidents from '@/features/commercial-workforce/incidents/Incidents';
 import CommercialDashboard from '@/app/pages/admin/CommercialDashboard';
@@ -79,6 +78,7 @@ import CheckIn from '@/app/pages/CheckIn';
 
 // Heavy, route-split pages (calendar/gantt/charts kept out of the main bundle)
 const Schedule = lazy(() => import('@/app/pages/admin/Schedule'));
+const DispatchBoard = lazy(() => import('@/features/commercial-workforce/dispatch/DispatchBoard'));
 const Reports = lazy(() => import('@/app/pages/admin/Reports'));
 
 /** Admin-only gate */
@@ -216,7 +216,14 @@ export default function App() {
             <Route path="/workforce/gangs/:id" element={adminShell(<GangDetail />)} />
             <Route path="/workforce/requests" element={adminShell(<LabourRequests />)} />
             <Route path="/workforce/requests/:id" element={adminShell(<LabourRequestDetail />)} />
-            <Route path="/workforce/dispatch" element={adminShell(<DispatchBoard />)} />
+            <Route
+              path="/workforce/dispatch"
+              element={adminShell(
+                <Suspense fallback={<p className="text-sm text-muted-foreground">Loading dispatch…</p>}>
+                  <DispatchBoard />
+                </Suspense>,
+              )}
+            />
             <Route path="/workforce/deployments" element={adminShell(<Deployments />)} />
             <Route path="/workforce/deployments/:id" element={adminShell(<DeploymentDetail />)} />
             <Route path="/workforce/incidents" element={adminShell(<Incidents />)} />
