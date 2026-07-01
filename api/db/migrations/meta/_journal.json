@@ -232,6 +232,13 @@
       "when": 1782867174131,
       "tag": "0032_married_korg",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1782867668089,
+      "tag": "0033_right_living_tribunal",
+      "breakpoints": true
     }
   ]
 }

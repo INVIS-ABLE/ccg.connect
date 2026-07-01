@@ -11,6 +11,7 @@ import type {
   MatchCandidate,
   AppNotification,
   JobMediaItem,
+  DeploymentMediaItem,
   CredentialType,
   ContractorCredential,
   Quote,
@@ -274,6 +275,20 @@ export const api = {
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) throw new ApiError(res.status, body);
       return body as { media: JobMediaItem };
+    },
+  },
+  deploymentMedia: {
+    list: (deploymentId: string) =>
+      request<{ media: DeploymentMediaItem[] }>(`/api/deployment-media?deployment_id=${encodeURIComponent(deploymentId)}`),
+    upload: async (deploymentId: string, file: File, fields: Record<string, string> = {}) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('deployment_id', deploymentId);
+      for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+      const res = await fetch('/api/deployment-media', { method: 'POST', credentials: 'include', body: fd });
+      const body: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new ApiError(res.status, body);
+      return body as { media: DeploymentMediaItem };
     },
   },
   messages: {
