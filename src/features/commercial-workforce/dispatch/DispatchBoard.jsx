@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import FullCalendar from '@fullcalendar/react';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import interactionPlugin from '@fullcalendar/interaction';
 import { api } from '@/api/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LayoutGrid, MapPin, CalendarClock, HardHat, Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { LayoutGrid, MapPin, CalendarClock, HardHat, Plus, X, CheckCircle2, AlertTriangle, GripVertical } from 'lucide-react';
 
 const STATUS_COLOR = {
   proposed: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
@@ -20,6 +26,13 @@ const RTW = {
   restricted: { label: 'RTW restricted', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', Icon: AlertTriangle },
 };
 
+// Timeline event colours by staffing state (need met / short / unknown).
+const FILL_FULL = '#16a34a';
+const FILL_SHORT = '#f59e0b';
+const FILL_UNKNOWN = '#64748b';
+
+const ROSTER = 'roster';
+
 /** Monday 00:00 of the current week through the following Sunday (local time). */
 function thisWeekWindow() {
   const now = new Date();
@@ -30,6 +43,12 @@ function thisWeekWindow() {
   return { start: iso(monday), end: iso(nextMonday) };
 }
 
+function dayAfter(iso) {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function availabilityLabel(availableFrom) {
   if (!availableFrom) return 'Available';
   const today = new Date().toISOString().slice(0, 10);
@@ -37,8 +56,10 @@ function availabilityLabel(availableFrom) {
 }
 
 export default function DispatchBoard() {
+  const navigate = useNavigate();
   const [board, setBoard] = useState(null);
   const [error, setError] = useState(null);
+  const [tab, setTab] = useState('board');
   const [selectedDep, setSelectedDep] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -75,11 +96,32 @@ export default function DispatchBoard() {
   const selected = weekDeps.find((d) => d.id === selectedDep) ?? null;
   const assignedIds = new Set(selected?.worker_ids ?? []);
 
-  async function assign(workerId) {
-    if (!selected || busy) return;
+  // All live deployments (not only this week) with dates drive the timeline.
+  const events = useMemo(() => {
+    if (!board) return [];
+    return board.deployments
+      .filter((d) => d.start_date)
+      .map((d) => {
+        const need = d.workers_required ?? null;
+        const filled = d.worker_ids.length;
+        const color = need === null ? FILL_UNKNOWN : filled >= need ? FILL_FULL : FILL_SHORT;
+        return {
+          id: d.id,
+          title: `${d.request_title ?? 'Deployment'}${need !== null ? ` (${filled}/${need})` : ''}`,
+          start: d.start_date,
+          end: dayAfter(d.finish_date ?? d.start_date),
+          allDay: true,
+          backgroundColor: color,
+          borderColor: color,
+        };
+      });
+  }, [board]);
+
+  async function assign(depId, workerId) {
+    if (busy) return;
     setBusy(true);
     try {
-      await api.deployments.assignWorker(selected.id, workerId);
+      await api.deployments.assignWorker(depId, workerId);
       await load();
     } catch {
       setError('Could not assign that worker.');
@@ -88,17 +130,29 @@ export default function DispatchBoard() {
     }
   }
 
-  async function unassign(workerId) {
-    if (!selected || busy) return;
+  async function unassign(depId, workerId) {
+    if (busy) return;
     setBusy(true);
     try {
-      await api.deployments.unassignWorker(selected.id, workerId);
+      await api.deployments.unassignWorker(depId, workerId);
       await load();
     } catch {
       setError('Could not remove that worker.');
     } finally {
       setBusy(false);
     }
+  }
+
+  // Drag a worker chip from the roster onto a deployment droppable to assign.
+  // The roster list is never mutated, so the chip animates back — a worker can be
+  // dispatched to several deployments.
+  function onDragEnd(result) {
+    const { source, destination, draggableId } = result;
+    if (!destination || source.droppableId !== ROSTER) return;
+    if (destination.droppableId === ROSTER) return;
+    const dep = weekDeps.find((d) => d.id === destination.droppableId);
+    if (!dep || dep.worker_ids.includes(draggableId)) return;
+    assign(dep.id, draggableId);
   }
 
   return (
@@ -108,7 +162,7 @@ export default function DispatchBoard() {
           <LayoutGrid className="text-primary" size={22} /> Dispatch
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          This week&apos;s deployments and the available workforce. Pick a deployment, then add workers from the roster.
+          This week&apos;s deployments and the available workforce. Drag a worker onto a deployment — or pick a deployment and tap to assign.
         </p>
       </div>
 
@@ -116,155 +170,214 @@ export default function DispatchBoard() {
       {board === null && !error && <p className="text-sm text-muted-foreground">Loading…</p>}
 
       {board && (
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-          {/* This week's deployments */}
-          <section className="space-y-3" aria-label="This week's deployments">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-              <CalendarClock size={16} /> This week ({weekDeps.length})
-            </h2>
-            {weekDeps.length === 0 && (
-              <p className="text-sm text-muted-foreground">No deployments scheduled for this week.</p>
-            )}
-            <div className="grid gap-3">
-              {weekDeps.map((d) => {
-                const isSel = d.id === selectedDep;
-                const filled = d.worker_ids.length;
-                const need = d.workers_required ?? null;
-                const short = need !== null && filled < need;
-                return (
-                  <Card
-                    key={d.id}
-                    className={`cursor-pointer transition-colors ${isSel ? 'border-primary ring-1 ring-primary' : 'hover:border-primary'}`}
-                  >
-                    <CardContent className="space-y-2 py-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDep(isSel ? null : d.id)}
-                        aria-pressed={isSel}
-                        className="flex w-full items-start gap-3 text-left"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{d.request_title ?? 'Deployment'}</p>
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <MapPin size={12} /> {d.site_name ?? 'Site TBC'}
-                            {d.site_postcode ? ` · ${d.site_postcode}` : ''}
-                          </p>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                            {d.start_date ? `From ${d.start_date}` : 'Dates TBC'}
-                            {d.finish_date ? ` – ${d.finish_date}` : ''}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <Badge className={`${STATUS_COLOR[d.status] ?? ''} capitalize`} variant="secondary">
-                            {d.status}
-                          </Badge>
-                          <span className={`text-xs font-medium ${short ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
-                            {filled}
-                            {need !== null ? ` / ${need}` : ''} assigned
-                          </span>
-                        </div>
-                      </button>
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="board">Board</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          </TabsList>
 
-                      {d.worker_ids.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {d.worker_ids.map((wid) => {
-                            const w = workerById.get(wid);
-                            return (
-                              <Badge key={wid} variant="outline" className="gap-1 font-normal">
-                                <HardHat size={11} /> {w?.full_name ?? 'Worker'}
-                                {isSel && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      unassign(wid);
-                                    }}
-                                    disabled={busy}
-                                    aria-label={`Remove ${w?.full_name ?? 'worker'} from this deployment`}
-                                    className="ml-0.5 rounded-full hover:text-destructive focus-visible:outline focus-visible:outline-2"
-                                  >
-                                    <X size={12} />
-                                  </button>
+          <TabsContent value="board" className="mt-4">
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+                {/* This week's deployments — each is a drop target */}
+                <section className="space-y-3" aria-label="This week's deployments">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <CalendarClock size={16} /> This week ({weekDeps.length})
+                  </h2>
+                  {weekDeps.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No deployments scheduled for this week.</p>
+                  )}
+                  <div className="grid gap-3">
+                    {weekDeps.map((d) => {
+                      const isSel = d.id === selectedDep;
+                      const filled = d.worker_ids.length;
+                      const need = d.workers_required ?? null;
+                      const short = need !== null && filled < need;
+                      return (
+                        <Droppable droppableId={d.id} key={d.id}>
+                          {(dropProvided, dropSnapshot) => (
+                            <Card
+                              ref={dropProvided.innerRef}
+                              {...dropProvided.droppableProps}
+                              className={`transition-colors ${isSel ? 'border-primary ring-1 ring-primary' : 'hover:border-primary'} ${dropSnapshot.isDraggingOver ? 'border-primary bg-primary/5' : ''}`}
+                            >
+                              <CardContent className="space-y-2 py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDep(isSel ? null : d.id)}
+                                  aria-pressed={isSel}
+                                  className="flex w-full items-start gap-3 text-left"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium">{d.request_title ?? 'Deployment'}</p>
+                                    <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                      <MapPin size={12} /> {d.site_name ?? 'Site TBC'}
+                                      {d.site_postcode ? ` · ${d.site_postcode}` : ''}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                      {d.start_date ? `From ${d.start_date}` : 'Dates TBC'}
+                                      {d.finish_date ? ` – ${d.finish_date}` : ''}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    <Badge className={`${STATUS_COLOR[d.status] ?? ''} capitalize`} variant="secondary">
+                                      {d.status}
+                                    </Badge>
+                                    <span className={`text-xs font-medium ${short ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground'}`}>
+                                      {filled}
+                                      {need !== null ? ` / ${need}` : ''} assigned
+                                    </span>
+                                  </div>
+                                </button>
+
+                                {d.worker_ids.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 pt-1">
+                                    {d.worker_ids.map((wid) => {
+                                      const w = workerById.get(wid);
+                                      return (
+                                        <Badge key={wid} variant="outline" className="gap-1 font-normal">
+                                          <HardHat size={11} /> {w?.full_name ?? 'Worker'}
+                                          <button
+                                            type="button"
+                                            onClick={() => unassign(d.id, wid)}
+                                            disabled={busy}
+                                            aria-label={`Remove ${w?.full_name ?? 'worker'} from this deployment`}
+                                            className="ml-0.5 rounded-full hover:text-destructive focus-visible:outline focus-visible:outline-2"
+                                          >
+                                            <X size={12} />
+                                          </button>
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
                                 )}
-                              </Badge>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </section>
+                                {/* Drop-target placeholder (kept minimal — chips render on the card above). */}
+                                <div className="hidden">{dropProvided.placeholder}</div>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </Droppable>
+                      );
+                    })}
+                  </div>
+                </section>
 
-          {/* Worker roster */}
-          <section className="space-y-3" aria-label="Available workforce">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-              <HardHat size={16} /> Roster ({board.workers.length})
-            </h2>
-            {selected ? (
-              <p className="text-xs text-muted-foreground">
-                Assigning to <span className="font-medium text-foreground">{selected.request_title ?? 'deployment'}</span>. Tap a worker to add.
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Select a deployment on the left to assign workers.</p>
-            )}
-            {board.workers.length === 0 && (
-              <p className="text-sm text-muted-foreground">No active workers on the roster.</p>
-            )}
-            <div className="grid gap-2">
-              {board.workers.map((w) => {
-                const rtw = RTW[w.right_to_work_status] ?? RTW.unchecked;
-                const isAssigned = assignedIds.has(w.id);
-                return (
-                  <Card key={w.id} className="transition-colors">
-                    <CardContent className="flex items-center gap-3 py-3">
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          to={`/workforce/workers/${w.id}`}
-                          className="truncate font-medium hover:underline"
-                        >
-                          {w.full_name}
-                        </Link>
-                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-                          <span>{w.primary_trade ?? 'Trade n/a'}</span>
-                          {w.base_postcode && <span>· {w.base_postcode}</span>}
-                          <span>· {availabilityLabel(w.available_from)}</span>
-                        </p>
-                        <Badge className={`mt-1 gap-1 font-normal ${rtw.className}`} variant="secondary">
-                          <rtw.Icon size={11} /> {rtw.label}
-                        </Badge>
+                {/* Worker roster — draggable source list */}
+                <section className="space-y-3" aria-label="Available workforce">
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                    <HardHat size={16} /> Roster ({board.workers.length})
+                  </h2>
+                  {selected ? (
+                    <p className="text-xs text-muted-foreground">
+                      Assigning to <span className="font-medium text-foreground">{selected.request_title ?? 'deployment'}</span>. Drag a worker onto a deployment, or tap Assign.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Drag a worker onto a deployment, or select one to use the Assign buttons.</p>
+                  )}
+                  {board.workers.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No active workers on the roster.</p>
+                  )}
+                  <Droppable droppableId={ROSTER} isDropDisabled>
+                    {(listProvided) => (
+                      <div ref={listProvided.innerRef} {...listProvided.droppableProps} className="grid gap-2">
+                        {board.workers.map((w, index) => {
+                          const rtw = RTW[w.right_to_work_status] ?? RTW.unchecked;
+                          const isAssigned = assignedIds.has(w.id);
+                          return (
+                            <Draggable draggableId={w.id} index={index} key={w.id}>
+                              {(dragProvided, dragSnapshot) => (
+                                <Card
+                                  ref={dragProvided.innerRef}
+                                  {...dragProvided.draggableProps}
+                                  className={`transition-colors ${dragSnapshot.isDragging ? 'border-primary shadow-lg' : ''}`}
+                                >
+                                  <CardContent className="flex items-center gap-2 py-3">
+                                    <span
+                                      {...dragProvided.dragHandleProps}
+                                      aria-label={`Drag ${w.full_name} to a deployment`}
+                                      className="cursor-grab text-muted-foreground active:cursor-grabbing"
+                                    >
+                                      <GripVertical size={16} />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <Link to={`/workforce/workers/${w.id}`} className="truncate font-medium hover:underline">
+                                        {w.full_name}
+                                      </Link>
+                                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+                                        <span>{w.primary_trade ?? 'Trade n/a'}</span>
+                                        {w.base_postcode && <span>· {w.base_postcode}</span>}
+                                        <span>· {availabilityLabel(w.available_from)}</span>
+                                      </p>
+                                      <Badge className={`mt-1 gap-1 font-normal ${rtw.className}`} variant="secondary">
+                                        <rtw.Icon size={11} /> {rtw.label}
+                                      </Badge>
+                                    </div>
+                                    {selected &&
+                                      (isAssigned ? (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          disabled={busy}
+                                          onClick={() => unassign(selected.id, w.id)}
+                                          aria-label={`Remove ${w.full_name} from ${selected.request_title ?? 'deployment'}`}
+                                        >
+                                          <X size={14} /> Remove
+                                        </Button>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          disabled={busy}
+                                          onClick={() => assign(selected.id, w.id)}
+                                          aria-label={`Assign ${w.full_name} to ${selected.request_title ?? 'deployment'}`}
+                                        >
+                                          <Plus size={14} /> Assign
+                                        </Button>
+                                      ))}
+                                  </CardContent>
+                                </Card>
+                              )}
+                            </Draggable>
+                          );
+                        })}
+                        {listProvided.placeholder}
                       </div>
-                      {selected && (
-                        isAssigned ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy}
-                            onClick={() => unassign(w.id)}
-                            aria-label={`Remove ${w.full_name} from ${selected.request_title ?? 'deployment'}`}
-                          >
-                            <X size={14} /> Remove
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            disabled={busy}
-                            onClick={() => assign(w.id)}
-                            aria-label={`Assign ${w.full_name} to ${selected.request_title ?? 'deployment'}`}
-                          >
-                            <Plus size={14} /> Assign
-                          </Button>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                    )}
+                  </Droppable>
+                </section>
+              </div>
+            </DragDropContext>
+          </TabsContent>
+
+          <TabsContent value="timeline" className="mt-4">
+            <div className="rounded-lg border bg-card p-3 [&_.fc]:text-sm [&_.fc-toolbar-title]:text-base">
+              <FullCalendar
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                initialView="dayGridWeek"
+                headerToolbar={{ left: 'prev,next today', center: 'title', right: 'dayGridWeek,dayGridMonth' }}
+                height="auto"
+                events={events}
+                eventClick={(info) => {
+                  info.jsEvent.preventDefault();
+                  navigate(`/workforce/deployments/${info.event.id}`);
+                }}
+              />
             </div>
-          </section>
-        </div>
+            <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: FILL_FULL }} /> Fully staffed
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: FILL_SHORT }} /> Short of workers
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: FILL_UNKNOWN }} /> No target set
+              </span>
+            </div>
+            {events.length === 0 && (
+              <p className="mt-3 text-sm text-muted-foreground">No dated deployments to show on the timeline yet.</p>
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
