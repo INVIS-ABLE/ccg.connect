@@ -502,6 +502,8 @@ export const api = {
       request<{ ok: true }>(`/api/deployments/${encodeURIComponent(id)}/workers`, { method: 'POST', body: JSON.stringify({ worker_id: workerId }) }),
     unassignWorker: (id: string, workerId: string) =>
       request<{ ok: true }>(`/api/deployments/${encodeURIComponent(id)}/workers/${encodeURIComponent(workerId)}`, { method: 'DELETE' }),
+    assignGang: (id: string, gangId: string) =>
+      request<{ ok: true; assigned: number; core: number; reserves: number }>(`/api/deployments/${encodeURIComponent(id)}/gang`, { method: 'POST', body: JSON.stringify({ gang_id: gangId }) }),
     update: (id: string, data: { status?: string; notes?: string }) =>
       request<{ deployment: Deployment }>(`/api/deployments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     attendance: {

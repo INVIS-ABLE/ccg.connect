@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { LayoutGrid, MapPin, CalendarClock, HardHat, Plus, X, CheckCircle2, AlertTriangle, GripVertical } from 'lucide-react';
+import { LayoutGrid, MapPin, CalendarClock, HardHat, Plus, X, CheckCircle2, AlertTriangle, GripVertical, Users } from 'lucide-react';
 
 // MapLibre is heavy — lazy-load at the use site so it stays out of this chunk.
 const CoverageMap = lazy(() => import('@/components/map/CoverageMap'));
@@ -68,6 +68,8 @@ export default function DispatchBoard() {
   const [tab, setTab] = useState('board');
   const [selectedDep, setSelectedDep] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [gangs, setGangs] = useState([]);
+  const [gangPick, setGangPick] = useState('');
 
   const load = () =>
     api.dispatch
@@ -77,6 +79,8 @@ export default function DispatchBoard() {
 
   useEffect(() => {
     load();
+    // Saved gangs power the one-click "deploy a gang" action (best-effort).
+    api.gangs.list().then((r) => setGangs(r.gangs ?? [])).catch(() => {});
   }, []);
 
   const week = useMemo(() => thisWeekWindow(), []);
@@ -191,6 +195,20 @@ export default function DispatchBoard() {
       await load();
     } catch {
       setError('Could not remove that worker.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deployGang(depId, gangId) {
+    if (!gangId || busy) return;
+    setBusy(true);
+    try {
+      await api.deployments.assignGang(depId, gangId);
+      setGangPick('');
+      await load();
+    } catch {
+      setError('Could not deploy that gang.');
     } finally {
       setBusy(false);
     }
@@ -330,6 +348,28 @@ export default function DispatchBoard() {
                   )}
                   {board.workers.length === 0 && (
                     <p className="text-sm text-muted-foreground">No active workers on the roster.</p>
+                  )}
+                  {/* Deploy a whole saved gang onto the selected deployment. */}
+                  {selected && gangs.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-2">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Users size={13} /> Deploy a gang
+                      </span>
+                      <select
+                        className="h-8 min-w-40 flex-1 rounded-md border border-input bg-background px-2 text-sm"
+                        value={gangPick}
+                        onChange={(e) => setGangPick(e.target.value)}
+                        aria-label="Choose a saved gang to deploy"
+                      >
+                        <option value="">Choose a gang…</option>
+                        {gangs.map((g) => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                      <Button size="sm" disabled={busy || !gangPick} onClick={() => deployGang(selected.id, gangPick)}>
+                        <Plus size={14} /> Deploy
+                      </Button>
+                    </div>
                   )}
                   <Droppable droppableId={ROSTER} isDropDisabled>
                     {(listProvided) => (

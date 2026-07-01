@@ -259,6 +259,33 @@ route.delete('/:id/workers/:workerId', async (c) => {
   return c.json({ ok: true });
 });
 
+// Deploy a whole saved gang onto a deployment in one action ("drop a gang onto a
+// site"). Assigns the working core — leader + permanent — and leaves reserves
+// out; the dispatcher adds reserves manually if needed. Idempotent per worker.
+route.post('/:id/gang', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const dep = (await db.select({ id: deployments.id }).from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  if (!dep) return c.json({ error: 'not_found' }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const gangId = str(body.gang_id);
+  if (!gangId) return c.json({ error: 'gang_id_required' }, 400);
+
+  const gangRows = await db.select({ worker_id: gangMembers.worker_id, role: gangMembers.role }).from(gangMembers).where(eq(gangMembers.gang_id, gangId)).all();
+  const core = gangRows.filter((m) => m.role === 'leader' || m.role === 'permanent');
+  let assigned = 0;
+  for (const m of core) {
+    try {
+      await db.insert(deploymentWorkers).values({ deployment_id: id, worker_id: m.worker_id });
+      assigned += 1;
+    } catch {
+      /* already assigned — idempotent */
+    }
+  }
+  return c.json({ ok: true, assigned, core: core.length, reserves: gangRows.length - core.length }, 201);
+});
+
 // ── Attendance / roll-call ───────────────────────────────────────────────────
 route.get('/:id/attendance', async (c) => {
   if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
