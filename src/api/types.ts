@@ -595,6 +595,40 @@ export interface WorkerPerformanceSummary {
   would_repeat_rate: number | null;
 }
 
+export interface MaterialTotals {
+  billableQty: number;
+  cost: number;
+  charge: number;
+  margin: number;
+}
+
+export interface DeploymentMaterial {
+  id: string;
+  deployment_id: string;
+  name: string;
+  category: 'material' | 'tool' | 'plant' | 'ppe' | 'vehicle' | 'hired_equipment' | 'fuel' | 'consumable' | 'other';
+  unit: string | null;
+  planned_qty: number | null;
+  issued_qty: number | null;
+  used_qty: number | null;
+  returned_qty: number | null;
+  lost_qty: number | null;
+  supplier: string | null;
+  delivery_ref: string | null;
+  supplier_cost: number | null;
+  client_charge: number | null;
+  chargeable: boolean;
+  notes: string | null;
+  totals: MaterialTotals;
+}
+
+export interface MaterialRollup {
+  count: number;
+  cost: number;
+  charge: number;
+  margin: number;
+}
+
 export interface Incident {
   id: string;
   type: string;

@@ -13,6 +13,7 @@ import { ReplacementDialog } from './ReplacementDialog';
 import { SiteCheckInQrDialog } from './SiteCheckInQrDialog';
 import { KidPanel } from './KidPanel';
 import { PerformancePanel } from './PerformancePanel';
+import { MaterialsPanel } from './MaterialsPanel';
 
 const gbp = (n) => new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n || 0);
 
@@ -210,6 +211,9 @@ export default function DeploymentDetail() {
 
       {/* Key Information Documents (agency workers) */}
       <KidPanel deploymentId={d.id} members={members} />
+
+      {/* Materials, plant & consumables */}
+      <MaterialsPanel deploymentId={d.id} />
 
       {/* Performance & quality reviews */}
       <PerformancePanel deploymentId={d.id} members={members} />

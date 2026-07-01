@@ -40,6 +40,8 @@ import type {
   KidDocument,
   PerformanceReview,
   WorkerPerformanceSummary,
+  DeploymentMaterial,
+  MaterialRollup,
   CommercialTimesheet,
   CommercialInvoice,
   Incident,
@@ -531,6 +533,16 @@ export const api = {
     }) => request<{ review: PerformanceReview }>('/api/performance', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: { status?: string; comment?: string }) =>
       request<{ review: PerformanceReview }>(`/api/performance/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  },
+  materials: {
+    list: (deploymentId: string) =>
+      request<{ materials: DeploymentMaterial[]; rollup: MaterialRollup }>(`/api/materials?deployment_id=${encodeURIComponent(deploymentId)}`),
+    create: (data: Partial<DeploymentMaterial> & { deployment_id: string; name: string }) =>
+      request<{ material: DeploymentMaterial }>('/api/materials', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<DeploymentMaterial>) =>
+      request<{ material: DeploymentMaterial }>(`/api/materials/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (id: string) =>
+      request<{ ok: true }>(`/api/materials/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   },
   dashboard: {
     commercial: (months?: number) =>
