@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Check, AlertTriangle, X, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Check, AlertTriangle, X, ShieldCheck, Sparkles } from 'lucide-react';
 import { complianceMatrix, mergeRequirements, RTW_REQUIREMENT } from '@/domain/workforce/compliance';
 
 const CELL = {
@@ -56,6 +56,23 @@ export default function GangDetail() {
   async function removeMember(memberId) {
     await api.gangs.removeMember(id, memberId);
     await load();
+  }
+
+  const [candidates, setCandidates] = useState(null);
+  const [loadingCands, setLoadingCands] = useState(false);
+  async function findCandidates() {
+    setLoadingCands(true);
+    try {
+      const r = await api.gangs.candidates(id, requirements.join(','));
+      setCandidates(r.candidates ?? []);
+    } finally {
+      setLoadingCands(false);
+    }
+  }
+  async function addCandidate(workerId) {
+    await api.gangs.addMember(id, { worker_id: workerId, role: 'permanent' });
+    await load();
+    await findCandidates();
   }
 
   // Requirements (RTW always included) → compliance matrix over current members.
@@ -182,6 +199,42 @@ export default function GangDetail() {
               </p>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Gang builder — rank available workers against the requirements above */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm"><Sparkles size={15} /> Gang builder</CardTitle>
+          <Button size="sm" variant="outline" disabled={loadingCands} onClick={findCandidates}>
+            {loadingCands ? 'Finding…' : 'Find available workers'}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Ranks active workers not already in the gang against the requirements above — compliant &amp; ready first. Each is still checked individually.
+          </p>
+          {candidates === null && <p className="text-xs text-muted-foreground">Set the requirements above, then find available workers.</p>}
+          {candidates?.length === 0 && <p className="text-xs text-muted-foreground">No other active workers to suggest.</p>}
+          {candidates?.map((cand) => {
+            const missing = Object.values(cand.compliance.cells).filter((v) => v === 'missing').length;
+            const warnings = Object.values(cand.compliance.cells).filter((v) => v === 'warning').length;
+            return (
+              <div key={cand.workerId} className="flex items-center gap-3 rounded-md border p-2.5 text-sm">
+                <div className="min-w-0 flex-1">
+                  <Link to={`/workforce/workers/${cand.workerId}`} className="font-medium hover:underline">{cand.name}</Link>
+                  <p className="mt-0.5 text-xs">
+                    {cand.compliance.deployable
+                      ? <span className="text-green-600">Ready{warnings ? ` · ${warnings} expiring` : ''}</span>
+                      : <span className="text-red-600">{missing} missing{warnings ? ` · ${warnings} expiring` : ''}</span>}
+                  </p>
+                </div>
+                <Button size="sm" variant={cand.compliance.deployable ? 'default' : 'outline'} className="gap-1.5" onClick={() => addCandidate(cand.workerId)}>
+                  <Plus size={13} /> Add
+                </Button>
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
     </div>
