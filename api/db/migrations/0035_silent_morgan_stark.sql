@@ -1,0 +1,1 @@
+ALTER TABLE `labour_requests` ADD `request_type` text;

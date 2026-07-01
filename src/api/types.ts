@@ -437,6 +437,9 @@ export interface LabourRequest {
   project_id: string | null;
   site_id: string | null;
   title: string;
+  request_type:
+    | 'client_enquiry' | 'labour_request' | 'gang_request'
+    | 'subcontract_package' | 'site_visit' | 'emergency_replacement' | null;
   work_package: string | null;
   trade: string | null;
   number_required: number;
