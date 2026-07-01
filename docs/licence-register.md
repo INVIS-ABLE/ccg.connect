@@ -65,9 +65,10 @@ All are permissive (OSI-approved, non-copyleft) unless noted.
 
 ### Declared but not imported
 
-| Package | Licence | Note |
-| --- | --- | --- |
-| `react-leaflet` | Hippocratic-2.1 (not OSI-approved) | Present in `package.json` but **not imported** anywhere in `src/`. The map uses `maplibre-gl` directly. Recommend removing it to avoid shipping a non-standard licence; until then it is dead weight, not distributed in the bundle. |
+None. `react-leaflet` (Hippocratic-2.1, not OSI-approved) was previously declared
+but never imported — the map uses `maplibre-gl` directly — and has been removed
+from `package.json`/`package-lock.json`. Keep this list empty: a dependency with
+a non-OSI or copyleft licence should not sit in the manifest unused.
 
 ## Process
 
