@@ -785,6 +785,32 @@ export interface PortalCommercial {
   invoices: PortalInvoice[];
 }
 
+export interface DispatchWorker {
+  id: string;
+  full_name: string;
+  primary_trade: string | null;
+  base_postcode: string | null;
+  available_from: string | null;
+  right_to_work_status: string;
+}
+
+export interface DispatchDeployment {
+  id: string;
+  status: string;
+  start_date: string | null;
+  finish_date: string | null;
+  site_name: string | null;
+  site_postcode: string | null;
+  request_title: string | null;
+  workers_required: number | null;
+  worker_ids: string[];
+}
+
+export interface DispatchBoard {
+  deployments: DispatchDeployment[];
+  workers: DispatchWorker[];
+}
+
 export interface WorkerAssignment {
   deployment_id: string;
   status: string;

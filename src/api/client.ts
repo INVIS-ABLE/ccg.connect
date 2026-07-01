@@ -56,6 +56,7 @@ import type {
   DirectMessage,
   ReactionSummary,
   JobChatCandidate,
+  DispatchBoard,
 } from './types';
 
 /** Thrown on any non-2xx API response; carries the status and parsed body. */
@@ -494,6 +495,10 @@ export const api = {
       request<{ deployment: Deployment }>('/api/deployments', { method: 'POST', body: JSON.stringify(data) }),
     confirm: (id: string) =>
       request<{ deployment: Deployment; conversation_id: string | null }>(`/api/deployments/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) }),
+    assignWorker: (id: string, workerId: string) =>
+      request<{ ok: true }>(`/api/deployments/${encodeURIComponent(id)}/workers`, { method: 'POST', body: JSON.stringify({ worker_id: workerId }) }),
+    unassignWorker: (id: string, workerId: string) =>
+      request<{ ok: true }>(`/api/deployments/${encodeURIComponent(id)}/workers/${encodeURIComponent(workerId)}`, { method: 'DELETE' }),
     update: (id: string, data: { status?: string; notes?: string }) =>
       request<{ deployment: Deployment }>(`/api/deployments/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     attendance: {
@@ -567,6 +572,9 @@ export const api = {
       request<{ material: DeploymentMaterial }>(`/api/materials/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     remove: (id: string) =>
       request<{ ok: true }>(`/api/materials/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  },
+  dispatch: {
+    board: () => request<DispatchBoard>('/api/dispatch'),
   },
   dashboard: {
     commercial: (months?: number) =>
