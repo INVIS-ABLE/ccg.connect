@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ClipboardList, Plus, ChevronRight } from 'lucide-react';
 import { listEmploymentModels } from '@/domain/commercial/employmentModels';
+import { applySurcharges } from '@/domain/commercial/pricing';
 import { labourRequestStatusLabel } from '@/domain/commercial/labourRequestStatus';
 
 const MODELS = listEmploymentModels();
@@ -27,6 +28,8 @@ export default function LabourRequests() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [rateCards, setRateCards] = useState([]);
+  const [surcharges, setSurcharges] = useState([]);
+  const [selSurcharge, setSelSurcharge] = useState(() => new Set());
 
   async function load() {
     try {
@@ -43,11 +46,15 @@ export default function LabourRequests() {
 
   // Cascade: account → projects, project → sites.
   useEffect(() => {
-    if (!form.account_id) { setProjects([]); setRateCards([]); return; }
+    if (!form.account_id) { setProjects([]); setRateCards([]); setSurcharges([]); setSelSurcharge(new Set()); return; }
     api.commercial.projects.list(form.account_id).then((r) => setProjects(r.projects ?? [])).catch(() => setProjects([]));
     api.commercial.rateCards.list(form.account_id)
       .then((r) => setRateCards((r.rate_cards ?? []).filter((rc) => rc.status === 'active')))
       .catch(() => setRateCards([]));
+    api.commercial.surcharges.list(form.account_id)
+      .then((r) => setSurcharges((r.surcharges ?? []).filter((s) => s.active)))
+      .catch(() => setSurcharges([]));
+    setSelSurcharge(new Set());
   }, [form.account_id]);
   useEffect(() => {
     if (!form.project_id) { setSites([]); return; }
@@ -166,6 +173,44 @@ export default function LabourRequests() {
               <div className="space-y-2"><Label>Pay rate £/hr</Label><Input type="number" min="0" step="0.01" value={form.rate_offered} onChange={(e) => set({ rate_offered: e.target.value })} /></div>
               <div className="space-y-2"><Label>Charge rate £/hr</Label><Input type="number" min="0" step="0.01" value={form.charge_rate} onChange={(e) => set({ charge_rate: e.target.value })} /></div>
               <div className="space-y-2"><Label>Overtime £/hr</Label><Input type="number" min="0" step="0.01" value={form.overtime_rate} onChange={(e) => set({ overtime_rate: e.target.value })} /></div>
+
+              {/* Dynamic pricing — apply the account's surcharges to the charge rate. */}
+              {surcharges.length > 0 && (() => {
+                const applied = surcharges.filter((s) => selSurcharge.has(s.id));
+                const pricing = applySurcharges(Number(form.charge_rate) || 0, applied);
+                return (
+                  <div className="space-y-2 rounded-md border p-3 sm:col-span-3">
+                    <Label>Surcharges</Label>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {surcharges.map((s) => (
+                        <label key={s.id} className="flex items-center gap-1.5 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selSurcharge.has(s.id)}
+                            onChange={(e) => {
+                              const next = new Set(selSurcharge);
+                              if (e.target.checked) next.add(s.id); else next.delete(s.id);
+                              setSelSurcharge(next);
+                            }}
+                          />
+                          {s.label} <span className="text-muted-foreground">{s.kind === 'percent' ? `+${s.value}%` : `+£${s.value}`}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {applied.length > 0 && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          £{pricing.base.toFixed(2)} base → <span className="font-semibold text-foreground">£{pricing.effective.toFixed(2)}/hr</span> effective
+                        </span>
+                        <Button type="button" size="sm" variant="outline" onClick={() => set({ charge_rate: String(pricing.effective) })}>
+                          Apply to charge rate
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="space-y-2 sm:col-span-3"><Label>Minimum qualifications</Label><Input value={form.minimum_qualifications} onChange={(e) => set({ minimum_qualifications: e.target.value })} placeholder="CSCS, CPCS, Thames Water passport…" /></div>
               <div><Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Create request'}</Button></div>
             </form>
