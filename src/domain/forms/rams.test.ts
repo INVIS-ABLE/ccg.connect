@@ -6,6 +6,7 @@ import {
   validateCompleteness,
   highestResidualBand,
   requiresHazards,
+  sectionDefs,
   type Hazard,
   type RamsContent,
 } from './rams';
@@ -38,22 +39,63 @@ describe('riskRating (5×5 matrix banding)', () => {
 });
 
 describe('parseContent', () => {
-  it('parses a JSON string and fills missing sections', () => {
+  it('parses a JSON string and preserves the sections present', () => {
     const c = parseContent(JSON.stringify({ sections: { scope: 'Dig trench' }, hazards: [hazard()] }));
     expect(c.sections.scope).toBe('Dig trench');
-    expect(c.sections.ppe).toBe(''); // zero-filled
+    expect(c.sections.ppe).toBeUndefined(); // absent sections aren't scaffolded here
     expect(c.hazards).toHaveLength(1);
     expect(c.hazards[0]?.likelihood).toBe(3);
   });
+  it('preserves sections for any form type (type-agnostic)', () => {
+    const c = parseContent({ sections: { topic: 'Working at height', attendees: 'Gang A' }, hazards: [] });
+    expect(c.sections.topic).toBe('Working at height');
+    expect(c.sections.attendees).toBe('Gang A');
+  });
   it('is defensive against garbage', () => {
-    expect(parseContent('not json')).toEqual(blankContent());
-    expect(parseContent(null)).toEqual(blankContent());
+    const empty = { sections: {}, hazards: [] };
+    expect(parseContent('not json')).toEqual(empty);
+    expect(parseContent(null)).toEqual(empty);
     expect(parseContent({ hazards: 'nope' }).hazards).toEqual([]);
   });
   it('clamps hazard numbers on the way in', () => {
     const c = parseContent({ sections: {}, hazards: [{ hazard: 'x', controls: 'y', likelihood: 99, severity: -3 }] });
     expect(c.hazards[0]?.likelihood).toBe(5);
     expect(c.hazards[0]?.severity).toBe(0);
+  });
+});
+
+describe('site template types', () => {
+  it('gives each form type its own section scaffold', () => {
+    expect(sectionDefs('toolbox_talk').map((s) => s.key)).toContain('topic');
+    expect(sectionDefs('daily_diary').map((s) => s.key)).toContain('works_completed');
+    expect(sectionDefs('snagging').map((s) => s.key)).toContain('snag_description');
+    // Unknown/default falls back to the method-statement sections.
+    expect(sectionDefs().map((s) => s.key)).toContain('scope');
+  });
+
+  it('blankContent scaffolds the type\'s keys, empty', () => {
+    const c = blankContent('toolbox_talk');
+    expect(c.hazards).toEqual([]);
+    expect(c.sections.topic).toBe('');
+    expect(c.sections.attendees).toBe('');
+    expect(c.sections.scope).toBeUndefined(); // not a toolbox-talk section
+  });
+
+  it('only RAMS carries the hazard table', () => {
+    expect(requiresHazards('rams')).toBe(true);
+    expect(requiresHazards('toolbox_talk')).toBe(false);
+    expect(requiresHazards('site_induction')).toBe(false);
+  });
+
+  it('validates completeness against the type\'s required sections', () => {
+    const partial: RamsContent = { sections: { topic: 'Ladders' }, hazards: [] };
+    const r = validateCompleteness(partial, 'toolbox_talk');
+    expect(r.complete).toBe(false);
+    expect(r.missing).toContain('Attendees');
+    expect(r.missing).toContain('Key points covered');
+
+    const full: RamsContent = { sections: { topic: 'Ladders', attendees: 'Gang A', key_points: 'Inspect before use' }, hazards: [] };
+    expect(validateCompleteness(full, 'toolbox_talk')).toEqual({ complete: true, missing: [] });
   });
 });
 

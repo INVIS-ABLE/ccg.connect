@@ -8,6 +8,7 @@ import {
   parseContent,
   validateCompleteness,
   highestResidualBand,
+  isFormType,
   type FormType,
 } from '../../src/domain/forms/rams';
 import type { AppEnv } from '../env';
@@ -23,7 +24,7 @@ route.use('*', requireAuth);
 
 const admin = (c: Context<AppEnv>) => isAdmin(c.get('principal'));
 const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
-const asFormType = (v: unknown): FormType => (v === 'method_statement' ? 'method_statement' : 'rams');
+const asFormType = (v: unknown): FormType => (isFormType(v) ? v : 'rams');
 const serialise = (raw: unknown): string => JSON.stringify(parseContent(raw));
 
 /** Decorate a document row with parsed content + derived completeness/risk. */

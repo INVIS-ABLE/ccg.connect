@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Archive, CheckCircle2 } from 'lucide-react';
 import { RamsContentEditor } from './RamsContentEditor';
-
-const TYPE_LABEL = { rams: 'RAMS', method_statement: 'Method Statement' };
+import { FORM_TYPE_LABEL as TYPE_LABEL } from '@/domain/forms/rams';
 
 /** Edit a reusable RAMS / Method Statement template (the default content ops
  *  start a site document from). Autosave is manual via Save. */

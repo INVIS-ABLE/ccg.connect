@@ -50,7 +50,7 @@ export function RamsContentEditor({ formType, content, onChange }) {
     <div className="space-y-5">
       {/* Narrative sections */}
       <div className="space-y-4">
-        {sectionDefs().map((s) => (
+        {sectionDefs(formType).map((s) => (
           <div key={s.key}>
             <label className="mb-1 flex items-center gap-2 text-sm font-medium">
               {s.title}
