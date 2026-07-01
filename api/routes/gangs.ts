@@ -97,7 +97,19 @@ route.get('/:id/candidates', async (c) => {
     rtw_expiry: w.rtw_expiry,
     cards: cardsByWorker.get(w.id) ?? [],
   }));
-  const candidates = rankReplacementCandidates(inputs, requirements, new Date());
+  const ranked = rankReplacementCandidates(inputs, requirements, new Date());
+
+  // Availability-aware: attach each worker's availability and re-order so that,
+  // within the same compliance rank, workers available now come first.
+  const availByWorker = new Map(active.map((w) => [w.id, w.available_from ?? null]));
+  const today = new Date().toISOString().slice(0, 10);
+  const candidates = ranked
+    .map((cand) => {
+      const available_from = availByWorker.get(cand.workerId) ?? null;
+      return { ...cand, available_from, available_now: !available_from || available_from <= today };
+    })
+    .sort((a, b) => b.score - a.score || Number(b.available_now) - Number(a.available_now));
+
   return c.json({ requirements, candidates });
 });
 

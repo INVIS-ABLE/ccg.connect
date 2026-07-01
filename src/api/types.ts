@@ -633,6 +633,9 @@ export interface ReplacementCandidate {
   name: string;
   compliance: ComplianceCell;
   score: number;
+  /** Availability (gang builder): when the worker is next available, and whether that's now. */
+  available_from?: string | null;
+  available_now?: boolean;
 }
 
 export interface DeploymentReplacement {

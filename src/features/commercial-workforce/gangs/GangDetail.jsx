@@ -15,6 +15,8 @@ const CELL = {
   missing: { icon: <X size={14} className="text-red-600" />, label: 'Missing' },
 };
 
+const fmtDate = (d) => (d ? new Date(d.length <= 10 ? `${d}T00:00:00` : d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '');
+
 export default function GangDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -227,6 +229,9 @@ export default function GangDetail() {
                     {cand.compliance.deployable
                       ? <span className="text-green-600">Ready{warnings ? ` · ${warnings} expiring` : ''}</span>
                       : <span className="text-red-600">{missing} missing{warnings ? ` · ${warnings} expiring` : ''}</span>}
+                    {cand.available_now
+                      ? <span className="text-muted-foreground"> · available now</span>
+                      : <span className="text-amber-600"> · from {fmtDate(cand.available_from)}</span>}
                   </p>
                 </div>
                 <Button size="sm" variant={cand.compliance.deployable ? 'default' : 'outline'} className="gap-1.5" onClick={() => addCandidate(cand.workerId)}>
