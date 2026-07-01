@@ -1,9 +1,10 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, and } from 'drizzle-orm';
-import { commercialTimesheets, deploymentWorkers } from '../db/schema';
+import { commercialTimesheets, deploymentWorkers, workers } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
+import { notify } from '../lib/notify';
 import { computeTimesheetPay } from '../../src/domain/commercial/payEngine';
 import {
   isTimesheetStatus,
@@ -125,6 +126,22 @@ route.patch('/:id', async (c) => {
 
   if (Object.keys(patch).length === 0) return c.json({ error: 'nothing_to_update' }, 400);
   const updated = await db.update(commercialTimesheets).set({ ...patch, updated_at: new Date() }).where(eq(commercialTimesheets.id, id)).returning();
+
+  // Tell the worker (if they have a login) when ops approve or reject their week.
+  if (patch.status === 'ops_approved' || patch.status === 'rejected') {
+    c.executionCtx.waitUntil((async () => {
+      const w = (await db.select({ user_id: workers.user_id }).from(workers).where(eq(workers.id, current.worker_id)).limit(1))[0];
+      if (w?.user_id) {
+        await notify(c.env, {
+          userId: w.user_id,
+          notification_type: `timesheet_${patch.status}`,
+          title: patch.status === 'ops_approved' ? 'Timesheet approved' : 'Timesheet needs correction',
+          body: `Week of ${current.week_start}.`,
+          deep_link: '/my-work',
+        });
+      }
+    })());
+  }
   return c.json({ timesheet: withTotals(updated[0]!) });
 });
 
