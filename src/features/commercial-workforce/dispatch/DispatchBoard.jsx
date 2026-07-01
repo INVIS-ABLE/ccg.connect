@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import FullCalendar from '@fullcalendar/react';
@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LayoutGrid, MapPin, CalendarClock, HardHat, Plus, X, CheckCircle2, AlertTriangle, GripVertical } from 'lucide-react';
+
+// MapLibre is heavy — lazy-load at the use site so it stays out of this chunk.
+const CoverageMap = lazy(() => import('@/components/map/CoverageMap'));
 
 const STATUS_COLOR = {
   proposed: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
@@ -26,10 +29,13 @@ const RTW = {
   restricted: { label: 'RTW restricted', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300', Icon: AlertTriangle },
 };
 
-// Timeline event colours by staffing state (need met / short / unknown).
+// Timeline / map colours by staffing state (need met / short / unknown).
 const FILL_FULL = '#16a34a';
 const FILL_SHORT = '#f59e0b';
 const FILL_UNKNOWN = '#64748b';
+
+// Worker map-pin colour by right-to-work status.
+const RTW_PIN = { checked: '#16a34a', unchecked: '#64748b', expired: '#dc2626', restricted: '#f59e0b' };
 
 const ROSTER = 'roster';
 
@@ -117,6 +123,53 @@ export default function DispatchBoard() {
       });
   }, [board]);
 
+  // Map markers: this week's sites (coloured by staffing) + the active roster
+  // (coloured by right-to-work). Only geocoded records get a pin.
+  const mapData = useMemo(() => {
+    const markers = [];
+    for (const d of weekDeps) {
+      if (typeof d.site_lat !== 'number' || typeof d.site_lng !== 'number') continue;
+      const need = d.workers_required ?? null;
+      const filled = d.worker_ids.length;
+      const color = need === null ? FILL_UNKNOWN : filled >= need ? FILL_FULL : FILL_SHORT;
+      markers.push({
+        id: `site-${d.id}`,
+        lat: d.site_lat,
+        lng: d.site_lng,
+        color,
+        label: `${d.site_name ?? d.request_title ?? 'Site'} — ${filled}${need !== null ? `/${need}` : ''} on site`,
+      });
+    }
+    for (const w of board?.workers ?? []) {
+      if (typeof w.latitude !== 'number' || typeof w.longitude !== 'number') continue;
+      markers.push({
+        id: `worker-${w.id}`,
+        lat: w.latitude,
+        lng: w.longitude,
+        color: RTW_PIN[w.right_to_work_status] ?? RTW_PIN.unchecked,
+        label: `${w.full_name} — ${w.primary_trade ?? 'trade n/a'}`,
+      });
+    }
+    // Centre on the mean of whatever we have; fall back to the UK.
+    const center = markers.length
+      ? {
+          lat: markers.reduce((s, m) => s + m.lat, 0) / markers.length,
+          lng: markers.reduce((s, m) => s + m.lng, 0) / markers.length,
+        }
+      : null;
+    return { markers, center };
+  }, [weekDeps, board]);
+
+  // Compliance overlay: workers whose right-to-work needs attention, and
+  // deployments still short of their required headcount this week.
+  const complianceAlerts = useMemo(() => {
+    const rtwIssues = (board?.workers ?? []).filter((w) =>
+      w.right_to_work_status === 'expired' || w.right_to_work_status === 'restricted',
+    );
+    const shortDeps = weekDeps.filter((d) => d.workers_required !== null && d.worker_ids.length < d.workers_required);
+    return { rtwIssues, shortDeps };
+  }, [board, weekDeps]);
+
   async function assign(depId, workerId) {
     if (busy) return;
     setBusy(true);
@@ -174,6 +227,7 @@ export default function DispatchBoard() {
           <TabsList>
             <TabsTrigger value="board">Board</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
+            <TabsTrigger value="map">Map</TabsTrigger>
           </TabsList>
 
           <TabsContent value="board" className="mt-4">
@@ -376,6 +430,96 @@ export default function DispatchBoard() {
             {events.length === 0 && (
               <p className="mt-3 text-sm text-muted-foreground">No dated deployments to show on the timeline yet.</p>
             )}
+          </TabsContent>
+
+          <TabsContent value="map" className="mt-4">
+            <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+              <div>
+                {mapData.center ? (
+                  <Suspense fallback={<div className="h-[420px] rounded-lg border bg-muted/30" />}>
+                    <CoverageMap
+                      center={mapData.center}
+                      zoom={8}
+                      height={420}
+                      markers={mapData.markers.map((m) => ({
+                        ...m,
+                        onClick: () => {
+                          const [kind, id] = m.id.split(/-(.+)/);
+                          navigate(kind === 'site' ? `/workforce/deployments/${id}` : `/workforce/workers/${id}`);
+                        },
+                      }))}
+                    />
+                  </Suspense>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No mapped locations yet — sites and workers appear once their postcodes are geocoded.
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: FILL_SHORT }} /> Site short of workers
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: FILL_FULL }} /> Site fully staffed
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RTW_PIN.expired }} /> Worker RTW issue
+                  </span>
+                </div>
+              </div>
+
+              {/* Compliance overlay */}
+              <aside className="space-y-3" aria-label="Compliance alerts">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <AlertTriangle size={16} /> Compliance
+                </h2>
+                {complianceAlerts.rtwIssues.length === 0 && complianceAlerts.shortDeps.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No compliance or staffing alerts this week.</p>
+                )}
+
+                {complianceAlerts.shortDeps.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                      Short of workers ({complianceAlerts.shortDeps.length})
+                    </p>
+                    {complianceAlerts.shortDeps.map((d) => (
+                      <Link
+                        key={d.id}
+                        to={`/workforce/deployments/${d.id}`}
+                        className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-muted"
+                      >
+                        <MapPin size={13} className="shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">{d.site_name ?? d.request_title ?? 'Deployment'}</span>
+                        <span className="shrink-0 text-xs text-amber-600 dark:text-amber-400">
+                          {d.worker_ids.length}/{d.workers_required}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {complianceAlerts.rtwIssues.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-red-700 dark:text-red-400">
+                      Right-to-work ({complianceAlerts.rtwIssues.length})
+                    </p>
+                    {complianceAlerts.rtwIssues.map((w) => (
+                      <Link
+                        key={w.id}
+                        to={`/workforce/workers/${w.id}`}
+                        className="flex items-center gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-muted"
+                      >
+                        <HardHat size={13} className="shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate">{w.full_name}</span>
+                        <span className="shrink-0 text-xs capitalize text-red-600 dark:text-red-400">
+                          {w.right_to_work_status}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </aside>
+            </div>
           </TabsContent>
         </Tabs>
       )}
