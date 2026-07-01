@@ -1495,6 +1495,28 @@ export const deploymentMaterials = sqliteTable(
   (t) => ({ byDeployment: index('ix_material_deployment').on(t.deployment_id) }),
 );
 
+// Site photo evidence on a deployment — rapid capture, categorised. The raw R2
+// key is never exposed; files are streamed via an authorised route. Ops + the
+// workers on the deployment can see them (no client exposure by default).
+export const deploymentMedia = sqliteTable(
+  'deployment_media',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    uploaded_by: text('uploaded_by').notNull(),
+    media_type: text('media_type', { enum: ['image', 'video', 'document'] }).notNull().default('image'),
+    category: text('category', {
+      enum: ['before', 'progress', 'safety', 'delivery', 'variation', 'snagging', 'completion', 'materials', 'incident', 'other'],
+    }).notNull().default('progress'),
+    file_url: text('file_url').notNull(), // R2 object key — never returned raw
+    original_filename: text('original_filename'),
+    caption: text('caption'),
+    captured_at: text('captured_at'),
+    created_at: createdAt(),
+  },
+  (t) => ({ byDeployment: index('ix_depmedia_deployment').on(t.deployment_id) }),
+);
+
 export const performanceReviews = sqliteTable(
   'performance_reviews',
   {

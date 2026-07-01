@@ -180,6 +180,18 @@ export interface JobMediaItem {
   created_at: string;
 }
 
+export interface DeploymentMediaItem {
+  id: string;
+  deployment_id: string;
+  media_type: 'image' | 'video' | 'document';
+  category: string;
+  original_filename: string | null;
+  caption: string | null;
+  captured_at: string | null;
+  url: string;
+  created_at: string;
+}
+
 // ── Direct messaging ─────────────────────────────────────────────────────────
 export interface MessagingContact {
   user_id: string;
