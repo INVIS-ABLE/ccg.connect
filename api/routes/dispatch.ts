@@ -38,7 +38,7 @@ route.get('/', async (c) => {
   const reqById = new Map(reqs.map((r) => [r.id, r]));
 
   const siteIds = [...new Set(deps.map((d) => d.site_id).filter((x): x is string => Boolean(x)))];
-  const sites = siteIds.length ? await db.select({ id: commercialSites.id, name: commercialSites.name, postcode: commercialSites.postcode }).from(commercialSites).where(inArray(commercialSites.id, siteIds)).all() : [];
+  const sites = siteIds.length ? await db.select({ id: commercialSites.id, name: commercialSites.name, postcode: commercialSites.postcode, latitude: commercialSites.latitude, longitude: commercialSites.longitude }).from(commercialSites).where(inArray(commercialSites.id, siteIds)).all() : [];
   const siteById = new Map(sites.map((s) => [s.id, s]));
 
   const boardDeployments = deps
@@ -52,6 +52,8 @@ route.get('/', async (c) => {
         finish_date: d.finish_date,
         site_name: site?.name ?? null,
         site_postcode: site?.postcode ?? null,
+        site_lat: site?.latitude ?? null,
+        site_lng: site?.longitude ?? null,
         request_title: req?.title ?? null,
         workers_required: req?.number_required ?? null,
         worker_ids: workerIdsByDep.get(d.id) ?? [],
@@ -68,6 +70,8 @@ route.get('/', async (c) => {
       base_postcode: w.base_postcode,
       available_from: w.available_from,
       right_to_work_status: w.right_to_work_status,
+      latitude: w.latitude,
+      longitude: w.longitude,
     }));
 
   return c.json({ deployments: boardDeployments, workers: activeWorkers });

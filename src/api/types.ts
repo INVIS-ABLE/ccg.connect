@@ -792,6 +792,8 @@ export interface DispatchWorker {
   base_postcode: string | null;
   available_from: string | null;
   right_to_work_status: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface DispatchDeployment {
@@ -801,6 +803,8 @@ export interface DispatchDeployment {
   finish_date: string | null;
   site_name: string | null;
   site_postcode: string | null;
+  site_lat: number | null;
+  site_lng: number | null;
   request_title: string | null;
   workers_required: number | null;
   worker_ids: string[];
