@@ -64,6 +64,7 @@ const ADMIN_NAV = [
       { label: 'Workers', to: '/workforce/workers', icon: HardHat },
       { label: 'Gangs', to: '/workforce/gangs', icon: Users },
       { label: 'Requests', to: '/workforce/requests', icon: ClipboardList },
+      { label: 'Dispatch', to: '/workforce/dispatch', icon: LayoutGrid },
       { label: 'Deployments', to: '/workforce/deployments', icon: Truck },
       { label: 'Incidents', to: '/workforce/incidents', icon: ShieldCheck },
       { label: 'Forms', to: '/forms', icon: FileText },

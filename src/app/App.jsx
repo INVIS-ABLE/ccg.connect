@@ -64,6 +64,7 @@ import LabourRequestDetail from '@/features/commercial-workforce/labour-requests
 import Deployments from '@/features/commercial-workforce/deployments/Deployments';
 import DeploymentDetail from '@/features/commercial-workforce/deployments/DeploymentDetail';
 import DeploymentCheckIn from '@/features/commercial-workforce/deployments/DeploymentCheckIn';
+import DispatchBoard from '@/features/commercial-workforce/dispatch/DispatchBoard';
 import MyWork from '@/app/pages/MyWork';
 import Incidents from '@/features/commercial-workforce/incidents/Incidents';
 import CommercialDashboard from '@/app/pages/admin/CommercialDashboard';
@@ -215,6 +216,7 @@ export default function App() {
             <Route path="/workforce/gangs/:id" element={adminShell(<GangDetail />)} />
             <Route path="/workforce/requests" element={adminShell(<LabourRequests />)} />
             <Route path="/workforce/requests/:id" element={adminShell(<LabourRequestDetail />)} />
+            <Route path="/workforce/dispatch" element={adminShell(<DispatchBoard />)} />
             <Route path="/workforce/deployments" element={adminShell(<Deployments />)} />
             <Route path="/workforce/deployments/:id" element={adminShell(<DeploymentDetail />)} />
             <Route path="/workforce/incidents" element={adminShell(<Incidents />)} />

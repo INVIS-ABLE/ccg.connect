@@ -233,6 +233,32 @@ route.patch('/:id', async (c) => {
   return c.json({ deployment: updated[0] });
 });
 
+// ── Assign / unassign a worker on an existing deployment (dispatch) ───────────
+route.post('/:id/workers', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const dep = (await db.select({ id: deployments.id }).from(deployments).where(eq(deployments.id, id)).limit(1))[0];
+  if (!dep) return c.json({ error: 'not_found' }, 404);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const workerId = str(body.worker_id);
+  if (!workerId) return c.json({ error: 'worker_id_required' }, 400);
+  // Idempotent — the unique (deployment, worker) index prevents duplicates.
+  try {
+    await db.insert(deploymentWorkers).values({ deployment_id: id, worker_id: workerId });
+  } catch {
+    /* already assigned */
+  }
+  return c.json({ ok: true }, 201);
+});
+
+route.delete('/:id/workers/:workerId', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  await db.delete(deploymentWorkers).where(and(eq(deploymentWorkers.deployment_id, c.req.param('id')), eq(deploymentWorkers.worker_id, c.req.param('workerId'))));
+  return c.json({ ok: true });
+});
+
 // ── Attendance / roll-call ───────────────────────────────────────────────────
 route.get('/:id/attendance', async (c) => {
   if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
