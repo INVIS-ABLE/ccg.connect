@@ -31,6 +31,7 @@ import type {
   CommercialSite,
   Worker,
   WorkerCard,
+  WorkerDeployment,
   Gang,
   GangMember,
   LabourRequest,
@@ -448,6 +449,8 @@ export const api = {
     list: (contractorId?: string) =>
       request<{ workers: Worker[] }>(`/api/workers${contractorId ? `?contractor_id=${encodeURIComponent(contractorId)}` : ''}`),
     get: (id: string) => request<{ worker: Worker }>(`/api/workers/${encodeURIComponent(id)}`),
+    deployments: (id: string) =>
+      request<{ deployments: WorkerDeployment[] }>(`/api/workers/${encodeURIComponent(id)}/deployments`),
     create: (data: Partial<Worker> & { full_name: string }) =>
       request<{ worker: Worker }>('/api/workers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Worker>) =>

@@ -399,6 +399,17 @@ export interface WorkerCard {
   notes: string | null;
 }
 
+/** A worker's assignment on a deployment — powers the passport work-history view. */
+export interface WorkerDeployment {
+  id: string;
+  status: string;
+  start_date: string | null;
+  finish_date: string | null;
+  site_name: string | null;
+  site_postcode: string | null;
+  request_title: string | null;
+}
+
 export interface Gang {
   id: string;
   name: string;
