@@ -4,6 +4,8 @@ import { eq, inArray, desc } from 'drizzle-orm';
 import { gangs, gangMembers, workers, workerCards } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
+import { mergeRequirements, RTW_REQUIREMENT } from '../../src/domain/workforce/compliance';
+import { rankReplacementCandidates } from '../../src/domain/commercial/replacement';
 import type { AppEnv } from '../env';
 
 /**
@@ -61,6 +63,42 @@ route.get('/:id', async (c) => {
     };
   });
   return c.json({ gang, members: memberOut });
+});
+
+// Gang builder: rank active workers NOT already in the gang against a required
+// set of cards/quals (RTW always included), best-first. Each candidate is still
+// checked individually — grouping under a gang never substitutes for the checks.
+route.get('/:id/candidates', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const id = c.req.param('id');
+  const gang = (await db.select({ id: gangs.id }).from(gangs).where(eq(gangs.id, id)).limit(1))[0];
+  if (!gang) return c.json({ error: 'not_found' }, 404);
+
+  const parsed = (c.req.query('requirements') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const requirements = mergeRequirements([RTW_REQUIREMENT], parsed);
+
+  const memberIds = new Set(
+    (await db.select({ worker_id: gangMembers.worker_id }).from(gangMembers).where(eq(gangMembers.gang_id, id)).all()).map((m) => m.worker_id),
+  );
+  const active = (await db.select().from(workers).where(eq(workers.status, 'active')).all()).filter((w) => !memberIds.has(w.id));
+  const ids = active.map((w) => w.id);
+  const crows = ids.length ? await db.select().from(workerCards).where(inArray(workerCards.worker_id, ids)).all() : [];
+  const cardsByWorker = new Map<string, typeof crows>();
+  for (const cd of crows) {
+    const arr = cardsByWorker.get(cd.worker_id) ?? [];
+    arr.push(cd);
+    cardsByWorker.set(cd.worker_id, arr);
+  }
+  const inputs = active.map((w) => ({
+    id: w.id,
+    full_name: w.full_name,
+    right_to_work_status: w.right_to_work_status,
+    rtw_expiry: w.rtw_expiry,
+    cards: cardsByWorker.get(w.id) ?? [],
+  }));
+  const candidates = rankReplacementCandidates(inputs, requirements, new Date());
+  return c.json({ requirements, candidates });
 });
 
 route.post('/', async (c) => {

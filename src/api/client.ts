@@ -445,6 +445,8 @@ export const api = {
       request<{ member: GangMember }>(`/api/gangs/${encodeURIComponent(gangId)}/members`, { method: 'POST', body: JSON.stringify(data) }),
     removeMember: (gangId: string, memberId: string) =>
       request<{ ok: true }>(`/api/gangs/${encodeURIComponent(gangId)}/members/${encodeURIComponent(memberId)}`, { method: 'DELETE' }),
+    candidates: (gangId: string, requirements: string) =>
+      request<{ requirements: string[]; candidates: ReplacementCandidate[] }>(`/api/gangs/${encodeURIComponent(gangId)}/candidates?requirements=${encodeURIComponent(requirements)}`),
   },
   labourRequests: {
     list: (accountId?: string) =>
