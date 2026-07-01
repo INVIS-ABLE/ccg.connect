@@ -1487,6 +1487,9 @@ export const deploymentMaterials = sqliteTable(
     supplier_cost: real('supplier_cost'),   // unit cost to CCG
     client_charge: real('client_charge'),   // unit charge to the client
     chargeable: integer('chargeable', { mode: 'boolean' }).notNull().default(true),
+    // Set when the material has been rolled into a client invoice — prevents
+    // double-billing if invoice generation is re-run for the deployment.
+    invoiced_at: text('invoiced_at'),
     notes: text('notes'),
     created_by: text('created_by'),
     created_at: createdAt(),

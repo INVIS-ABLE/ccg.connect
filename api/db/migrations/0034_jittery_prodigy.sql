@@ -1,0 +1,1 @@
+ALTER TABLE `deployment_materials` ADD `invoiced_at` text;

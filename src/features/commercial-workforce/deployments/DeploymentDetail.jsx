@@ -51,7 +51,7 @@ export default function DeploymentDetail() {
       await api.commercialInvoices.generate(id);
       await load();
     } catch (err) {
-      setInvoiceMsg(err?.body?.error === 'no_locked_timesheets' ? 'No locked timesheets to invoice — approve and lock timesheets first.' : 'Could not generate invoice.');
+      setInvoiceMsg(err?.body?.error === 'nothing_to_invoice' ? 'Nothing to invoice yet — lock some timesheets or add chargeable materials first.' : 'Could not generate invoice.');
     } finally {
       setBusy(false);
     }
@@ -235,12 +235,16 @@ export default function DeploymentDetail() {
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="flex items-center gap-2 text-sm"><Receipt size={15} /> Client invoices</CardTitle>
           <Button size="sm" variant="outline" disabled={busy} onClick={generateInvoice} className="gap-1.5">
-            <FileText size={14} /> Generate from locked timesheets
+            <FileText size={14} /> Generate invoice
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
           {invoiceMsg && <p className="text-xs text-amber-700 dark:text-amber-400">{invoiceMsg}</p>}
-          {invoices.length === 0 && <p className="text-xs text-muted-foreground">No invoices yet. Lock timesheets, then generate.</p>}
+          {invoices.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No invoices yet. Assembles locked timesheets plus any chargeable materials not yet billed.
+            </p>
+          )}
           {invoices.map((inv) => (
             <div key={inv.id} className="flex items-center gap-3 rounded-md border p-2.5 text-sm">
               <div className="min-w-0 flex-1">

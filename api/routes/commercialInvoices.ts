@@ -1,11 +1,12 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, desc, and, inArray } from 'drizzle-orm';
-import { commercialInvoices, commercialTimesheets, deployments, workers } from '../db/schema';
+import { eq, desc, and, inArray, isNull } from 'drizzle-orm';
+import { commercialInvoices, commercialTimesheets, deployments, workers, deploymentMaterials } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import { computeTimesheetPay } from '../../src/domain/commercial/payEngine';
 import { buildCommercialInvoice } from '../../src/domain/commercial/invoice';
+import { billableQty, materialTotals } from '../../src/domain/commercial/materials';
 import type { AppEnv } from '../env';
 
 /**
@@ -45,14 +46,30 @@ route.post('/generate', async (c) => {
     .from(commercialTimesheets)
     .where(and(eq(commercialTimesheets.deployment_id, deploymentId), eq(commercialTimesheets.status, 'locked')))
     .all();
-  if (tss.length === 0) return c.json({ error: 'no_locked_timesheets' }, 400);
+
+  // Chargeable materials not already rolled into an invoice (completion invoice
+  // = approved labour + materials). Guarded by invoiced_at to avoid re-billing.
+  const mats = await db
+    .select()
+    .from(deploymentMaterials)
+    .where(and(
+      eq(deploymentMaterials.deployment_id, deploymentId),
+      eq(deploymentMaterials.chargeable, true),
+      isNull(deploymentMaterials.invoiced_at),
+    ))
+    .all();
+  const billableMats = mats.filter((m) => materialTotals(m).charge > 0);
+
+  if (tss.length === 0 && billableMats.length === 0) {
+    return c.json({ error: 'nothing_to_invoice' }, 400);
+  }
 
   // Worker names for line descriptions.
   const workerIds = [...new Set(tss.map((t) => t.worker_id))];
   const wrows = workerIds.length ? await db.select().from(workers).where(inArray(workers.id, workerIds)).all() : [];
   const nameById = new Map(wrows.map((w) => [w.id, w.full_name]));
 
-  const lines = tss.map((t) => {
+  const labourLines = tss.map((t) => {
     const { clientCharge, totalHours } = computeTimesheetPay({
       basicHours: t.basic_hours,
       overtimeHours: t.overtime_hours,
@@ -66,6 +83,12 @@ route.post('/generate', async (c) => {
     });
     return { description: `${nameById.get(t.worker_id) ?? 'Worker'} — w/c ${t.week_start} (${totalHours}h)`, amount: clientCharge };
   });
+  const materialLines = billableMats.map((m) => {
+    const qty = billableQty(m);
+    const unit = m.unit ? ` ${m.unit}` : '';
+    return { description: `${m.name} — ${qty}${unit} @ £${m.client_charge ?? 0}`, amount: materialTotals(m).charge };
+  });
+  const lines = [...labourLines, ...materialLines];
   const invoice = buildCommercialInvoice(lines, vatRate);
 
   const weeks = tss.map((t) => t.week_start).sort();
@@ -86,10 +109,18 @@ route.post('/generate', async (c) => {
     created_by: me.userId,
   }).returning();
 
-  // Mark the invoiced timesheets.
-  await db.update(commercialTimesheets)
-    .set({ status: 'invoiced', updated_at: new Date() })
-    .where(inArray(commercialTimesheets.id, tss.map((t) => t.id)));
+  // Mark the invoiced timesheets and materials so they aren't billed again.
+  if (tss.length > 0) {
+    await db.update(commercialTimesheets)
+      .set({ status: 'invoiced', updated_at: new Date() })
+      .where(inArray(commercialTimesheets.id, tss.map((t) => t.id)));
+  }
+  if (billableMats.length > 0) {
+    const stamp = new Date().toISOString();
+    await db.update(deploymentMaterials)
+      .set({ invoiced_at: stamp, updated_at: new Date() })
+      .where(inArray(deploymentMaterials.id, billableMats.map((m) => m.id)));
+  }
 
   return c.json({ invoice: inserted[0] }, 201);
 });
