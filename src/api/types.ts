@@ -285,6 +285,15 @@ export interface RateCard {
   status: 'active' | 'archived';
 }
 
+export interface SurchargeRule {
+  id: string;
+  account_id: string;
+  label: string;
+  kind: 'percent' | 'fixed';
+  value: number;
+  active: boolean;
+}
+
 export interface CorporateContact {
   id: string;
   account_id: string;

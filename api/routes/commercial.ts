@@ -8,10 +8,12 @@ import {
   commercialSites,
   corporateAccountUsers,
   rateCards,
+  surchargeRules,
   userProfiles,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
+import { isSurchargeKind } from '../../src/domain/commercial/pricing';
 import type { AppEnv } from '../env';
 
 /**
@@ -147,6 +149,46 @@ route.patch('/rate-cards/:id', async (c) => {
   const updated = await db.update(rateCards).set({ ...patch, updated_at: new Date() }).where(eq(rateCards.id, c.req.param('id'))).returning();
   if (!updated[0]) return c.json({ error: 'not_found' }, 404);
   return c.json({ rate_card: updated[0] });
+});
+
+// ── Surcharges (dynamic pricing) ─────────────────────────────────────────────
+route.get('/surcharges', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const accountId = c.req.query('account_id');
+  if (!accountId) return c.json({ error: 'account_id_required' }, 400);
+  const db = drizzle(c.env.DB);
+  const rows = await db.select().from(surchargeRules).where(eq(surchargeRules.account_id, accountId)).orderBy(desc(surchargeRules.created_at)).all();
+  return c.json({ surcharges: rows });
+});
+
+route.post('/surcharges', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const me = c.get('principal');
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const accountId = str(body.account_id);
+  const label = str(body.label);
+  if (!accountId || !label) return c.json({ error: 'account_id_and_label_required' }, 400);
+  const kind = isSurchargeKind(body.kind) ? body.kind : 'percent';
+  const db = drizzle(c.env.DB);
+  const inserted = await db.insert(surchargeRules).values({
+    account_id: accountId, label, kind, value: num(body.value) ?? 0, created_by: me.userId,
+  }).returning();
+  return c.json({ surcharge: inserted[0] }, 201);
+});
+
+route.patch('/surcharges/:id', async (c) => {
+  if (!adminOnly(c)) return c.json({ error: 'forbidden' }, 403);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const patch: Record<string, unknown> = {};
+  if ('label' in body) patch.label = str(body.label);
+  if (isSurchargeKind(body.kind)) patch.kind = body.kind;
+  if ('value' in body) patch.value = num(body.value) ?? 0;
+  if ('active' in body) patch.active = body.active !== false;
+  if (Object.keys(patch).length === 0) return c.json({ error: 'nothing_to_update' }, 400);
+  const db = drizzle(c.env.DB);
+  const updated = await db.update(surchargeRules).set({ ...patch, updated_at: new Date() }).where(eq(surchargeRules.id, c.req.param('id'))).returning();
+  if (!updated[0]) return c.json({ error: 'not_found' }, 404);
+  return c.json({ surcharge: updated[0] });
 });
 
 // ── Projects ─────────────────────────────────────────────────────────────────

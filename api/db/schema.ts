@@ -962,6 +962,25 @@ export const rateCards = sqliteTable(
   (t) => ({ byAccount: index('ix_ratecard_account').on(t.account_id) }),
 );
 
+// Dynamic-pricing surcharges per corporate account (night shift, weekend,
+// distance, urgency, short-notice, lodge, …). Applied on top of a base charge
+// rate to compute the effective rate. Internal (affects the client charge).
+export const surchargeRules = sqliteTable(
+  'surcharge_rules',
+  {
+    id: pk(),
+    account_id: text('account_id').notNull(),
+    label: text('label').notNull(),
+    kind: text('kind', { enum: ['percent', 'fixed'] }).notNull().default('percent'),
+    value: real('value').notNull().default(0),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byAccount: index('ix_surcharge_account').on(t.account_id) }),
+);
+
 export const commercialProjects = sqliteTable(
   'commercial_projects',
   {

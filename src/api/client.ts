@@ -18,6 +18,7 @@ import type {
   CorporateAccount,
   CorporateContact,
   RateCard,
+  SurchargeRule,
   CorporateAccountUser,
   PortalCommercial,
   WorkerPortal,
@@ -364,6 +365,14 @@ export const api = {
         request<{ rate_card: RateCard }>('/api/commercial/rate-cards', { method: 'POST', body: JSON.stringify(data) }),
       update: (id: string, data: Partial<RateCard>) =>
         request<{ rate_card: RateCard }>(`/api/commercial/rate-cards/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    },
+    surcharges: {
+      list: (accountId: string) =>
+        request<{ surcharges: SurchargeRule[] }>(`/api/commercial/surcharges?account_id=${encodeURIComponent(accountId)}`),
+      create: (data: { account_id: string; label: string; kind?: 'percent' | 'fixed'; value?: number }) =>
+        request<{ surcharge: SurchargeRule }>('/api/commercial/surcharges', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<SurchargeRule>) =>
+        request<{ surcharge: SurchargeRule }>(`/api/commercial/surcharges/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
     },
     projects: {
       list: (accountId?: string) =>
