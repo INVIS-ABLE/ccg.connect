@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, AlertTriangle, Truck, Plus, ChevronRight, Calculator } from 'lucide-react';
 import { nextStatuses, labourRequestStatusLabel } from '@/domain/commercial/labourRequestStatus';
 import { isEmploymentModel, employmentModelInfo } from '@/domain/commercial/employmentModels';
+import { isRequestType, requestTypeInfo } from '@/domain/commercial/requestTypes';
 import { buildUpRate } from '@/domain/commercial/rateBuildUp';
 
 function gbp(n) {
@@ -129,7 +130,9 @@ export default function LabourRequestDetail() {
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold">{req.title}</h1>
-          <p className="text-xs capitalize text-muted-foreground">{req.urgency} urgency</p>
+          <p className="text-xs capitalize text-muted-foreground">
+            {isRequestType(req.request_type) ? `${requestTypeInfo(req.request_type).label} · ` : ''}{req.urgency} urgency
+          </p>
         </div>
         <Badge variant="secondary">{labourRequestStatusLabel(req.status)}</Badge>
       </div>

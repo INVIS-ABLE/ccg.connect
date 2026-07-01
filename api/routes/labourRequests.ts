@@ -27,7 +27,7 @@ const num = (v: unknown): number | null => {
 };
 
 const TEXT_FIELDS = [
-  'project_id', 'site_id', 'title', 'work_package', 'trade', 'gang_composition',
+  'project_id', 'site_id', 'title', 'request_type', 'work_package', 'trade', 'gang_composition',
   'start_date', 'finish_date', 'shift_pattern', 'minimum_qualifications',
   'experience_required', 'employment_model', 'travel_lodge_allowance', 'po_number',
   'urgency', 'replacement_sla', 'notes',

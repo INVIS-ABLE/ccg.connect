@@ -8,12 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ClipboardList, Plus, ChevronRight } from 'lucide-react';
 import { listEmploymentModels } from '@/domain/commercial/employmentModels';
+import { listRequestTypes, requestTypeInfo, defaultUrgencyFor, isRequestType } from '@/domain/commercial/requestTypes';
 import { applySurcharges } from '@/domain/commercial/pricing';
 import { labourRequestStatusLabel } from '@/domain/commercial/labourRequestStatus';
 
 const MODELS = listEmploymentModels();
+const REQUEST_TYPES = listRequestTypes();
 const EMPTY = {
-  account_id: '', project_id: '', site_id: '', title: '', trade: '', number_required: '1',
+  account_id: '', project_id: '', site_id: '', title: '', request_type: '', urgency: '', trade: '', number_required: '1',
   employment_model: '', start_date: '', finish_date: '', shift_pattern: '',
   rate_offered: '', charge_rate: '', overtime_rate: '', po_number: '', minimum_qualifications: '',
 };
@@ -127,6 +129,24 @@ export default function LabourRequests() {
                   {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Request type</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  value={form.request_type}
+                  onChange={(e) => {
+                    const rt = e.target.value;
+                    // Pre-fill a sensible urgency for the type; the user can still override.
+                    set({ request_type: rt, urgency: rt ? defaultUrgencyFor(rt) : '' });
+                  }}
+                >
+                  <option value="">—</option>
+                  {REQUEST_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+                {form.request_type && (
+                  <p className="text-xs text-muted-foreground">{requestTypeInfo(form.request_type).summary}</p>
+                )}
+              </div>
               <div className="space-y-2 sm:col-span-2"><Label>Title</Label><Input required value={form.title} onChange={(e) => set({ title: e.target.value })} placeholder="e.g. Aylesford groundworks gang" /></div>
               <div className="space-y-2"><Label>Trade</Label><Input value={form.trade} onChange={(e) => set({ trade: e.target.value })} /></div>
               <div className="space-y-2"><Label>Number required</Label><Input type="number" min="1" value={form.number_required} onChange={(e) => set({ number_required: e.target.value })} /></div>
@@ -234,6 +254,9 @@ export default function LabourRequests() {
                     {r.start_date ? ` · from ${r.start_date}` : ''}
                   </p>
                 </div>
+                {isRequestType(r.request_type) && (
+                  <Badge variant="outline" className="hidden sm:inline-flex">{requestTypeInfo(r.request_type).label}</Badge>
+                )}
                 <Badge variant="secondary">{labourRequestStatusLabel(r.status)}</Badge>
                 <ChevronRight size={16} className="text-muted-foreground" />
               </CardContent>

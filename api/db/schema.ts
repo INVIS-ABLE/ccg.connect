@@ -1167,6 +1167,10 @@ export const labourRequests = sqliteTable(
     project_id: text('project_id'),
     site_id: text('site_id'),
     title: text('title').notNull(),
+    // What kind of request this is (drives intake emphasis + default urgency).
+    request_type: text('request_type', {
+      enum: ['client_enquiry', 'labour_request', 'gang_request', 'subcontract_package', 'site_visit', 'emergency_replacement'],
+    }),
     work_package: text('work_package'),
     trade: text('trade'),
     number_required: integer('number_required').notNull().default(1),
