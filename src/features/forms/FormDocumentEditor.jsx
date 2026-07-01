@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, Download, CheckCircle2, AlertTriangle, Archive } from 'lucide-react';
 import { RamsContentEditor } from './RamsContentEditor';
+import { FORM_TYPE_LABEL as TYPE_LABEL } from '@/domain/forms/rams';
 
-const TYPE_LABEL = { rams: 'RAMS', method_statement: 'Method Statement' };
 const STATUS_TONE = { draft: 'secondary', issued: 'default', archived: 'outline' };
 
 /** Edit a filled RAMS / Method Statement document, issue it (only when complete)

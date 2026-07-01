@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Plus, ShieldAlert, ChevronRight } from 'lucide-react';
+import { FORM_TYPE_LABEL, listFormTypes } from '@/domain/forms/rams';
 
-const TYPE_LABEL = { rams: 'RAMS', method_statement: 'Method Statement' };
+const TYPE_LABEL = FORM_TYPE_LABEL;
+const FORM_TYPE_OPTIONS = listFormTypes();
 
 /**
  * Forms hub — reusable RAMS & Method Statement templates. Ops author templates
@@ -67,8 +69,7 @@ export default function Forms() {
               value={newType}
               onChange={(e) => setNewType(e.target.value)}
             >
-              <option value="rams">RAMS</option>
-              <option value="method_statement">Method Statement</option>
+              {FORM_TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <Button type="submit" size="sm" disabled={busy || !newName.trim()} className="gap-1.5">
               <Plus size={14} /> Create
@@ -78,13 +79,15 @@ export default function Forms() {
       </Card>
 
       {/* Filter */}
-      <div className="flex gap-1 rounded-md border p-0.5 w-fit">
-        {['all', 'rams', 'method_statement'].map((f) => (
-          <Button key={f} size="sm" variant={filter === f ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setFilter(f)}>
-            {f === 'all' ? 'All' : TYPE_LABEL[f]}
-          </Button>
-        ))}
-      </div>
+      <select
+        className="h-9 w-fit rounded-md border border-input bg-background px-2 text-sm"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        aria-label="Filter templates by type"
+      >
+        <option value="all">All types</option>
+        {FORM_TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+      </select>
 
       {/* Templates */}
       <div className="space-y-2">

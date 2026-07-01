@@ -880,7 +880,10 @@ export interface WorkerPortal {
   pay: WorkerPayLine[];
 }
 
-export type FormType = 'rams' | 'method_statement';
+export type FormType =
+  | 'rams' | 'method_statement' | 'site_induction' | 'daily_diary' | 'toolbox_talk'
+  | 'quality_inspection' | 'handover' | 'snagging' | 'accident_report' | 'near_miss'
+  | 'plant_inspection' | 'vehicle_check' | 'completion_report';
 
 export interface RamsHazard {
   hazard: string;

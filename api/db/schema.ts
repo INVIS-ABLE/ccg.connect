@@ -1558,7 +1558,7 @@ export const formTemplates = sqliteTable(
   {
     id: pk(),
     name: text('name').notNull(),
-    form_type: text('form_type', { enum: ['rams', 'method_statement'] }).notNull().default('rams'),
+    form_type: text('form_type', { enum: ['rams', 'method_statement', 'site_induction', 'daily_diary', 'toolbox_talk', 'quality_inspection', 'handover', 'snagging', 'accident_report', 'near_miss', 'plant_inspection', 'vehicle_check', 'completion_report'] }).notNull().default('rams'),
     description: text('description'),
     content: text('content'),
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
@@ -1577,7 +1577,7 @@ export const formDocuments = sqliteTable(
     id: pk(),
     template_id: text('template_id'),
     deployment_id: text('deployment_id'),
-    form_type: text('form_type', { enum: ['rams', 'method_statement'] }).notNull().default('rams'),
+    form_type: text('form_type', { enum: ['rams', 'method_statement', 'site_induction', 'daily_diary', 'toolbox_talk', 'quality_inspection', 'handover', 'snagging', 'accident_report', 'near_miss', 'plant_inspection', 'vehicle_check', 'completion_report'] }).notNull().default('rams'),
     title: text('title').notNull(),
     reference: text('reference'),
     site_name: text('site_name'),
