@@ -124,6 +124,18 @@ documentation is updated; and Base44 compatibility is preserved.
 
 ---
 
+## Third-party licensing
+
+CCG Connect is **proprietary**. Never paste source from a copyleft (GPL/AGPL) or
+non-OSI-licensed project into this repo — recreate the behaviour in our own
+stack. Features modelled on external projects (e.g. the FSM dispatch blueprints)
+and every noteworthy dependency licence are tracked in
+[`docs/licence-register.md`](docs/licence-register.md); update it when you add a
+dependency with an unusual licence or build a feature inspired by another
+project. Copying third-party source requires legal review recorded there first.
+
+---
+
 ## Scoped rules
 
 ### Authentication & permissions (`src/lib`, `ProtectedRoute`, functions)
