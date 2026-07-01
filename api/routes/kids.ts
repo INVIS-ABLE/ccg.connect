@@ -5,6 +5,7 @@ import { kidDocuments, workers, deploymentWorkers } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import { defaultKid } from '../../src/domain/commercial/kid';
+import { notify } from '../lib/notify';
 import type { AppEnv } from '../env';
 
 /**
@@ -112,6 +113,22 @@ route.patch('/:id', async (c) => {
 
   if (Object.keys(patch).length === 0) return c.json({ error: 'nothing_to_update' }, 400);
   const updated = await db.update(kidDocuments).set({ ...patch, updated_at: new Date() }).where(eq(kidDocuments.id, id)).returning();
+
+  // When a KID becomes issued, ask the worker (if they have a login) to review it.
+  if (patch.status === 'issued') {
+    c.executionCtx.waitUntil((async () => {
+      const w = (await db.select({ user_id: workers.user_id }).from(workers).where(eq(workers.id, current.worker_id)).limit(1))[0];
+      if (w?.user_id) {
+        await notify(c.env, {
+          userId: w.user_id,
+          notification_type: 'kid_issued',
+          title: 'Key Information Document to review',
+          body: 'Please read your assignment terms and acknowledge them.',
+          deep_link: '/my-work',
+        });
+      }
+    })());
+  }
   return c.json({ kid: updated[0] });
 });
 

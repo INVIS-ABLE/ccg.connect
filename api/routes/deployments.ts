@@ -21,6 +21,7 @@ import { complianceMatrix, mergeRequirements, RTW_REQUIREMENT } from '../../src/
 import { isAttendanceStatus } from '../../src/domain/commercial/attendance';
 import { rankReplacementCandidates } from '../../src/domain/commercial/replacement';
 import { distanceMeters } from '../../src/domain/geo/geo';
+import { notify } from '../lib/notify';
 import type { AppEnv } from '../env';
 
 /**
@@ -198,6 +199,21 @@ route.post('/:id/confirm', async (c) => {
     conversation_id: conversationId,
     updated_at: now,
   }).where(eq(deployments.id, id)).returning();
+
+  // Notify each assigned worker who has a login — the bell in their portal.
+  c.executionCtx.waitUntil((async () => {
+    for (const d of dws) {
+      const w = workersById.get(d.worker_id);
+      if (!w?.user_id) continue;
+      await notify(c.env, {
+        userId: w.user_id,
+        notification_type: 'deployment_confirmed',
+        title: 'New assignment confirmed',
+        body: req?.title ? `You're booked on ${req.title}.` : 'You have a new site assignment.',
+        deep_link: `/checkin/deployment/${id}`,
+      });
+    }
+  })());
 
   return c.json({ deployment: updated[0], conversation_id: conversationId, snapshot });
 });
