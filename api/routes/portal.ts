@@ -13,12 +13,16 @@ import {
   workers,
   workerCards,
   kidDocuments,
+  commercialTimesheets,
 } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import { toPortalDeployment, toPortalInvoice, isClientVisibleInvoice } from '../../src/domain/commercial/portal';
 import { cardStatus } from '../../src/domain/workforce/cardStatus';
+import { computeTimesheetPay } from '../../src/domain/commercial/payEngine';
 import type { AppEnv } from '../env';
+
+const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
 /**
  * Client-facing commercial portal (read-only). A client sees ONLY the corporate
@@ -169,12 +173,53 @@ route.get('/worker', async (c) => {
     .filter((k) => k.status !== 'draft')
     .map((k) => ({ id: k.id, deployment_id: k.deployment_id, status: k.status, version: k.version }));
 
+  // Pay history — the worker's OWN pay only (never charge rate, margin or on-cost).
+  const tsRows = await db.select().from(commercialTimesheets).where(eq(commercialTimesheets.worker_id, w.id)).all();
+  const pay = tsRows
+    .map((ts) => {
+      const totals = computeTimesheetPay({
+        basicHours: ts.basic_hours,
+        overtimeHours: ts.overtime_hours,
+        payRate: ts.pay_rate ?? 0,
+        chargeRate: ts.charge_rate ?? 0,
+        oncostRate: ts.oncost_rate ?? 0,
+        overtimeMultiplier: ts.overtime_multiplier ?? undefined,
+        travel: ts.travel ?? 0,
+        lodge: ts.lodge ?? 0,
+        expenses: ts.expenses ?? 0,
+        deductions: ts.deductions ?? 0,
+      });
+      return { week_start: ts.week_start, basic_hours: ts.basic_hours, overtime_hours: ts.overtime_hours, pay: totals.workerPay, status: ts.status };
+    })
+    .sort((a, b) => (a.week_start < b.week_start ? 1 : -1))
+    .slice(0, 26);
+
   return c.json({
-    worker: { id: w.id, full_name: w.full_name, primary_trade: w.primary_trade, right_to_work_status: w.right_to_work_status, status: w.status },
+    worker: {
+      id: w.id, full_name: w.full_name, primary_trade: w.primary_trade, right_to_work_status: w.right_to_work_status, status: w.status,
+      available_from: w.available_from, availability_note: w.availability_note,
+    },
     assignments,
     credentials,
     kids,
+    pay,
   });
+});
+
+// PATCH /api/portal/worker/availability — a worker updates their own availability.
+route.patch('/worker/availability', async (c) => {
+  const p = c.get('principal');
+  const db = drizzle(c.env.DB);
+  const w = (await db.select({ id: workers.id }).from(workers).where(eq(workers.user_id, p.userId)).limit(1))[0];
+  if (!w) return c.json({ error: 'no_worker' }, 403);
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+  const patch: Record<string, unknown> = {};
+  if ('available_from' in body) patch.available_from = str(body.available_from);
+  if ('availability_note' in body) patch.availability_note = str(body.availability_note);
+  if (Object.keys(patch).length === 0) return c.json({ error: 'nothing_to_update' }, 400);
+  const updated = await db.update(workers).set({ ...patch, updated_at: new Date() }).where(eq(workers.id, w.id))
+    .returning({ available_from: workers.available_from, availability_note: workers.availability_note });
+  return c.json(updated[0]);
 });
 
 export default route;

@@ -1068,6 +1068,9 @@ export const workers = sqliteTable(
     contractor_id: text('contractor_id'),
     // App login, if the worker has one.
     user_id: text('user_id'),
+    // Availability — the worker can self-update these from their portal.
+    available_from: text('available_from'),
+    availability_note: text('availability_note'),
     status: text('status', { enum: ['active', 'inactive', 'archived'] }).notNull().default('active'),
     notes: text('notes'),
     created_at: createdAt(),

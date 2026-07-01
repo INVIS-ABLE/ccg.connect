@@ -392,6 +392,8 @@ export const api = {
     commercial: (accountId?: string) =>
       request<PortalCommercial>(`/api/portal/commercial${accountId ? `?account_id=${encodeURIComponent(accountId)}` : ''}`),
     worker: () => request<WorkerPortal>('/api/portal/worker'),
+    updateAvailability: (data: { available_from?: string | null; availability_note?: string | null }) =>
+      request<{ available_from: string | null; availability_note: string | null }>('/api/portal/worker/availability', { method: 'PATCH', body: JSON.stringify(data) }),
   },
   forms: {
     templates: {

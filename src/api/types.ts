@@ -754,11 +754,28 @@ export interface WorkerPortalKid {
   version: number;
 }
 
+export interface WorkerPayLine {
+  week_start: string;
+  basic_hours: number;
+  overtime_hours: number;
+  pay: number;
+  status: string;
+}
+
 export interface WorkerPortal {
-  worker: { id: string; full_name: string; primary_trade: string | null; right_to_work_status: string; status: string } | null;
+  worker: {
+    id: string;
+    full_name: string;
+    primary_trade: string | null;
+    right_to_work_status: string;
+    status: string;
+    available_from: string | null;
+    availability_note: string | null;
+  } | null;
   assignments: WorkerAssignment[];
   credentials: WorkerCredential[];
   kids: WorkerPortalKid[];
+  pay: WorkerPayLine[];
 }
 
 export type FormType = 'rams' | 'method_statement';
