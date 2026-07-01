@@ -1445,6 +1445,37 @@ export const kidDocuments = sqliteTable(
 // worker gives feedback on the site. `scores` is a JSON map of dimension → 1..5.
 // NOT an automated blacklist — low scores require an evidenced reason, the
 // register is restricted to ops, and records are appealable (status field).
+// Materials / plant / consumables used on a deployment. Tracks the quantity
+// lifecycle (planned → issued → used → returned/lost) and the money: supplier
+// cost vs client charge (chargeable only). Cost/charge/margin are internal.
+export const deploymentMaterials = sqliteTable(
+  'deployment_materials',
+  {
+    id: pk(),
+    deployment_id: text('deployment_id').notNull(),
+    name: text('name').notNull(),
+    category: text('category', {
+      enum: ['material', 'tool', 'plant', 'ppe', 'vehicle', 'hired_equipment', 'fuel', 'consumable', 'other'],
+    }).notNull().default('material'),
+    unit: text('unit'), // e.g. each, m, m2, tonne, day, litre
+    planned_qty: real('planned_qty'),
+    issued_qty: real('issued_qty'),
+    used_qty: real('used_qty'),
+    returned_qty: real('returned_qty'),
+    lost_qty: real('lost_qty'),
+    supplier: text('supplier'),
+    delivery_ref: text('delivery_ref'),
+    supplier_cost: real('supplier_cost'),   // unit cost to CCG
+    client_charge: real('client_charge'),   // unit charge to the client
+    chargeable: integer('chargeable', { mode: 'boolean' }).notNull().default(true),
+    notes: text('notes'),
+    created_by: text('created_by'),
+    created_at: createdAt(),
+    updated_at: updatedAt(),
+  },
+  (t) => ({ byDeployment: index('ix_material_deployment').on(t.deployment_id) }),
+);
+
 export const performanceReviews = sqliteTable(
   'performance_reviews',
   {
