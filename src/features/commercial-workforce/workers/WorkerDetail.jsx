@@ -1,12 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, IdCard, ShieldCheck, Star } from 'lucide-react';
+import { ArrowLeft, Plus, IdCard, ShieldCheck, Star, Wrench, MapPin, CalendarClock, Truck } from 'lucide-react';
 import { cardStatus } from '@/domain/workforce/cardStatus';
 
 const RTW_STATUSES = ['unchecked', 'checked', 'expired', 'restricted'];
@@ -29,12 +29,14 @@ export default function WorkerDetail() {
   const [card, setCard] = useState({ card_type: '', reference: '', issuer: '', expiry_date: '' });
   const [busy, setBusy] = useState(false);
   const [perf, setPerf] = useState(null);
+  const [deps, setDeps] = useState([]);
 
   const load = useCallback(async () => {
-    const [w, cs, perfSummary] = await Promise.all([
+    const [w, cs, perfSummary, dp] = await Promise.all([
       api.workers.get(id).catch(() => null),
       api.workers.cards.list(id).catch(() => ({ cards: [] })),
       api.performance.summary(id).catch(() => null),
+      api.workers.deployments(id).catch(() => ({ deployments: [] })),
     ]);
     if (w) {
       setWorker(w.worker);
@@ -48,6 +50,7 @@ export default function WorkerDetail() {
     }
     setCards(cs.cards ?? []);
     setPerf(perfSummary);
+    setDeps(dp.deployments ?? []);
   }, [id]);
   useEffect(() => {
     void load();
@@ -84,6 +87,45 @@ export default function WorkerDetail() {
 
   if (!worker) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
+  const LIVE_DEP = new Set(['proposed', 'confirmed', 'active']);
+  const currentDeps = deps.filter((d) => LIVE_DEP.has(d.status));
+  const pastDeps = deps.filter((d) => !LIVE_DEP.has(d.status));
+
+  // Passport facts — only rendered when set, so the card stays tidy.
+  const rate = (n, unit) => (n != null ? `£${n}/${unit}` : null);
+  const facts = [
+    ['Trade', worker.primary_trade],
+    ['Skills', worker.additional_skills],
+    ['Experience', worker.experience_years != null ? `${worker.experience_years} yr` : null],
+    ['Plant tickets', worker.plant_tickets],
+    ['Driving licence', worker.driving_licence],
+    ['Travel radius', worker.preferred_travel_miles != null ? `${worker.preferred_travel_miles} mi` : null],
+    ['Day rate', rate(worker.day_rate, 'day')],
+    ['Hourly rate', rate(worker.hourly_rate, 'hr')],
+    ['Available from', worker.available_from],
+    ['Availability', worker.availability_note],
+    ['Email', worker.email],
+    ['Address', worker.home_address],
+  ].filter(([, v]) => v != null && v !== '');
+
+  const DepRow = ({ d }) => (
+    <Link
+      to={`/workforce/deployments/${d.id}`}
+      className="flex items-center gap-2 rounded-md border px-2.5 py-2 text-sm hover:bg-muted"
+    >
+      <MapPin size={13} className="shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate">{d.site_name ?? d.request_title ?? 'Deployment'}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          {d.start_date ?? 'date TBC'}
+          {d.finish_date ? ` – ${d.finish_date}` : ''}
+          {d.site_postcode ? ` · ${d.site_postcode}` : ''}
+        </p>
+      </div>
+      <Badge variant="secondary" className="shrink-0 capitalize">{d.status}</Badge>
+    </Link>
+  );
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
@@ -107,6 +149,25 @@ export default function WorkerDetail() {
         )}
         <Badge variant="secondary" className="capitalize">{worker.status}</Badge>
       </div>
+
+      {/* Passport: profile, skills, availability & rates */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-1.5 text-sm"><Wrench size={14} /> Profile, skills &amp; rates</CardTitle></CardHeader>
+        <CardContent>
+          {facts.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No profile details recorded yet.</p>
+          ) : (
+            <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+              {facts.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 border-b border-dashed border-muted pb-1.5 text-sm">
+                  <dt className="text-muted-foreground">{k}</dt>
+                  <dd className="min-w-0 truncate text-right font-medium">{v}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Right to work + payment model */}
       <Card>
@@ -166,6 +227,27 @@ export default function WorkerDetail() {
             <Input type="date" value={card.expiry_date} onChange={(e) => setCard({ ...card, expiry_date: e.target.value })} />
             <div className="sm:col-span-4"><Button type="submit" size="sm" disabled={busy} className="gap-1.5"><Plus size={14} /> Add card</Button></div>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Deployments: current assignments + work history */}
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-1.5 text-sm"><Truck size={14} /> Deployments</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><CalendarClock size={13} /> Current ({currentDeps.length})</p>
+            {currentDeps.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No current assignments.</p>
+            ) : (
+              currentDeps.map((d) => <DepRow key={d.id} d={d} />)
+            )}
+          </div>
+          {pastDeps.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Work history ({pastDeps.length})</p>
+              {pastDeps.map((d) => <DepRow key={d.id} d={d} />)}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

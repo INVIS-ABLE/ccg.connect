@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { drizzle } from 'drizzle-orm/d1';
-import { eq, desc } from 'drizzle-orm';
-import { workers, workerCards } from '../db/schema';
+import { eq, desc, inArray } from 'drizzle-orm';
+import { workers, workerCards, deployments, deploymentWorkers, labourRequests, commercialSites } from '../db/schema';
 import { requireAuth } from '../lib/session';
 import { isAdmin } from '../../src/domain/permissions/permissions';
 import type { AppEnv } from '../env';
@@ -110,6 +110,46 @@ route.patch('/:id/cards/:cardId', async (c) => {
   const updated = await db.update(workerCards).set({ ...patch, updated_at: new Date() }).where(eq(workerCards.id, c.req.param('cardId'))).returning();
   if (!updated[0]) return c.json({ error: 'not_found' }, 404);
   return c.json({ card: updated[0] });
+});
+
+// ── Deployment history (worker passport: current assignments + past work) ────
+route.get('/:id/deployments', async (c) => {
+  if (!admin(c)) return c.json({ error: 'forbidden' }, 403);
+  const db = drizzle(c.env.DB);
+  const workerId = c.req.param('id');
+
+  const links = await db.select({ deployment_id: deploymentWorkers.deployment_id }).from(deploymentWorkers).where(eq(deploymentWorkers.worker_id, workerId)).all();
+  const depIds = [...new Set(links.map((l) => l.deployment_id))];
+  if (depIds.length === 0) return c.json({ deployments: [] });
+
+  const deps = await db.select().from(deployments).where(inArray(deployments.id, depIds)).all();
+
+  const reqIds = [...new Set(deps.map((d) => d.labour_request_id).filter((x): x is string => Boolean(x)))];
+  const reqs = reqIds.length ? await db.select({ id: labourRequests.id, title: labourRequests.title }).from(labourRequests).where(inArray(labourRequests.id, reqIds)).all() : [];
+  const reqById = new Map(reqs.map((r) => [r.id, r]));
+
+  const siteIds = [...new Set(deps.map((d) => d.site_id).filter((x): x is string => Boolean(x)))];
+  const sites = siteIds.length ? await db.select({ id: commercialSites.id, name: commercialSites.name, postcode: commercialSites.postcode }).from(commercialSites).where(inArray(commercialSites.id, siteIds)).all() : [];
+  const siteById = new Map(sites.map((s) => [s.id, s]));
+
+  const rows = deps
+    .map((d) => {
+      const site = d.site_id ? siteById.get(d.site_id) : null;
+      const req = d.labour_request_id ? reqById.get(d.labour_request_id) : null;
+      return {
+        id: d.id,
+        status: d.status,
+        start_date: d.start_date,
+        finish_date: d.finish_date,
+        site_name: site?.name ?? null,
+        site_postcode: site?.postcode ?? null,
+        request_title: req?.title ?? null,
+      };
+    })
+    // Most recent first — undated rows sort last.
+    .sort((a, b) => (b.start_date ?? '0000').localeCompare(a.start_date ?? '0000'));
+
+  return c.json({ deployments: rows });
 });
 
 export default route;
