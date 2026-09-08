@@ -18,8 +18,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.35",
-    "@base44/vite-plugin": "^1.0.24",
+    "@base44/sdk": "^0.8.48",
+    "@base44/vite-plugin": "^1.0.35",
     "@fullcalendar/daygrid": "^6.1.21",
     "@fullcalendar/interaction": "^6.1.21",
     "@fullcalendar/react": "^6.1.21",
